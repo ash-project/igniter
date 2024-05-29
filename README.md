@@ -1,23 +1,10 @@
-# Igniter
+![Logo](https://github.com/ash-project/igniter/blob/main/logos/igniter-logo.png?raw=true#gh-light-mode-only)
+![Logo](https://github.com/ash-project/igniter/blob/main/logos/igniter-logo.png?raw=true#gh-dark-mode-only)
 
-**TODO: Add description**
-
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `igniter` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:igniter, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/igniter>.
+![Elixir CI](https://github.com/ash-project/igniter/workflows/Ash%20CI/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Hex version badge](https://img.shields.io/hexpm/v/igniter.svg)](https://hex.pm/packages/igniterh)
+[![Hexdocs badge](https://img.shields.io/badge/docs-hexdocs-purple)](https://hexdocs.pm/igniter)
 
 # TODO list:
 
