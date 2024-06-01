@@ -28,7 +28,7 @@ defmodule Igniter.Install do
 
     igniter =
       Enum.reduce(install_list, igniter, fn install, igniter ->
-        if Mix.Project.config()[:deps][install][:path] do
+        if local_dep?(install) do
           Mix.shell().info(
             "Not looking up dependency for #{install}, because a local dependency is detected"
           )
@@ -160,5 +160,10 @@ defmodule Igniter.Install do
     install
     |> String.split(",")
     |> Enum.map(&String.to_atom/1)
+  end
+
+  defp local_dep?(install) do
+    config = Mix.Project.config()[:deps][install]
+    Keyword.keyword?(config) && config[:path]
   end
 end
