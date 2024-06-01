@@ -1,6 +1,6 @@
 defmodule Igniter.Common do
-  @doc """
-  Common utilities for working with igniter, primarily with zippers.
+  @moduledoc """
+  Common utilities for working with igniter, primarily with `Sourceror.Zipper`.
   """
   alias Sourceror.Zipper
 
@@ -96,7 +96,7 @@ defmodule Igniter.Common do
   defp do_put_in_keyword(zipper, [key | rest], value, updater) do
     if node_matches_pattern?(zipper, value when is_list(value)) do
       case move_to_list_item(zipper, fn item ->
-             if is_tuple?(item) do
+             if tuple?(item) do
                first_elem = tuple_elem(item, 0)
                first_elem && node_matches_pattern?(first_elem, ^key)
              end
@@ -127,7 +127,7 @@ defmodule Igniter.Common do
   def set_keyword_key(zipper, key, value, updater) do
     if node_matches_pattern?(zipper, value when is_list(value)) do
       case move_to_list_item(zipper, fn item ->
-             if is_tuple?(item) do
+             if tuple?(item) do
                first_elem = tuple_elem(item, 0)
                first_elem && node_matches_pattern?(first_elem, ^key)
              end
@@ -176,7 +176,7 @@ defmodule Igniter.Common do
         zipper
         |> Zipper.down()
         |> move_to_list_item(fn item ->
-          if is_tuple?(item) do
+          if tuple?(item) do
             first_elem = tuple_elem(item, 0)
             first_elem && node_matches_pattern?(first_elem, ^key)
           end
@@ -222,7 +222,7 @@ defmodule Igniter.Common do
         zipper
         |> Zipper.down()
         |> move_to_list_item(fn item ->
-          if is_tuple?(item) do
+          if tuple?(item) do
             first_elem = tuple_elem(item, 0)
             first_elem && node_matches_pattern?(first_elem, ^key)
           end
@@ -284,11 +284,11 @@ defmodule Igniter.Common do
     zipper
     |> maybe_move_to_block()
     |> move_right(fn zipper ->
-      is_function_call(zipper, name, arity) && predicate.(zipper)
+      function_call?(zipper, name, arity) && predicate.(zipper)
     end)
   end
 
-  def is_function_call(zipper, name, arity) do
+  def function_call?(zipper, name, arity) do
     zipper
     |> maybe_move_to_block()
     |> Zipper.subtree()
@@ -312,7 +312,7 @@ defmodule Igniter.Common do
   end
 
   def update_nth_argument(zipper, index, func) do
-    if is_pipeline?(zipper) do
+    if pipeline?(zipper) do
       if index == 0 do
         zipper
         |> Zipper.down()
@@ -373,7 +373,7 @@ defmodule Igniter.Common do
   end
 
   def argument_matches_predicate?(zipper, index, func) do
-    if is_pipeline?(zipper) do
+    if pipeline?(zipper) do
       if index == 0 do
         zipper
         |> Zipper.down()
@@ -438,7 +438,7 @@ defmodule Igniter.Common do
     end
   end
 
-  def is_pipeline?(zipper) do
+  def pipeline?(zipper) do
     zipper
     |> Zipper.subtree()
     |> Zipper.root()
@@ -448,6 +448,7 @@ defmodule Igniter.Common do
     end
   end
 
+  # sobelow_skip ["DOS.StringToAtom"]
   def move_to_module_using(zipper, module) do
     split_module =
       module
@@ -660,7 +661,7 @@ defmodule Igniter.Common do
     end
   end
 
-  def is_tuple?(item) do
+  def tuple?(item) do
     item
     |> Zipper.subtree()
     |> Zipper.root()

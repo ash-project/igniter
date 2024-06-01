@@ -1,4 +1,5 @@
 defmodule Igniter.Formatter do
+  @moduledoc "Codemods and utilities for interacting with `.formatter.exs` files"
   alias Igniter.Common
   alias Sourceror.Zipper
 

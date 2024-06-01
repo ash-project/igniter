@@ -1,4 +1,5 @@
 defmodule Igniter.Config do
+  @moduledoc "Codemods and utilities for configuring Elixir applications."
   require Igniter.Common
   alias Igniter.Common
   alias Sourceror.Zipper

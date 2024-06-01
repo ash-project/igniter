@@ -1,23 +1,21 @@
 defmodule Igniter.Install do
+  @moduledoc false
   @option_schema [
     switches: [
-      no_network: :boolean,
       example: :boolean,
-      dry_run: :boolean
+      dry_run: :boolean,
+      yes: :boolean
     ],
     aliases: [
       d: :dry_run,
-      n: :no_network,
-      e: :example
+      e: :example,
+      y: :yes
     ]
   ]
 
   # only supports hex installation at the moment
   def install(install, argv) do
-    install_list =
-      install
-      |> String.split(",")
-      |> Enum.map(&String.to_atom/1)
+    install_list = install_list(install)
 
     Application.ensure_all_started(:req)
 
@@ -69,7 +67,7 @@ defmodule Igniter.Install do
       end
 
     dependency_add_result =
-      Igniter.Tasks.do_or_dry_run(igniter, argv,
+      Igniter.do_or_dry_run(igniter, argv,
         title: "Fetching Dependency",
         quiet_on_no_changes?: true,
         confirmation_message: confirmation_message
@@ -89,7 +87,7 @@ defmodule Igniter.Install do
         """)
 
       if install_dep_now? do
-        Igniter.Tasks.do_or_dry_run(igniter, (argv ++ ["--yes"]) -- ["--dry-run"],
+        Igniter.do_or_dry_run(igniter, (argv ++ ["--yes"]) -- ["--dry-run"],
           title: "Fetching Dependency",
           quiet_on_no_changes?: true
         )
@@ -110,7 +108,7 @@ defmodule Igniter.Install do
     end
 
     all_tasks =
-      Enum.filter(Mix.Task.load_all(), &Spark.implements_behaviour?(&1, Igniter.Mix.Task))
+      Enum.filter(Mix.Task.load_all(), &implements_behaviour?(&1, Igniter.Mix.Task))
 
     install_list
     |> Enum.flat_map(fn install ->
@@ -123,8 +121,44 @@ defmodule Igniter.Install do
     |> Enum.reduce(Igniter.new(), fn task, igniter ->
       Igniter.compose_task(igniter, task, argv)
     end)
-    |> Igniter.Tasks.do_or_dry_run(argv)
+    |> Igniter.do_or_dry_run(argv)
 
     :ok
+  end
+
+  defp implements_behaviour?(module, behaviour) do
+    :attributes
+    |> module.module_info()
+    |> Enum.any?(fn
+      {:behaviour, ^behaviour} ->
+        true
+
+      # optimizations, probably extremely minor but this is in a tight loop in some places
+      {:behaviour, [^behaviour | _]} ->
+        true
+
+      {:behaviour, [_, ^behaviour | _]} ->
+        true
+
+      {:behaviour, [_, _, ^behaviour | _]} ->
+        true
+
+      # never seen a module with three behaviours in real life, let alone four.
+      {:behaviour, behaviours} when is_list(behaviours) ->
+        module in behaviours
+
+      _ ->
+        false
+    end)
+  rescue
+    _ ->
+      false
+  end
+
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp install_list(install) do
+    install
+    |> String.split(",")
+    |> Enum.map(&String.to_atom/1)
   end
 end

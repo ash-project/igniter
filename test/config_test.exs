@@ -123,3 +123,22 @@ defmodule Igniter.ConfigTest do
     end
   end
 end
+
+defmodule Mix.Tasks.LiveViewNative.Install do
+  use Igniter.Mix.Task
+
+  def igniter(igniter, argv) do
+    Igniter.new()
+    |> Igniter.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]}, fn zipper ->
+      Igniter.Common.set_map_key(zipper, "b", ["c", "d"], fn zipper ->
+        zipper
+        |> Igniter.Common.prepend_new_to_list(zipper, "c")
+        |> Igniter.Common.prepend_new_to_list(zipper, "d")
+      end)
+      |> case do
+        {:ok, new_zipper} -> new_zipper
+        _ -> zipper
+      end
+    end)
+  end
+end

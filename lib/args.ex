@@ -1,4 +1,5 @@
 defmodule Igniter.Args do
+  @moduledoc "Tools for validating and parsing command line arguments to tasks."
   def validate_nth_present_and_underscored(igniter, argv, n, option, message) do
     value = Enum.at(argv, n)
 

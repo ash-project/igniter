@@ -9,6 +9,7 @@ defmodule Igniter.MixProject do
       version: @version,
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       docs: docs(),
       deps: deps()
     ]
@@ -52,7 +53,6 @@ defmodule Igniter.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:spark, "~> 2.0"},
       {:rewrite, "~> 0.9"},
       {:req, "~> 0.4"},
       # Dev/Test dependencies
@@ -68,6 +68,13 @@ defmodule Igniter.MixProject do
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
       {:doctor, "~> 0.21", only: [:dev, :test]}
+    ]
+  end
+
+  defp aliases do
+    [
+      sobelow: "sobelow --skip",
+      credo: "credo --strict"
     ]
   end
 end
