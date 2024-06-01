@@ -1,4 +1,7 @@
 defmodule Igniter.Common do
+  @doc """
+  Common utilities for working with igniter, primarily with zippers.
+  """
   alias Sourceror.Zipper
 
   def find(zipper, direction \\ :next, pred) do
@@ -16,7 +19,7 @@ defmodule Igniter.Common do
     quote do
       ast =
         unquote(zipper)
-        |> Igniter.Common.maybe_enter_block()
+        |> Igniter.Common.maybe_move_to_block()
         |> Zipper.subtree()
         |> Zipper.root()
 
@@ -24,15 +27,18 @@ defmodule Igniter.Common do
     end
   end
 
-  defmacro find_pattern(zipper, direction \\ :next, pattern) do
+  defmacro move_to_pattern(zipper, direction \\ :next, pattern) do
     quote do
-      Sourceror.Zipper.find(unquote(zipper), unquote(direction), fn
-        unquote(pattern) ->
-          true
+      case Sourceror.Zipper.find(unquote(zipper), unquote(direction), fn
+             unquote(pattern) ->
+               true
 
-        _ ->
-          false
-      end)
+             _ ->
+               false
+           end) do
+        nil -> :error
+        value -> {:ok, value}
+      end
     end
   end
 
@@ -56,16 +62,21 @@ defmodule Igniter.Common do
     zipper
   end
 
+  def add_code(zipper, new_code) when is_binary(new_code) do
+    code = Sourceror.parse_string!(new_code)
+
+    add_code(zipper, code)
+  end
+
   def add_code(zipper, new_code) do
     current_code =
       zipper
       |> Zipper.subtree()
       |> Zipper.root()
-      |> IO.inspect()
 
     case current_code do
-      {:__block__, block_meta, stuff} ->
-        Zipper.replace(zipper, {:__block__, block_meta, stuff ++ [new_code]})
+      {:__block__, _, stuff} ->
+        Zipper.replace(zipper, {:__block__, [], stuff ++ [new_code]})
 
       code ->
         Zipper.replace(zipper, {:__block__, [], [code, new_code]})
@@ -84,26 +95,27 @@ defmodule Igniter.Common do
 
   defp do_put_in_keyword(zipper, [key | rest], value, updater) do
     if node_matches_pattern?(zipper, value when is_list(value)) do
-      case find_list_item(zipper, fn item ->
+      case move_to_list_item(zipper, fn item ->
              if is_tuple?(item) do
                first_elem = tuple_elem(item, 0)
                first_elem && node_matches_pattern?(first_elem, ^key)
              end
            end) do
-        nil ->
+        :error ->
           value = keywordify(rest, value)
 
-          prepend_to_list(
-            zipper,
-            {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
-          )
+          {:ok,
+           prepend_to_list(
+             zipper,
+             {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
+           )}
 
-        zipper ->
+        {:ok, zipper} ->
           zipper
           |> tuple_elem(1)
           |> case do
             nil ->
-              nil
+              :error
 
             zipper ->
               do_put_in_keyword(zipper, rest, value, updater)
@@ -114,46 +126,171 @@ defmodule Igniter.Common do
 
   def set_keyword_key(zipper, key, value, updater) do
     if node_matches_pattern?(zipper, value when is_list(value)) do
-      case find_list_item(zipper, fn item ->
+      case move_to_list_item(zipper, fn item ->
              if is_tuple?(item) do
                first_elem = tuple_elem(item, 0)
                first_elem && node_matches_pattern?(first_elem, ^key)
              end
            end) do
-        nil ->
-          prepend_to_list(
-            zipper,
-            {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
-          )
+        :error ->
+          {:ok,
+           prepend_to_list(
+             zipper,
+             {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
+           )}
 
-        zipper ->
+        {:ok, zipper} ->
           zipper
           |> tuple_elem(1)
           |> case do
             nil ->
-              nil
+              :error
 
             zipper ->
-              updater.(zipper)
+              {:ok, updater.(zipper)}
           end
       end
     end
   end
 
-  def find_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end) do
-    case Zipper.down(zipper) do
-      nil ->
-        nil
+  def put_in_map(zipper, path, value, updater \\ nil) do
+    updater = updater || fn _ -> value end
 
-      zipper ->
-        find_right(zipper, fn zipper ->
-          is_function_call(zipper, name, arity) && predicate.(zipper)
+    do_put_in_map(zipper, path, value, updater)
+  end
+
+  defp do_put_in_map(zipper, [key], value, updater) do
+    set_map_key(zipper, key, value, updater)
+  end
+
+  defp do_put_in_map(zipper, [key | rest], value, updater) do
+    cond do
+      node_matches_pattern?(zipper, {:%{}, _, []}) ->
+        {:ok,
+         Zipper.append_child(
+           zipper,
+           mappify([key | rest], value)
+         )}
+
+      node_matches_pattern?(zipper, {:%{}, _, _}) ->
+        zipper
+        |> Zipper.down()
+        |> move_to_list_item(fn item ->
+          if is_tuple?(item) do
+            first_elem = tuple_elem(item, 0)
+            first_elem && node_matches_pattern?(first_elem, ^key)
+          end
         end)
+        |> case do
+          :error ->
+            format = map_keys_format(zipper)
+            value = mappify(rest, value)
+
+            {:ok,
+             prepend_to_list(
+               zipper,
+               {{:__block__, [format: format], [key]}, {:__block__, [], [value]}}
+             )}
+
+          {:ok, zipper} ->
+            zipper
+            |> tuple_elem(1)
+            |> case do
+              nil ->
+                :error
+
+              zipper ->
+                do_put_in_map(zipper, rest, value, updater)
+            end
+        end
+
+      true ->
+        :error
     end
+  end
+
+  def set_map_key(zipper, key, value, updater) do
+    cond do
+      node_matches_pattern?(zipper, {:%{}, _, []}) ->
+        {:ok,
+         Zipper.append_child(
+           zipper,
+           mappify([key], value)
+         )}
+
+      node_matches_pattern?(zipper, {:%{}, _, _}) ->
+        zipper
+        |> Zipper.down()
+        |> move_to_list_item(fn item ->
+          if is_tuple?(item) do
+            first_elem = tuple_elem(item, 0)
+            first_elem && node_matches_pattern?(first_elem, ^key)
+          end
+        end)
+        |> case do
+          :error ->
+            format = map_keys_format(zipper)
+
+            {:ok,
+             prepend_to_list(
+               zipper,
+               {{:__block__, [format: format], [key]}, {:__block__, [], [value]}}
+             )}
+
+          {:ok, zipper} ->
+            zipper
+            |> tuple_elem(1)
+            |> case do
+              nil ->
+                :error
+
+              zipper ->
+                {:ok, updater.(zipper)}
+            end
+        end
+
+      true ->
+        :error
+    end
+  end
+
+  defp map_keys_format(zipper) do
+    zipper
+    |> Zipper.subtree()
+    |> Zipper.node()
+    |> case do
+      value when is_list(value) ->
+        Enum.all?(value, fn
+          {:__block__, meta, _} ->
+            meta[:format] == :keyword
+
+          _ ->
+            false
+        end)
+        |> case do
+          true ->
+            :keyword
+
+          false ->
+            :map
+        end
+
+      _ ->
+        :map
+    end
+  end
+
+  def move_to_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end) do
+    zipper
+    |> maybe_move_to_block()
+    |> move_right(fn zipper ->
+      is_function_call(zipper, name, arity) && predicate.(zipper)
+    end)
   end
 
   def is_function_call(zipper, name, arity) do
     zipper
+    |> maybe_move_to_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -181,7 +318,7 @@ defmodule Igniter.Common do
         |> Zipper.down()
         |> case do
           nil ->
-            nil
+            :error
 
           zipper ->
             func.(zipper)
@@ -191,7 +328,7 @@ defmodule Igniter.Common do
         |> Zipper.down()
         |> case do
           nil ->
-            nil
+            :error
 
           zipper ->
             zipper
@@ -199,17 +336,17 @@ defmodule Igniter.Common do
             |> Zipper.down()
             |> case do
               nil ->
-                nil
+                :error
 
               zipper ->
                 zipper
                 |> nth_right(index)
                 |> case do
-                  nil ->
+                  :error ->
                     nil
 
-                  nth ->
-                    func.(nth)
+                  {:ok, nth} ->
+                    {:ok, func.(nth)}
                 end
             end
         end
@@ -225,11 +362,11 @@ defmodule Igniter.Common do
           zipper
           |> nth_right(index)
           |> case do
-            nil ->
-              nil
+            :error ->
+              :error
 
-            nth ->
-              func.(nth)
+            {:ok, nth} ->
+              {:ok, func.(nth)}
           end
       end
     end
@@ -262,10 +399,17 @@ defmodule Igniter.Common do
               zipper ->
                 zipper
                 |> nth_right(index - 1)
-                |> maybe_enter_block()
-                |> Zipper.subtree()
-                |> Zipper.root()
-                |> func.()
+                |> case do
+                  :error ->
+                    false
+
+                  {:ok, zipper} ->
+                    zipper
+                    |> maybe_move_to_block()
+                    |> Zipper.subtree()
+                    |> Zipper.root()
+                    |> func.()
+                end
             end
         end
       end
@@ -279,10 +423,17 @@ defmodule Igniter.Common do
         zipper ->
           zipper
           |> nth_right(index)
-          |> maybe_enter_block()
-          |> Zipper.subtree()
-          |> Zipper.root()
-          |> func.()
+          |> case do
+            :error ->
+              false
+
+            {:ok, zipper} ->
+              zipper
+              |> maybe_move_to_block()
+              |> Zipper.subtree()
+              |> Zipper.root()
+              |> func.()
+          end
       end
     end
   end
@@ -303,7 +454,7 @@ defmodule Igniter.Common do
       |> Module.split()
       |> Enum.map(&String.to_atom/1)
 
-    with zipper when not is_nil(zipper) <- find_pattern(zipper, {:defmodule, _, [_, _]}),
+    with {:ok, zipper} <- move_to_pattern(zipper, {:defmodule, _, [_, _]}),
          subtree <- Zipper.subtree(zipper),
          subtree <- subtree |> Zipper.down() |> Zipper.rightmost(),
          subtree <- remove_module_definitions(subtree),
@@ -347,42 +498,42 @@ defmodule Igniter.Common do
   defp do_equal_modules?(_, _), do: false
 
   def move_to_defp(zipper, fun, arity) do
-    case find_pattern(zipper, {:defp, _, [{^fun, _, args}, _]} when length(args) == arity) do
-      nil ->
+    case move_to_pattern(zipper, {:defp, _, [{^fun, _, args}, _]} when length(args) == arity) do
+      :error ->
         if arity == 0 do
-          case find_pattern(zipper, {:defp, _, [{^fun, _, context}, _]} when is_atom(context)) do
-            nil ->
+          case move_to_pattern(zipper, {:defp, _, [{^fun, _, context}, _]} when is_atom(context)) do
+            :error ->
               :error
 
-            zipper ->
+            {:ok, zipper} ->
               move_to_do_block(zipper)
           end
         else
           :error
         end
 
-      zipper ->
+      {:ok, zipper} ->
         move_to_do_block(zipper)
     end
   end
 
   def move_to_do_block(zipper) do
-    case find_pattern(zipper, {{:__block__, _, [:do]}, _}) do
-      nil ->
+    case move_to_pattern(zipper, {{:__block__, _, [:do]}, _}) do
+      :error ->
         :error
 
-      zipper ->
+      {:ok, zipper} ->
         {:ok,
          zipper
          |> Zipper.down()
          |> Zipper.rightmost()
-         |> maybe_enter_block()}
+         |> maybe_move_to_block()}
     end
   end
 
-  def maybe_enter_block(nil), do: nil
+  def maybe_move_to_block(nil), do: nil
 
-  def maybe_enter_block(zipper) do
+  def maybe_move_to_block(zipper) do
     zipper
     |> Zipper.subtree()
     |> Zipper.root()
@@ -396,7 +547,7 @@ defmodule Igniter.Common do
   end
 
   def remove_module_definitions(zipper) do
-    Sourceror.Zipper.traverse(zipper, fn
+    Zipper.traverse(zipper, fn
       {:defmodule, _, _} ->
         nil
 
@@ -411,9 +562,9 @@ defmodule Igniter.Common do
       equality_pred.(value, quoted)
     end)
     |> case do
-      nil ->
+      :error ->
         zipper
-        |> maybe_enter_block()
+        |> maybe_move_to_block()
         |> Zipper.insert_child(quoted)
 
       _ ->
@@ -430,13 +581,13 @@ defmodule Igniter.Common do
 
   def prepend_to_list(zipper, quoted) do
     zipper
-    |> maybe_enter_block()
+    |> maybe_move_to_block()
     |> Zipper.insert_child(quoted)
   end
 
   def remove_index(zipper, index) do
     zipper
-    |> maybe_enter_block()
+    |> maybe_move_to_block()
     |> Zipper.down()
     |> case do
       nil ->
@@ -466,7 +617,7 @@ defmodule Igniter.Common do
   end
 
   defp nth_right(zipper, 0) do
-    zipper
+    {:ok, zipper}
   end
 
   defp nth_right(zipper, n) do
@@ -474,7 +625,7 @@ defmodule Igniter.Common do
     |> Zipper.right()
     |> case do
       nil ->
-        nil
+        :error
 
       zipper ->
         nth_right(zipper, n - 1)
@@ -484,28 +635,28 @@ defmodule Igniter.Common do
   def find_list_item_index(zipper, pred) do
     # go into first list item
     zipper
-    |> maybe_enter_block()
+    |> maybe_move_to_block()
     |> Zipper.down()
     |> case do
       nil ->
-        nil
+        :error
 
       zipper ->
         find_index_right(zipper, pred, 0)
     end
   end
 
-  def find_list_item(zipper, pred) do
+  def move_to_list_item(zipper, pred) do
     # go into first list item
     zipper
-    |> maybe_enter_block()
+    |> maybe_move_to_block()
     |> Zipper.down()
     |> case do
       nil ->
-        nil
+        :error
 
       zipper ->
-        find_right(zipper, pred)
+        move_right(zipper, pred)
     end
   end
 
@@ -522,13 +673,13 @@ defmodule Igniter.Common do
 
   def tuple_elem(item, elem) do
     item
-    |> maybe_enter_block()
+    |> maybe_move_to_block()
     |> Zipper.down()
     |> go_right_n_times(elem)
-    |> maybe_enter_block()
+    |> maybe_move_to_block()
   end
 
-  defp go_right_n_times(zipper, 0), do: maybe_enter_block(zipper)
+  defp go_right_n_times(zipper, 0), do: maybe_move_to_block(zipper)
 
   defp go_right_n_times(zipper, n) do
     zipper
@@ -540,12 +691,12 @@ defmodule Igniter.Common do
   end
 
   defp find_index_right(zipper, pred, index) do
-    if pred.(maybe_enter_block(zipper)) do
-      index
+    if pred.(maybe_move_to_block(zipper)) do
+      {:ok, index}
     else
       case Zipper.right(zipper) do
         nil ->
-          nil
+          :error
 
         zipper ->
           zipper
@@ -554,27 +705,45 @@ defmodule Igniter.Common do
     end
   end
 
-  defp find_right(zipper, pred) do
-    if pred.(maybe_enter_block(zipper)) do
-      zipper
+  defp move_right(zipper, pred) do
+    zipper_in_block = maybe_move_to_block(zipper)
+
+    if pred.(zipper_in_block) do
+      {:ok, zipper_in_block}
     else
       case Zipper.right(zipper) do
         nil ->
-          nil
+          :error
 
         zipper ->
           zipper
-          |> find_right(pred)
+          |> move_right(pred)
       end
     end
   end
 
   @doc false
   def keywordify([], value) do
-    value
+    {:__block__, [], [value]}
   end
 
   def keywordify([key | rest], value) do
-    [{key, keywordify(rest, value)}]
+    [{{:__block__, [format: :keyword], [key]}, [keywordify(rest, value)]}]
+  end
+
+  @doc false
+  def mappify([], value) do
+    {:__block__, [], [value]}
+  end
+
+  def mappify([key | rest], value) do
+    format =
+      if is_atom(key) do
+        :keyword
+      else
+        :map
+      end
+
+    [{{:__block__, [format: format], [key]}, [mappify(rest, value)]}]
   end
 end

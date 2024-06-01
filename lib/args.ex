@@ -1,4 +1,23 @@
 defmodule Igniter.Args do
+  def validate_nth_present_and_underscored(igniter, argv, n, option, message) do
+    value = Enum.at(argv, n)
+
+    cond do
+      !value ->
+        {:error, Igniter.add_issue(igniter, message)}
+
+      not (Macro.underscore(value) == value) ->
+        {:error,
+         Igniter.add_issue(
+           igniter,
+           "Must provide the #{option} in snake_case. Did you mean `#{Macro.underscore(value)}`"
+         )}
+
+      true ->
+        {:ok, value}
+    end
+  end
+
   def validate_present_and_underscored(igniter, opts, option, message) do
     cond do
       !opts[option] ->

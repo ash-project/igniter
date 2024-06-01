@@ -38,6 +38,13 @@ defmodule Igniter.Formatter do
                 dep
               )
             end)
+            |> case do
+              {:ok, zipper} ->
+                zipper
+
+              :error ->
+                zipper
+            end
         end
         |> Zipper.root()
 
@@ -75,6 +82,13 @@ defmodule Igniter.Formatter do
                 &Igniter.Common.equal_modules?/2
               )
             end)
+            |> case do
+              {:ok, zipper} ->
+                zipper
+
+              _ ->
+                zipper
+            end
         end
         |> Zipper.root()
 

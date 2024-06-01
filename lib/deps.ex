@@ -15,8 +15,8 @@ defmodule Igniter.Deps do
     with {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
          {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
          true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
-         current_declaration when not is_nil(current_declaration) <-
-           Common.find_list_item(zipper, fn item ->
+         {:ok, current_declaration} <-
+           Common.move_to_list_item(zipper, fn item ->
              if Common.is_tuple?(item) do
                first_elem = Common.tuple_elem(item, 0)
                first_elem && Common.node_matches_pattern?(first_elem, ^name)
@@ -25,7 +25,7 @@ defmodule Igniter.Deps do
       current_declaration
       |> Zipper.subtree()
       |> Zipper.node()
-      |> Macro.to_string()
+      |> Sourceror.to_string()
     else
       _ ->
         nil
@@ -98,7 +98,6 @@ defmodule Igniter.Deps do
 
   defp do_add_dependency(igniter, name, version) do
     igniter
-    |> Igniter.Formatter.import_dep(name)
     |> Igniter.update_file("mix.exs", fn source ->
       quoted = Rewrite.Source.get(source, :quoted)
 

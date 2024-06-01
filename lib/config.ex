@@ -26,14 +26,10 @@ defmodule Igniter.Config do
 
             :error ->
               # add new code here
+              [first | rest] = config_path
+
               config =
-                if Enum.count(config_path) == 1 do
-                  quote do
-                    config unquote(app_name), unquote(Enum.at(config_path, 0)), unquote(value)
-                  end
-                else
-                  {:config, [], [app_name, Igniter.Common.keywordify(config_path, value)]}
-                end
+                {:config, [], [app_name, [{first, Igniter.Common.keywordify(rest, value)}]]}
 
               code =
                 zipper
@@ -55,21 +51,15 @@ defmodule Igniter.Config do
     if Enum.count(config_path) == 1 do
       config_item = Enum.at(config_path, 0)
 
-      case Common.find_function_call_in_current_scope(zipper, :config, 3, fn function_call ->
-             Common.argument_matches_pattern?(function_call, 0, ^app_name)
-             Common.argument_matches_pattern?(function_call, 1, ^config_item)
+      case Common.move_to_function_call_in_current_scope(zipper, :config, 3, fn function_call ->
+             Common.argument_matches_pattern?(function_call, 0, ^app_name) &&
+               Common.argument_matches_pattern?(function_call, 1, ^config_item)
            end) do
-        nil ->
+        :error ->
           :error
 
-        zipper ->
-          case Common.update_nth_argument(zipper, 2, updater) do
-            nil ->
-              :error
-
-            zipper ->
-              {:ok, zipper}
-          end
+        {:ok, zipper} ->
+          Common.update_nth_argument(zipper, 2, updater)
       end
     else
       :error
@@ -77,23 +67,22 @@ defmodule Igniter.Config do
   end
 
   defp try_update_two_arg(zipper, config_path, app_name, value, updater) do
-    case Common.find_function_call_in_current_scope(zipper, :config, 2, fn function_call ->
+    case Common.move_to_function_call_in_current_scope(zipper, :config, 2, fn function_call ->
            Common.argument_matches_pattern?(function_call, 0, ^app_name)
          end) do
-      nil ->
+      :error ->
         :error
 
-      zipper ->
+      {:ok, zipper} ->
         Common.update_nth_argument(zipper, 1, fn zipper ->
-          Igniter.Common.put_in_keyword(zipper, config_path, value, updater)
-        end)
-        |> case do
-          nil ->
-            nil
+          case Igniter.Common.put_in_keyword(zipper, config_path, value, updater) do
+            {:ok, new_zipper} ->
+              new_zipper
 
-          zipper ->
-            {:ok, zipper}
-        end
+            _ ->
+              zipper
+          end
+        end)
     end
   end
 end

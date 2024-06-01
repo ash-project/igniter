@@ -5,11 +5,7 @@ defmodule Mix.Tasks.Igniter.Install do
   def run([install | argv]) do
     Application.ensure_all_started([:rewrite])
 
-    if String.contains?(install, "/") do
-      raise "installation from github not supported yet"
-    else
-      Mix.Task.run("igniter.install_from_hex", [install | argv])
-    end
+    Igniter.Install.install(install, argv)
   end
 
   def run([]) do

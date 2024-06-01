@@ -9,3 +9,4 @@
 # TODO list:
 
 - [ ] properly parse args, not `"--dry-run" in argv`. Do we want to have some kind of "maybe parsed" args structure so we can call tasks with `argv` or one of those? Maybe.
+- [ ] the mix deps.get step is slow and weird sometimes, need to figure out why.

@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Igniter.Install.Spark do
+defmodule Mix.Tasks.Spark.Install do
   use Igniter.Mix.Task
 
   def igniter(igniter, _argv) do
