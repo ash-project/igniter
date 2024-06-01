@@ -10,5 +10,8 @@ on:
 jobs:
   ash-ci:
     uses: ash-project/ash/.github/workflows/ash-ci.yml@main
+    with:
+      spark-formatter: false
+      spark-cheat-sheets: false
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
