@@ -33,6 +33,31 @@ defmodule Igniter.ConfigTest do
              """
     end
 
+    @tag :regression
+    test "it merges the spark formatter plugins" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.Config.configure(
+          "fake.exs",
+          :spark,
+          [:formatter, :"Ash.Resource"],
+          [],
+          fn x ->
+            x
+          end
+        )
+        |> Igniter.Config.configure("fake.exs", :spark, [:formatter, :"Ash.Domain"], [], fn x ->
+          x
+        end)
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+             config :spark, formatter: ["Ash.Domain": [], "Ash.Resource": []]
+             """
+    end
+
     test "it merges with 2 arg version of existing config with a single path item" do
       %{rewrite: rewrite} =
         Igniter.new()

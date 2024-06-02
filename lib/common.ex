@@ -57,6 +57,7 @@ defmodule Igniter.Common do
     |> Zipper.subtree()
     |> Zipper.root()
     |> Sourceror.to_string()
+    |> then(&"==code==\n#{&1}\n==code==\n")
     |> IO.puts()
 
     zipper
@@ -539,8 +540,10 @@ defmodule Igniter.Common do
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
-      {:__block__, _, [_]} ->
-        Zipper.down(zipper)
+      {:__block__, _, _} ->
+        zipper
+        |> Zipper.down()
+        |> maybe_move_to_block()
 
       _ ->
         zipper
