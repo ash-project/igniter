@@ -12,18 +12,15 @@ defmodule Igniter.Config do
 
     igniter
     |> Igniter.include_or_create_elixir_file(file_path, "import Config\n")
-    |> Igniter.update_file(file_path, fn source ->
-      quoted = Rewrite.Source.get(source, :quoted)
-      zipper = Zipper.zip(quoted)
-
+    |> Igniter.update_elixir_file(file_path, fn zipper ->
       case try_update_three_arg(zipper, config_path, app_name, updater) do
         {:ok, zipper} ->
-          Rewrite.Source.update(source, :configure, :quoted, Zipper.root(zipper))
+          zipper
 
         :error ->
           case try_update_two_arg(zipper, config_path, app_name, value, updater) do
             {:ok, zipper} ->
-              Rewrite.Source.update(source, :configure, :quoted, Zipper.root(zipper))
+              zipper
 
             :error ->
               # add new code here
@@ -32,17 +29,7 @@ defmodule Igniter.Config do
               config =
                 {:config, [], [app_name, [{first, Igniter.Common.keywordify(rest, value)}]]}
 
-              code =
-                zipper
-                |> Igniter.Common.add_code(config)
-                |> Zipper.root()
-
-              Rewrite.Source.update(
-                source,
-                :configure,
-                :quoted,
-                code
-              )
+              Igniter.Common.add_code(zipper, config)
           end
       end
     end)

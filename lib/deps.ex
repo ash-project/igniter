@@ -63,70 +63,40 @@ defmodule Igniter.Deps do
 
   defp remove_dependency(igniter, name) do
     igniter
-    |> Igniter.update_file("mix.exs", fn source ->
-      quoted = Rewrite.Source.get(source, :quoted)
-
-      new_quoted =
-        with zipper <- Zipper.zip(quoted),
-             {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
-             {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
-             true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
-             current_declaration_index when not is_nil(current_declaration_index) <-
-               Common.find_list_item_index(zipper, fn item ->
-                 if Common.tuple?(item) do
-                   first_elem = Common.tuple_elem(item, 0)
-                   first_elem && Common.node_matches_pattern?(first_elem, ^name)
-                 end
-               end) do
-          zipper
-          |> Common.remove_index(current_declaration_index)
-          |> Zipper.root()
-        else
-          _ ->
-            quoted
-        end
-
-      if new_quoted == quoted do
-        Rewrite.Source.add_issue(
-          source,
-          "Failed to remove dependency #{inspect(name)}"
-        )
+    |> Igniter.update_elixir_file("mix.exs", fn zipper ->
+      with {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
+           {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
+           true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
+           current_declaration_index when not is_nil(current_declaration_index) <-
+             Common.find_list_item_index(zipper, fn item ->
+               if Common.tuple?(item) do
+                 first_elem = Common.tuple_elem(item, 0)
+                 first_elem && Common.node_matches_pattern?(first_elem, ^name)
+               end
+             end) do
+        Common.remove_index(zipper, current_declaration_index)
       else
-        Rewrite.Source.update(source, :add_dependency, :quoted, new_quoted)
+        _ ->
+          {:error, "Failed to remove dependency #{inspect(name)}"}
       end
     end)
   end
 
   defp do_add_dependency(igniter, name, version) do
     igniter
-    |> Igniter.update_file("mix.exs", fn source ->
-      quoted = Rewrite.Source.get(source, :quoted)
+    |> Igniter.update_elixir_file("mix.exs", fn zipper ->
+      with {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
+           {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
+           true <- Common.node_matches_pattern?(zipper, value when is_list(value)) do
+        quoted =
+          quote do
+            {unquote(name), unquote(version)}
+          end
 
-      new_quoted =
-        with zipper <- Zipper.zip(quoted),
-             {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
-             {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
-             true <- Common.node_matches_pattern?(zipper, value when is_list(value)) do
-          quoted =
-            quote do
-              {unquote(name), unquote(version)}
-            end
-
-          zipper
-          |> Common.prepend_to_list(quoted)
-          |> Zipper.root()
-        else
-          _ ->
-            quoted
-        end
-
-      if new_quoted == quoted do
-        Rewrite.Source.add_issue(
-          source,
-          "Failed to add dependency #{inspect({inspect(name), inspect(version)})}"
-        )
+        Common.prepend_to_list(zipper, quoted)
       else
-        Rewrite.Source.update(source, :add_dependency, :quoted, new_quoted)
+        _ ->
+          {:error, "Failed to add dependency #{inspect({inspect(name), inspect(version)})}"}
       end
     end)
   end

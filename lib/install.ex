@@ -1,7 +1,7 @@
 defmodule Igniter.Install do
   @moduledoc false
   @option_schema [
-    switches: [
+    strict: [
       example: :boolean,
       dry_run: :boolean,
       yes: :boolean
@@ -19,8 +19,8 @@ defmodule Igniter.Install do
 
     Application.ensure_all_started(:req)
 
-    {options, _} =
-      OptionParser.parse!(argv, @option_schema)
+    {options, _, _unprocessed_argv} =
+      OptionParser.parse(argv, @option_schema)
 
     argv = OptionParser.to_argv(options)
 
@@ -42,16 +42,7 @@ defmodule Igniter.Install do
                 | _
               ]
             } ->
-              requirement =
-                version
-                |> Version.parse!()
-                |> case do
-                  %Version{major: 0, minor: minor} ->
-                    "~> 0.#{minor}"
-
-                  %Version{major: major} ->
-                    "~> #{major}.0"
-                end
+              requirement = Igniter.Version.version_string_to_general_requirement(version)
 
               Igniter.Deps.add_dependency(igniter, install, requirement)
 

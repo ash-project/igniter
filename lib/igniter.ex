@@ -53,6 +53,32 @@ defmodule Igniter do
     end
   end
 
+  def update_elixir_file(igniter, path, func) do
+    if Rewrite.has_source?(igniter.rewrite, path) do
+      %{
+        igniter
+        | rewrite:
+            Rewrite.update!(igniter.rewrite, path, fn source ->
+              apply_func_with_zipper(source, func)
+            end)
+      }
+    else
+      if File.exists?(path) do
+        source = Rewrite.Source.Ex.read!(path)
+
+        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+        |> format(path)
+        |> Map.update!(:rewrite, fn rewrite ->
+          Rewrite.update!(rewrite, path, fn source ->
+            apply_func_with_zipper(source, func)
+          end)
+        end)
+      else
+        add_issue(igniter, "Required #{path} but it did not exist")
+      end
+    end
+  end
+
   def update_file(igniter, path, func) do
     if Rewrite.has_source?(igniter.rewrite, path) do
       %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, func)}
@@ -161,50 +187,52 @@ defmodule Igniter do
               end)
               |> case do
                 [] ->
-                  unless opts[:quiet_on_no_changes?] do
+                  unless opts[:quiet_on_no_changes?] || "--yes" in argv do
                     Mix.shell().info("\n#{title}: No proposed changes!\n")
                   end
 
                   :dry_run_with_no_changes
 
                 sources ->
-                  Mix.shell().info("\n#{title}: Proposed changes:\n")
+                  if "--dry-run" in argv || "--yes" not in argv do
+                    Mix.shell().info("\n#{title}: Proposed changes:\n")
 
-                  Enum.each(sources, fn source ->
-                    if Rewrite.Source.from?(source, :string) do
-                      content_lines =
-                        source
-                        |> Rewrite.Source.get(:content)
-                        |> String.split("\n")
-                        |> Enum.with_index()
+                    Enum.each(sources, fn source ->
+                      if Rewrite.Source.from?(source, :string) do
+                        content_lines =
+                          source
+                          |> Rewrite.Source.get(:content)
+                          |> String.split("\n")
+                          |> Enum.with_index()
 
-                      space_padding =
-                        content_lines
-                        |> Enum.map(&elem(&1, 1))
-                        |> Enum.max()
-                        |> to_string()
-                        |> String.length()
+                        space_padding =
+                          content_lines
+                          |> Enum.map(&elem(&1, 1))
+                          |> Enum.max()
+                          |> to_string()
+                          |> String.length()
 
-                      diffish_looking_text =
-                        Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-                          line_number = line_number_minus_one + 1
+                        diffish_looking_text =
+                          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+                            line_number = line_number_minus_one + 1
 
-                          "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
-                        end)
+                            "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
+                          end)
 
-                      Mix.shell().info("""
-                      Create: #{Rewrite.Source.get(source, :path)}
+                        Mix.shell().info("""
+                        Create: #{Rewrite.Source.get(source, :path)}
 
-                      #{diffish_looking_text}
-                      """)
-                    else
-                      Mix.shell().info("""
-                      Update: #{Rewrite.Source.get(source, :path)}
+                        #{diffish_looking_text}
+                        """)
+                      else
+                        Mix.shell().info("""
+                        Update: #{Rewrite.Source.get(source, :path)}
 
-                      #{Rewrite.Source.diff(source)}
-                      """)
-                    end
-                  end)
+                        #{Rewrite.Source.diff(source)}
+                        """)
+                      end
+                    end)
+                  end
 
                   :dry_run_with_changes
               end
@@ -438,5 +466,23 @@ defmodule Igniter do
     end
 
     opts
+  end
+
+  defp apply_func_with_zipper(source, func) do
+    quoted = Rewrite.Source.get(source, :quoted)
+    zipper = Sourceror.Zipper.zip(quoted)
+
+    case func.(zipper) do
+      %Sourceror.Zipper{} = zipper ->
+        Rewrite.Source.update(
+          source,
+          :configure,
+          :quoted,
+          Sourceror.Zipper.root(zipper)
+        )
+
+      {:error, error} ->
+        Rewrite.Source.add_issues(source, List.wrap(error))
+    end
   end
 end
