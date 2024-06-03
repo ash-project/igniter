@@ -63,6 +63,16 @@ defmodule Igniter.Common do
     zipper
   end
 
+  def puts_ast_at_node(zipper) do
+    zipper
+    |> Zipper.subtree()
+    |> Zipper.root()
+    |> then(&"==ast==\n#{inspect(&1)}\n==ast==\n")
+    |> IO.puts()
+
+    zipper
+  end
+
   def add_code(zipper, new_code) when is_binary(new_code) do
     code = Sourceror.parse_string!(new_code)
 
@@ -76,11 +86,28 @@ defmodule Igniter.Common do
       |> Zipper.root()
 
     case current_code do
-      {:__block__, _, stuff} ->
-        Zipper.replace(zipper, {:__block__, [], stuff ++ [new_code]})
+      {:__block__, meta, stuff} ->
+        Zipper.replace(zipper, {:__block__, meta, stuff ++ [new_code]})
 
       code ->
-        Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+        zipper
+        |> Zipper.up()
+        |> case do
+          nil ->
+            Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+
+          upwards ->
+            upwards
+            |> Zipper.subtree()
+            |> Zipper.root()
+            |> case do
+              {:__block__, meta, stuff} ->
+                Zipper.replace(upwards, {:__block__, meta, stuff ++ [new_code]})
+
+              _ ->
+                Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+            end
+        end
     end
   end
 
@@ -103,12 +130,13 @@ defmodule Igniter.Common do
              end
            end) do
         :error ->
-          value = keywordify(rest, value)
+          value =
+            keywordify(rest, value)
 
           {:ok,
            prepend_to_list(
              zipper,
-             {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
+             [{key, value}]
            )}
 
         {:ok, zipper} ->
@@ -462,10 +490,10 @@ defmodule Igniter.Common do
          subtree <- remove_module_definitions(subtree),
          found when not is_nil(found) <-
            find(subtree, fn
-             {:use, _, [^module]} ->
+             {:use, _, [^module | _]} ->
                true
 
-             {:use, _, [{:__aliases__, _, ^split_module}]} ->
+             {:use, _, [{:__aliases__, _, ^split_module} | _]} ->
                true
            end),
          {:ok, zipper} <- move_to_do_block(zipper) do
@@ -728,16 +756,16 @@ defmodule Igniter.Common do
 
   @doc false
   def keywordify([], value) do
-    {:__block__, [], [value]}
+    value
   end
 
   def keywordify([key | rest], value) do
-    [{{:__block__, [format: :keyword], [key]}, [keywordify(rest, value)]}]
+    [{key, keywordify(rest, value)}]
   end
 
   @doc false
   def mappify([], value) do
-    {:__block__, [], [value]}
+    value
   end
 
   def mappify([key | rest], value) do
@@ -748,6 +776,6 @@ defmodule Igniter.Common do
         :map
       end
 
-    [{{:__block__, [format: format], [key]}, [mappify(rest, value)]}]
+    {:%{}, [], [{{:__block__, [format: format], [key]}, mappify(rest, value)}]}
   end
 end
