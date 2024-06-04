@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Igniter.New do
           if options[:example] do
             "--example"
           end
-        Mix.shell().cmd("mix igniter.install #{Enum.join(install, ",")} --yes #{example}" |> IO.inspect())
+        Mix.shell().cmd("mix igniter.install #{Enum.join(install, ",")} --yes #{example}")
       end
 
     else

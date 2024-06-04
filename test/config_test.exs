@@ -29,7 +29,7 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
-             config :fake, [[foo: [bar: "baz"]], buz: [:blat]]
+             config :fake, foo: [bar: "baz"], buz: [:blat]
              """
     end
 

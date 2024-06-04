@@ -3,20 +3,59 @@ defmodule Igniter do
   Igniter is a library for installing packages and generating code.
   """
 
-  defstruct [:rewrite, issues: [], tasks: []]
+  defstruct [:rewrite, issues: [], tasks: [], warnings: [], assigns: %{}]
 
   @type t :: %__MODULE__{
           rewrite: Rewrite.t(),
           issues: [String.t()],
-          tasks: [{String.t() | list(String.t())}]
+          tasks: [{String.t() | list(String.t())}],
+          warnings: [String.t()],
+          assigns: map()
         }
 
   def new do
     %__MODULE__{rewrite: Rewrite.new()}
   end
 
+  def assign(igniter, key, value) do
+    %{igniter | assigns: Map.put(igniter.assigns, key, value)}
+  end
+
+  def assign(igniter, key_vals) do
+    Enum.reduce(key_vals, igniter, fn {key, value}, igniter ->
+      assign(igniter, key, value)
+    end)
+  end
+
+  def update_glob(igniter, glob, func) do
+    igniter =
+      glob
+      |> Path.wildcard()
+      |> Enum.reduce(igniter, fn path, igniter ->
+        if Path.extname(path) != ".ex" do
+          raise ArgumentError, "Expected a .ex file, got #{inspect(path)}"
+        end
+
+        Igniter.include_existing_elixir_file(igniter, path)
+      end)
+
+    Enum.reduce(igniter.rewrite, igniter, fn source, igniter ->
+      path = Rewrite.Source.get(source, :path)
+
+      if GlobEx.match?(glob, path) do
+        update_elixir_file(igniter, path, func)
+      else
+        igniter
+      end
+    end)
+  end
+
   def add_issue(igniter, issue) do
     %{igniter | issues: [issue | igniter.issues]}
+  end
+
+  def add_warning(igniter, warning) do
+    %{igniter | issues: [warning | igniter.warnings]}
   end
 
   def add_task(igniter, task, argv \\ []) when is_binary(task) do
@@ -334,11 +373,17 @@ defmodule Igniter do
     else
       igniter =
         "**/.formatter.exs"
-        |> Path.relative_to(File.cwd!())
         |> Path.wildcard()
         |> Enum.reduce(igniter, fn path, igniter ->
           Igniter.include_existing_elixir_file(igniter, path)
         end)
+
+      igniter =
+        if File.exists?(".formatter.exs") do
+          Igniter.include_existing_elixir_file(igniter, ".formatter.exs")
+        else
+          igniter
+        end
 
       rewrite = igniter.rewrite
 
@@ -371,7 +416,10 @@ defmodule Igniter do
                 source
 
               {:ok, opts} ->
-                formatted = Rewrite.Source.Ex.format(source, opts)
+                formatted =
+                  with_evaled_configs(rewrite, fn ->
+                    Rewrite.Source.Ex.format(source, opts)
+                  end)
 
                 source
                 |> Rewrite.Source.Ex.put_formatter_opts(opts)
@@ -383,6 +431,24 @@ defmodule Igniter do
         end)
 
       %{igniter | rewrite: rewrite}
+    end
+  end
+
+  # for now we only eval `config.exs`
+  defp with_evaled_configs(rewrite, fun) do
+    case Rewrite.source(rewrite, "config/config.exs") do
+      {:ok, source} ->
+        content = Rewrite.Source.get(source, :content)
+
+        "config/config.exs"
+        |> Config.Reader.eval!(content)
+        |> Application.put_all_env()
+
+        # okay so right now we don't actually reset the config, mostly because I'm not sure it ever actually matters?
+        fun.()
+
+      _ ->
+        fun.()
     end
   end
 

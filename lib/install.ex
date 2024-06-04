@@ -15,7 +15,7 @@ defmodule Igniter.Install do
 
   # only supports hex installation at the moment
   def install(install, argv) do
-    install_list = install_list(install)
+    install_list = String.split(install, ",")
 
     Application.ensure_all_started(:req)
 
@@ -26,29 +26,29 @@ defmodule Igniter.Install do
 
     igniter = Igniter.new()
 
-    igniter =
-      Enum.reduce(install_list, igniter, fn install, igniter ->
-        if local_dep?(install) do
-          Mix.shell().info(
-            "Not looking up dependency for #{install}, because a local dependency is detected"
-          )
+    {igniter, install_list} =
+      install_list
+      |> Enum.reduce({igniter, []}, fn install, {igniter, install_list} ->
+        case determine_dep_type_and_version(install) do
+          {install, requirement} ->
+            install = String.to_atom(install)
 
-          igniter
-        else
-          case Req.get!("https://hex.pm/api/packages/#{install}").body do
-            %{
-              "releases" => [
-                %{"version" => version}
-                | _
-              ]
-            } ->
-              requirement = Igniter.Version.version_string_to_general_requirement(version)
+            if local_dep?(install) do
+              Mix.shell().info(
+                "Not looking up dependency for #{install}, because a local dependency is detected"
+              )
 
-              Igniter.Deps.add_dependency(igniter, install, requirement)
+              {igniter, [install | install_list]}
+            else
+              {Igniter.Deps.add_dependency(igniter, install, requirement, "--yes" in argv),
+               [install | install_list]}
+            end
 
-            _ ->
-              Igniter.add_issue(igniter, "No published versions of #{install} on hex")
-          end
+          :error ->
+            {Igniter.add_issue(
+               igniter,
+               "Could not determine source for requested package #{install}"
+             ), install_list}
         end
       end)
 
@@ -101,6 +101,10 @@ defmodule Igniter.Install do
     all_tasks =
       Enum.filter(Mix.Task.load_all(), &implements_behaviour?(&1, Igniter.Mix.Task))
 
+    igniter =
+      Igniter.new()
+      |> Igniter.assign(%{manually_installed: install_list})
+
     install_list
     |> Enum.flat_map(fn install ->
       all_tasks
@@ -109,7 +113,7 @@ defmodule Igniter.Install do
       end)
       |> List.wrap()
     end)
-    |> Enum.reduce(Igniter.new(), fn task, igniter ->
+    |> Enum.reduce(igniter, fn task, igniter ->
       Igniter.compose_task(igniter, task, argv)
     end)
     |> Igniter.do_or_dry_run(argv)
@@ -146,15 +150,93 @@ defmodule Igniter.Install do
       false
   end
 
-  # sobelow_skip ["DOS.StringToAtom"]
-  defp install_list(install) do
-    install
-    |> String.split(",")
-    |> Enum.map(&String.to_atom/1)
-  end
-
   defp local_dep?(install) do
     config = Mix.Project.config()[:deps][install]
     Keyword.keyword?(config) && config[:path]
+  end
+
+  defp determine_dep_type_and_version(requirement) do
+    case String.split(requirement, "@", trim: true) do
+      [package] ->
+        if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
+          case Req.get!("https://hex.pm/api/packages/#{package}").body do
+            %{
+              "releases" => [
+                %{"version" => version}
+                | _
+              ]
+            } ->
+              {package, Igniter.Version.version_string_to_general_requirement!(version)}
+
+            _ ->
+              :error
+          end
+        else
+          :error
+        end
+
+      [package, version] ->
+        case version do
+          "git:" <> requirement ->
+            if String.contains?(requirement, "@") do
+              case String.split(requirement, ["@"], trim: true) do
+                [url, ref] ->
+                  [git: url, ref: ref]
+
+                _ ->
+                  :error
+              end
+            else
+              [git: requirement]
+            end
+
+          "github:" <> requirement ->
+            if String.contains?(requirement, "@") do
+              case String.split(requirement, ["/", "@"], trim: true) do
+                [org, project, ref] ->
+                  [github: "#{org}/#{project}", ref: ref]
+
+                _ ->
+                  :error
+              end
+            else
+              [github: requirement]
+            end
+
+          "local:" <> requirement ->
+            [path: requirement]
+
+          "~>" <> version ->
+            "~> #{version}"
+
+          "==" <> version ->
+            "== #{version}"
+
+          ">=" <> version ->
+            ">= #{version}"
+
+          version ->
+            case Version.parse(version) do
+              {:ok, version} ->
+                "== #{version}"
+
+              _ ->
+                case Igniter.Version.version_string_to_general_requirement(version) do
+                  {:ok, requirement} ->
+                    requirement
+
+                  _ ->
+                    :error
+                end
+            end
+        end
+        |> case do
+          :error ->
+            :error
+
+          requirement ->
+            {package, requirement}
+        end
+    end
   end
 end

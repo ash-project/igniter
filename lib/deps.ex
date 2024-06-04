@@ -4,31 +4,36 @@ defmodule Igniter.Deps do
   alias Igniter.Common
   alias Sourceror.Zipper
 
-  def add_dependency(igniter, name, version) do
-    case get_dependency_declaration(igniter, name) do
-      nil ->
-        do_add_dependency(igniter, name, version)
+  def add_dependency(igniter, name, version, yes? \\ false) do
+    if name in List.wrap(igniter.assigns[:manually_installed]) do
+      igniter
+    else
+      case get_dependency_declaration(igniter, name) do
+        nil ->
+          do_add_dependency(igniter, name, version)
 
-      current ->
-        desired = "`{#{inspect(name)}, #{inspect(version)}}`"
-        current = "`#{current}`"
+        current ->
+          desired = "`{#{inspect(name)}, #{inspect(version)}}`"
+          current = "`#{current}`"
 
-        if desired == current do
-          igniter
-        else
-          if Mix.shell().yes?("""
-             Dependency #{name} is already in mix.exs. Should we replace it?
-
-             Desired: #{desired}
-             Found: #{current}
-             """) do
+          if desired == current do
             igniter
-            |> remove_dependency(name)
-            |> do_add_dependency(name, version)
           else
-            igniter
+            if yes? ||
+                 Mix.shell().yes?("""
+                 Dependency #{name} is already in mix.exs. Should we replace it?
+
+                 Desired: #{desired}
+                 Found: #{current}
+                 """) do
+              igniter
+              |> remove_dependency(name)
+              |> do_add_dependency(name, version)
+            else
+              igniter
+            end
           end
-        end
+      end
     end
   end
 

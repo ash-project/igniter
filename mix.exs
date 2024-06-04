@@ -55,6 +55,7 @@ defmodule Igniter.MixProject do
     [
       {:rewrite, "~> 0.9"},
       {:req, "~> 0.4"},
+      {:glob_ex, "~> 0.1.7"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.32", only: [:dev, :test], runtime: false},

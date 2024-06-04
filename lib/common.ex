@@ -133,10 +133,26 @@ defmodule Igniter.Common do
           value =
             keywordify(rest, value)
 
+          to_append =
+            zipper
+            |> Zipper.subtree()
+            |> Zipper.node()
+            |> case do
+              [{{:__block__, meta, _}, {:__block__, _, _}} | _] ->
+                if meta[:format] do
+                  {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [value]}}
+                else
+                  {{:__block__, [], [key]}, {:__block__, [], [value]}}
+                end
+
+              _ ->
+                {key, value}
+            end
+
           {:ok,
-           prepend_to_list(
+           append_to_list(
              zipper,
-             [{key, value}]
+             to_append
            )}
 
         {:ok, zipper} ->
@@ -162,10 +178,26 @@ defmodule Igniter.Common do
              end
            end) do
         :error ->
+          to_append =
+            zipper
+            |> Zipper.subtree()
+            |> Zipper.node()
+            |> case do
+              [{{:__block__, meta, _}, {:__block__, _, _}} | _] ->
+                if meta[:format] do
+                  {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [value]}}
+                else
+                  {{:__block__, [], [key]}, {:__block__, [], [value]}}
+                end
+
+              _ ->
+                {key, value}
+            end
+
           {:ok,
-           prepend_to_list(
+           append_to_list(
              zipper,
-             {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
+             to_append
            )}
 
         {:ok, zipper} ->
@@ -216,7 +248,7 @@ defmodule Igniter.Common do
             value = mappify(rest, value)
 
             {:ok,
-             prepend_to_list(
+             append_to_list(
                zipper,
                {{:__block__, [format: format], [key]}, {:__block__, [], [value]}}
              )}
@@ -261,7 +293,7 @@ defmodule Igniter.Common do
             format = map_keys_format(zipper)
 
             {:ok,
-             prepend_to_list(
+             append_to_list(
                zipper,
                {{:__block__, [format: format], [key]}, {:__block__, [], [value]}}
              )}
@@ -372,7 +404,7 @@ defmodule Igniter.Common do
                 |> nth_right(index)
                 |> case do
                   :error ->
-                    nil
+                    :error
 
                   {:ok, nth} ->
                     {:ok, func.(nth)}
@@ -385,7 +417,7 @@ defmodule Igniter.Common do
       |> Zipper.down()
       |> case do
         nil ->
-          nil
+          :error
 
         zipper ->
           zipper
@@ -396,6 +428,67 @@ defmodule Igniter.Common do
 
             {:ok, nth} ->
               {:ok, func.(nth)}
+          end
+      end
+    end
+  end
+
+  def move_to_nth_argument(zipper, index) do
+    if pipeline?(zipper) do
+      if index == 0 do
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            :error
+
+          zipper ->
+            {:ok, zipper}
+        end
+      else
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            :error
+
+          zipper ->
+            zipper
+            |> Zipper.rightmost()
+            |> Zipper.down()
+            |> case do
+              nil ->
+                :error
+
+              zipper ->
+                zipper
+                |> nth_right(index)
+                |> case do
+                  :error ->
+                    :error
+
+                  {:ok, nth} ->
+                    {:ok, nth}
+                end
+            end
+        end
+      end
+    else
+      zipper
+      |> Zipper.down()
+      |> case do
+        nil ->
+          :error
+
+        zipper ->
+          zipper
+          |> nth_right(index)
+          |> case do
+            :error ->
+              :error
+
+            {:ok, nth} ->
+              {:ok, nth}
           end
       end
     end
@@ -478,6 +571,21 @@ defmodule Igniter.Common do
   end
 
   # sobelow_skip ["DOS.StringToAtom"]
+  def move_to_module_using(zipper, [module]) do
+    move_to_module_using(zipper, module)
+  end
+
+  def move_to_module_using(zipper, [module | rest] = one_of_modules)
+      when is_list(one_of_modules) do
+    case move_to_module_using(zipper, module) do
+      {:ok, zipper} ->
+        {:ok, zipper}
+
+      :error ->
+        move_to_module_using(zipper, rest)
+    end
+  end
+
   def move_to_module_using(zipper, module) do
     split_module =
       module
@@ -615,6 +723,12 @@ defmodule Igniter.Common do
     zipper
     |> maybe_move_to_block()
     |> Zipper.insert_child(quoted)
+  end
+
+  def append_to_list(zipper, quoted) do
+    zipper
+    |> maybe_move_to_block()
+    |> Zipper.append_child(quoted)
   end
 
   def remove_index(zipper, index) do
@@ -760,7 +874,7 @@ defmodule Igniter.Common do
   end
 
   def keywordify([key | rest], value) do
-    [{key, keywordify(rest, value)}]
+    [{{:__block__, [format: :keyword], [key]}, {:__block__, [], [keywordify(rest, value)]}}]
   end
 
   @doc false
