@@ -7,7 +7,7 @@ defmodule Igniter.MixProject do
     [
       app: :igniter,
       version: @version,
-      elixir: "~> 1.16",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       docs: docs(),

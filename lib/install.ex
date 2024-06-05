@@ -13,16 +13,18 @@ defmodule Igniter.Install do
     ]
   ]
 
-  # only supports hex installation at the moment
   def install(install, argv) do
-    install_list = String.split(install, ",")
+    install_list =
+      if is_binary(install) do
+        String.split(install, ",")
+      else
+        Enum.map(List.wrap(install), &to_string/1)
+      end
 
     Application.ensure_all_started(:req)
 
-    {options, _, _unprocessed_argv} =
+    {options, _errors, _unprocessed_argv} =
       OptionParser.parse(argv, @option_schema)
-
-    argv = OptionParser.to_argv(options)
 
     igniter = Igniter.new()
 

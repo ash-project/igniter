@@ -101,6 +101,7 @@ defmodule Igniter do
               apply_func_with_zipper(source, func)
             end)
       }
+      |> format(path)
     else
       if File.exists?(path) do
         source = Rewrite.Source.Ex.read!(path)
@@ -166,6 +167,34 @@ defmodule Igniter do
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
       |> format(path)
+    end
+  end
+
+  def create_or_update_elixir_file(igniter, path, contents, func) do
+    if Rewrite.has_source?(igniter.rewrite, path) do
+      igniter
+      |> update_elixir_file(path, func)
+    else
+      {created?, source} =
+        try do
+          {false, Rewrite.Source.Ex.read!(path)}
+        rescue
+          _ ->
+            {true,
+             ""
+             |> Rewrite.Source.Ex.from_string(path)
+             |> Rewrite.Source.update(:file_creator, :content, contents)}
+        end
+
+      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+      |> format(path)
+      |> then(fn igniter ->
+        if created? do
+          igniter
+        else
+          update_elixir_file(igniter, path, func)
+        end
+      end)
     end
   end
 
@@ -456,6 +485,7 @@ defmodule Igniter do
   defp find_formatter_exs_file_options(path, formatter_exs_files) do
     case Map.fetch(formatter_exs_files, path) do
       {:ok, source} ->
+        Rewrite.Source.get(source, :content) |> IO.puts()
         {opts, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
 
         {:ok, eval_deps(opts)}
@@ -539,6 +569,14 @@ defmodule Igniter do
     zipper = Sourceror.Zipper.zip(quoted)
 
     case func.(zipper) do
+      {:ok, %Sourceror.Zipper{} = zipper} ->
+        Rewrite.Source.update(
+          source,
+          :configure,
+          :quoted,
+          Sourceror.Zipper.root(zipper)
+        )
+
       %Sourceror.Zipper{} = zipper ->
         Rewrite.Source.update(
           source,

@@ -47,7 +47,14 @@ defmodule Igniter.Common do
       Igniter.Common.argument_matches_predicate?(
         unquote(zipper),
         unquote(index),
-        &match?(unquote(pattern), &1)
+        fn zipper ->
+          code_at_node =
+            zipper
+            |> Zipper.subtree()
+            |> Zipper.root()
+
+          match?(unquote(pattern), code_at_node)
+        end
       )
     end
   end
@@ -211,6 +218,29 @@ defmodule Igniter.Common do
               {:ok, updater.(zipper)}
           end
       end
+    else
+      :error
+    end
+  end
+
+  def remove_keyword_key(zipper, key) do
+    original_zipper = zipper
+
+    if node_matches_pattern?(zipper, value when is_list(value)) do
+      case move_to_list_item(zipper, fn item ->
+             if tuple?(item) do
+               first_elem = tuple_elem(item, 0)
+               first_elem && node_matches_pattern?(first_elem, ^key)
+             end
+           end) do
+        :error ->
+          zipper
+
+        {:ok, zipper} ->
+          zipper |> Zipper.remove() |> Map.put(:path, original_zipper.path)
+      end
+    else
+      zipper
     end
   end
 
@@ -341,7 +371,24 @@ defmodule Igniter.Common do
     end
   end
 
-  def move_to_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end) do
+  def move_to_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end)
+
+  def move_to_function_call_in_current_scope(zipper, name, [arity | arities], predicate)
+      when is_list(arities) do
+    case move_to_function_call_in_current_scope(zipper, name, arity, predicate) do
+      :error ->
+        move_to_function_call_in_current_scope(zipper, name, arities, predicate)
+
+      {:ok, zipper} ->
+        {:ok, zipper}
+    end
+  end
+
+  def move_to_function_call_in_current_scope(_, _, [], _) do
+    :error
+  end
+
+  def move_to_function_call_in_current_scope(%Zipper{} = zipper, name, arity, predicate) do
     zipper
     |> maybe_move_to_block()
     |> move_right(fn zipper ->
@@ -349,7 +396,7 @@ defmodule Igniter.Common do
     end)
   end
 
-  def function_call?(zipper, name, arity) do
+  def function_call?(%Zipper{} = zipper, name, arity) do
     zipper
     |> maybe_move_to_block()
     |> Zipper.subtree()
@@ -494,6 +541,11 @@ defmodule Igniter.Common do
     end
   end
 
+  def append_argument(zipper, value) do
+    zipper
+    |> Zipper.append_child(value)
+  end
+
   def argument_matches_predicate?(zipper, index, func) do
     if pipeline?(zipper) do
       if index == 0 do
@@ -528,8 +580,6 @@ defmodule Igniter.Common do
                   {:ok, zipper} ->
                     zipper
                     |> maybe_move_to_block()
-                    |> Zipper.subtree()
-                    |> Zipper.root()
                     |> func.()
                 end
             end
@@ -552,8 +602,6 @@ defmodule Igniter.Common do
             {:ok, zipper} ->
               zipper
               |> maybe_move_to_block()
-              |> Zipper.subtree()
-              |> Zipper.root()
               |> func.()
           end
       end
@@ -612,8 +660,14 @@ defmodule Igniter.Common do
     end
   end
 
+  def move_to_use(zipper, module) do
+    move_to_function_call_in_current_scope(zipper, :use, [1, 2], fn call ->
+      argument_matches_predicate?(call, 0, &equal_modules?(&1, module))
+    end)
+  end
+
   # aliases will confuse this, but that is a later problem :)
-  def equal_modules?(zipper, module) do
+  def equal_modules?(%Zipper{} = zipper, module) do
     root =
       zipper
       |> Zipper.subtree()
@@ -661,11 +715,18 @@ defmodule Igniter.Common do
         :error
 
       {:ok, zipper} ->
-        {:ok,
-         zipper
-         |> Zipper.down()
-         |> Zipper.rightmost()
-         |> maybe_move_to_block()}
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            :error
+
+          zipper ->
+            {:ok,
+             zipper
+             |> Zipper.rightmost()
+             |> maybe_move_to_block()}
+        end
     end
   end
 
@@ -679,7 +740,13 @@ defmodule Igniter.Common do
       {:__block__, _, _} ->
         zipper
         |> Zipper.down()
-        |> maybe_move_to_block()
+        |> case do
+          nil ->
+            zipper
+
+          zipper ->
+            maybe_move_to_block(zipper)
+        end
 
       _ ->
         zipper
@@ -851,7 +918,7 @@ defmodule Igniter.Common do
     end
   end
 
-  defp move_right(zipper, pred) do
+  defp move_right(%Zipper{} = zipper, pred) do
     zipper_in_block = maybe_move_to_block(zipper)
 
     if pred.(zipper_in_block) do

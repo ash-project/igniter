@@ -29,7 +29,7 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
-             config :fake, foo: [bar: "baz"], buz: [:blat]
+             config :fake, buz: [:blat], foo: [bar: "baz"]
              """
     end
 
@@ -54,7 +54,7 @@ defmodule Igniter.ConfigTest do
 
       assert Source.get(config_file, :content) == """
              import Config
-             config :spark, formatter: ["Ash.Domain": [], "Ash.Resource": []]
+             config :spark, formatter: ["Ash.Resource": [], "Ash.Domain": []]
              """
     end
 
@@ -69,7 +69,7 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
-             config :fake, foo: "baz", buz: [:blat]
+             config :fake, buz: [:blat], foo: "baz"
              """
     end
 
@@ -143,7 +143,7 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
-             config :fake, foo: %{"b" => ["c", "d"], "a" => ["a", "b"]}
+             config :fake, foo: %{"a" => ["a", "b"], "b" => ["c", "d"]}
              """
     end
   end
