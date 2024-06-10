@@ -27,17 +27,21 @@ defmodule Igniter do
     end)
   end
 
-  def update_glob(igniter, glob, func) do
-    igniter =
-      glob
-      |> Path.wildcard()
-      |> Enum.reduce(igniter, fn path, igniter ->
-        if Path.extname(path) != ".ex" do
-          raise ArgumentError, "Expected a .ex file, got #{inspect(path)}"
-        end
-
+  def include_glob(igniter, glob) do
+    glob
+    |> Path.wildcard()
+    |> Enum.reduce(igniter, fn path, igniter ->
+      if Path.extname(path) in [".ex", ".exs"] do
         Igniter.include_existing_elixir_file(igniter, path)
-      end)
+      else
+        raise ArgumentError,
+              "Cannot include #{inspect(path)} because it is not an Elixir file. This can be supported in the future, but the work hasn't been done yet."
+      end
+    end)
+  end
+
+  def update_glob(igniter, glob, func) do
+    igniter = include_glob(igniter, glob)
 
     Enum.reduce(igniter.rewrite, igniter, fn source, igniter ->
       path = Rewrite.Source.get(source, :path)
@@ -397,6 +401,8 @@ defmodule Igniter do
   end
 
   defp format(igniter, adding_path \\ nil) do
+    igniter = include_glob(igniter, "config/{config,#{Mix.env()}}.exs")
+
     if adding_path && Path.basename(adding_path) == ".formatter.exs" do
       format(igniter)
     else
@@ -465,19 +471,43 @@ defmodule Igniter do
 
   # for now we only eval `config.exs`
   defp with_evaled_configs(rewrite, fun) do
-    case Rewrite.source(rewrite, "config/config.exs") do
+    [
+      Rewrite.source(rewrite, "config/config.exs"),
+      Rewrite.source(rewrite, "config/#{Mix.env()}.exs")
+    ]
+    |> Enum.flat_map(fn
       {:ok, source} ->
-        content = Rewrite.Source.get(source, :content)
-
-        "config/config.exs"
-        |> Config.Reader.eval!(content)
-        |> Application.put_all_env()
-
-        # okay so right now we don't actually reset the config, mostly because I'm not sure it ever actually matters?
-        fun.()
+        [Rewrite.Source.get(source, :content)]
 
       _ ->
+        []
+    end)
+    |> case do
+      [] ->
         fun.()
+
+      contents ->
+        to_set =
+          contents
+          |> Enum.join("\n")
+          |> String.split("import_config", parts: 2)
+          |> List.first()
+          |> then(&Config.Reader.eval!("config/config.exs", &1, env: Mix.env()))
+
+        restore =
+          to_set
+          |> Keyword.keys()
+          |> Enum.map(fn key ->
+            {key, Application.get_all_env(key)}
+          end)
+
+        try do
+          Application.put_all_env(to_set)
+
+          fun.()
+        after
+          Application.put_all_env(restore)
+        end
     end
   end
 
@@ -485,7 +515,6 @@ defmodule Igniter do
   defp find_formatter_exs_file_options(path, formatter_exs_files) do
     case Map.fetch(formatter_exs_files, path) do
       {:ok, source} ->
-        Rewrite.Source.get(source, :content) |> IO.puts()
         {opts, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
 
         {:ok, eval_deps(opts)}

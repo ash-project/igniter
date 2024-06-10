@@ -22,6 +22,8 @@ defmodule Igniter.ConfigTest do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
           config :fake, buz: [:blat]
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
@@ -29,6 +31,8 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
+             import Config
+
              config :fake, buz: [:blat], foo: [bar: "baz"]
              """
     end
@@ -62,6 +66,8 @@ defmodule Igniter.ConfigTest do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
           config :fake, buz: [:blat]
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:foo], "baz")
@@ -69,6 +75,8 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
+             import Config
+
              config :fake, buz: [:blat], foo: "baz"
              """
     end
@@ -77,6 +85,8 @@ defmodule Igniter.ConfigTest do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
           config :fake, :buz, [:blat]
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
@@ -84,8 +94,10 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
-             config :fake, :buz, [:blat]
+             import Config
+
              config :fake, foo: [bar: "baz"]
+             config :fake, :buz, [:blat]
              """
     end
 
@@ -93,6 +105,8 @@ defmodule Igniter.ConfigTest do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
           config :fake, :buz, [:blat]
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:foo], "baz")
@@ -100,8 +114,10 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
-             config :fake, :buz, [:blat]
+             import Config
+
              config :fake, foo: "baz"
+             config :fake, :buz, [:blat]
              """
     end
 
@@ -109,6 +125,8 @@ defmodule Igniter.ConfigTest do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
           config :fake, :buz, [:blat]
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:buz], "baz", fn list ->
@@ -118,7 +136,28 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
+             import Config
+
              config :fake, :buz, ["baz", :blat]
+             """
+    end
+
+    test "integers can be used as values" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
+          config :fake, :buz, [:blat]
+        """)
+        |> Igniter.Config.configure("fake.exs", :fake, [:buz], 12)
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+
+             config :fake, :buz, 12
              """
     end
 
@@ -126,6 +165,8 @@ defmodule Igniter.ConfigTest do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
           config :fake, foo: %{"a" => ["a", "b"]}
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]}, fn zipper ->
@@ -143,6 +184,8 @@ defmodule Igniter.ConfigTest do
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
       assert Source.get(config_file, :content) == """
+             import Config
+
              config :fake, foo: %{"a" => ["a", "b"], "b" => ["c", "d"]}
              """
     end

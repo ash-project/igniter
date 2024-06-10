@@ -80,13 +80,15 @@ defmodule Igniter.Common do
     zipper
   end
 
-  def add_code(zipper, new_code) when is_binary(new_code) do
+  def add_code(zipper, new_code, placement \\ :after)
+
+  def add_code(zipper, new_code, placement) when is_binary(new_code) do
     code = Sourceror.parse_string!(new_code)
 
-    add_code(zipper, code)
+    add_code(zipper, code, placement)
   end
 
-  def add_code(zipper, new_code) do
+  def add_code(zipper, new_code, placement) do
     current_code =
       zipper
       |> Zipper.subtree()
@@ -94,14 +96,25 @@ defmodule Igniter.Common do
 
     case current_code do
       {:__block__, meta, stuff} ->
-        Zipper.replace(zipper, {:__block__, meta, stuff ++ [new_code]})
+        new_stuff =
+          if placement == :after do
+            stuff ++ [new_code]
+          else
+            [new_code | stuff]
+          end
+
+        Zipper.replace(zipper, {:__block__, meta, new_stuff})
 
       code ->
         zipper
         |> Zipper.up()
         |> case do
           nil ->
-            Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+            if placement == :after do
+              Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+            else
+              Zipper.replace(zipper, {:__block__, [], [new_code, code]})
+            end
 
           upwards ->
             upwards
@@ -109,12 +122,52 @@ defmodule Igniter.Common do
             |> Zipper.root()
             |> case do
               {:__block__, meta, stuff} ->
-                Zipper.replace(upwards, {:__block__, meta, stuff ++ [new_code]})
+                new_stuff =
+                  if placement == :after do
+                    stuff ++ [new_code]
+                  else
+                    case stuff do
+                      [first | rest] ->
+                        [first, new_code | rest]
+
+                      _ ->
+                        [new_code | stuff]
+                    end
+                  end
+
+                Zipper.replace(upwards, {:__block__, meta, new_stuff})
 
               _ ->
-                Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+                if placement == :after do
+                  Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+                else
+                  Zipper.replace(zipper, {:__block__, [], [new_code, code]})
+                end
             end
         end
+    end
+  end
+
+  def keyword_has_path?(_zipper, []), do: true
+
+  def keyword_has_path?(zipper, [key | rest]) do
+    if node_matches_pattern?(zipper, value when is_list(value)) do
+      case move_to_list_item(zipper, fn item ->
+             if tuple?(item) do
+               first_elem = tuple_elem(item, 0)
+               first_elem && node_matches_pattern?(first_elem, ^key)
+             end
+           end) do
+        {:ok, zipper} ->
+          with second_elem when not is_nil(second_elem) <- tuple_elem(zipper, 1) do
+            keyword_has_path?(second_elem, rest)
+          end
+
+        _ ->
+          false
+      end
+    else
+      false
     end
   end
 
@@ -139,6 +192,11 @@ defmodule Igniter.Common do
         :error ->
           value =
             keywordify(rest, value)
+
+          value =
+            value
+            |> Sourceror.to_string()
+            |> Sourceror.parse_string!()
 
           to_append =
             zipper
@@ -191,10 +249,15 @@ defmodule Igniter.Common do
             |> Zipper.node()
             |> case do
               [{{:__block__, meta, _}, {:__block__, _, _}} | _] ->
+                value =
+                  value
+                  |> Sourceror.to_string()
+                  |> Sourceror.parse_string!()
+
                 if meta[:format] do
-                  {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [value]}}
+                  {{:__block__, [format: meta[:format]], [key]}, value}
                 else
-                  {{:__block__, [], [key]}, {:__block__, [], [value]}}
+                  {{:__block__, [], [key]}, value}
                 end
 
               _ ->
@@ -687,13 +750,23 @@ defmodule Igniter.Common do
     Module.concat(mod) == left
   end
 
-  defp do_equal_modules?(_, _), do: false
+  defp do_equal_modules?(_left, _right) do
+    false
+  end
 
   def move_to_defp(zipper, fun, arity) do
-    case move_to_pattern(zipper, {:defp, _, [{^fun, _, args}, _]} when length(args) == arity) do
+    do_move_to_def(zipper, fun, arity, :defp)
+  end
+
+  def move_to_def(zipper, fun, arity) do
+    do_move_to_def(zipper, fun, arity, :def)
+  end
+
+  defp do_move_to_def(zipper, fun, arity, kind) do
+    case move_to_pattern(zipper, {^kind, _, [{^fun, _, args}, _]} when length(args) == arity) do
       :error ->
         if arity == 0 do
-          case move_to_pattern(zipper, {:defp, _, [{^fun, _, context}, _]} when is_atom(context)) do
+          case move_to_pattern(zipper, {^kind, _, [{^fun, _, context}, _]} when is_atom(context)) do
             :error ->
               :error
 
@@ -756,7 +829,7 @@ defmodule Igniter.Common do
   def remove_module_definitions(zipper) do
     Zipper.traverse(zipper, fn
       {:defmodule, _, _} ->
-        nil
+        Zipper.remove(zipper)
 
       other ->
         other
@@ -773,6 +846,22 @@ defmodule Igniter.Common do
         zipper
         |> maybe_move_to_block()
         |> Zipper.insert_child(quoted)
+
+      _ ->
+        zipper
+    end
+  end
+
+  def append_new_to_list(zipper, quoted, equality_pred \\ &default_equality_pred/2) do
+    zipper
+    |> find_list_item_index(fn value ->
+      equality_pred.(value, quoted)
+    end)
+    |> case do
+      :error ->
+        zipper
+        |> maybe_move_to_block()
+        |> Zipper.append_child(quoted)
 
       _ ->
         zipper
@@ -918,26 +1007,62 @@ defmodule Igniter.Common do
     end
   end
 
-  defp move_right(%Zipper{} = zipper, pred) do
+  def match_pattern_in_scope(zipper, patterns) when is_list(patterns) do
+    Enum.find_value(patterns, &match_pattern_in_scope(zipper, &1))
+  end
+
+  def match_pattern_in_scope(zipper, pattern) do
+    pattern =
+      case pattern do
+        pattern when is_binary(pattern) ->
+          pattern
+          |> Sourceror.parse_string!()
+          |> Zipper.zip()
+
+        %Zipper{} = pattern ->
+          pattern
+      end
+
+    case move_right(zipper, &Zipper.move_to_cursor(&1, pattern)) do
+      :error ->
+        :error
+
+      zipper ->
+        {:ok, Zipper.move_to_cursor(zipper, pattern)}
+    end
+  end
+
+  def move_right(%Zipper{} = zipper, pred) do
     zipper_in_block = maybe_move_to_block(zipper)
 
-    if pred.(zipper_in_block) do
-      {:ok, zipper_in_block}
-    else
-      case Zipper.right(zipper) do
-        nil ->
-          :error
+    if zipper_in_block == zipper do
+      if pred.(zipper_in_block) do
+        {:ok, zipper_in_block}
+      else
+        case Zipper.right(zipper) do
+          nil ->
+            :error
 
-        zipper ->
-          zipper
-          |> move_right(pred)
+          zipper ->
+            zipper
+            |> move_right(pred)
+        end
+      end
+    else
+      case move_right(zipper_in_block, pred) do
+        nil -> move_right(zipper, pred)
+        v -> v
       end
     end
   end
 
   @doc false
+  def keywordify([], value) when is_integer(value) or is_float(value) do
+    {:__block__, [token: to_string(value)], [value]}
+  end
+
   def keywordify([], value) do
-    value
+    {:__block__, [], [value]}
   end
 
   def keywordify([key | rest], value) do
