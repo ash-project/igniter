@@ -8,21 +8,10 @@ defmodule Igniter.Config do
     configure(igniter, file_path, app_name, config_path, value, & &1)
   end
 
-  def configure(igniter, file_path, app_name, config_path, value, updater \\ nil) do
-    file_contents =
-      if file_path == "config.exs" do
-        """
-        import Config
+  def configure(igniter, file_name, app_name, config_path, value, updater \\ nil) do
+    file_contents = "import Config\n"
 
-        # Import environment specific config. This must remain at the bottom
-        # of this file so it overrides the configuration defined above.
-        import_config "\#{config_env()}.exs"
-        """
-      else
-        "import Config\n"
-      end
-
-    file_path = Path.join("config", file_path)
+    file_path = Path.join("config", file_name)
     config_path = List.wrap(config_path)
 
     value =
@@ -34,6 +23,7 @@ defmodule Igniter.Config do
     updater = updater || fn zipper -> Zipper.replace(zipper, value) end
 
     igniter
+    |> ensure_default_configs_exist(file_name)
     |> Igniter.include_or_create_elixir_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
       case Zipper.find(zipper, fn
@@ -55,10 +45,32 @@ defmodule Igniter.Config do
     end)
   end
 
+  defp ensure_default_configs_exist(igniter, "runtime.exs"), do: igniter
+
+  defp ensure_default_configs_exist(igniter, _file) do
+    igniter
+    |> Igniter.include_or_create_elixir_file("config/config.exs", """
+    import Config
+
+    # Import environment specific config. This must remain at the bottom
+    # of this file so it overrides the configuration defined above.
+    import_config "\#{config_env()}.exs"
+    """)
+    |> Igniter.include_or_create_elixir_file("config/dev.exs", """
+    import Config
+    """)
+    |> Igniter.include_or_create_elixir_file("config/test.exs", """
+    import Config
+    """)
+    |> Igniter.include_or_create_elixir_file("config/prod.exs", """
+    import Config
+    """)
+  end
+
   def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
     updater = updater || fn zipper -> Zipper.replace(zipper, value) end
 
-    case try_update_three_arg(zipper, config_path, app_name, updater) do
+    case try_update_three_arg(zipper, config_path, app_name, value, updater) do
       {:ok, zipper} ->
         zipper
 
@@ -70,8 +82,13 @@ defmodule Igniter.Config do
           :error ->
             [first | rest] = config_path
 
+            # this indicates its a module / not a "pretty" atom
             config =
-              {:config, [], [app_name, [{first, Igniter.Common.keywordify(rest, value)}]]}
+              if is_atom(first) && String.downcase(to_string(first)) != to_string(first) do
+                {:config, [], [app_name, first, Igniter.Common.keywordify(rest, value)]}
+              else
+                {:config, [], [app_name, [{first, Igniter.Common.keywordify(rest, value)}]]}
+              end
 
             case Common.move_to_function_call_in_current_scope(
                    zipper,
@@ -129,7 +146,7 @@ defmodule Igniter.Config do
     end
   end
 
-  defp try_update_three_arg(zipper, config_path, app_name, updater) do
+  defp try_update_three_arg(zipper, config_path, app_name, value, updater) do
     if Enum.count(config_path) == 1 do
       config_item = Enum.at(config_path, 0)
 
@@ -144,7 +161,29 @@ defmodule Igniter.Config do
           Common.update_nth_argument(zipper, 2, updater)
       end
     else
-      :error
+      [config_item | path] = config_path
+
+      case Common.move_to_function_call_in_current_scope(zipper, :config, 3, fn function_call ->
+             Common.argument_matches_pattern?(function_call, 0, ^app_name) &&
+               (Common.argument_matches_pattern?(function_call, 1, ^config_item) ||
+                  Common.argument_matches_predicate?(
+                    function_call,
+                    1,
+                    &Common.equal_modules?(&1, config_item)
+                  ))
+           end) do
+        :error ->
+          :error
+
+        {:ok, zipper} ->
+          with {:ok, zipper} <- Common.move_to_nth_argument(zipper, 2),
+               {:ok, zipper} <- Common.put_in_keyword(zipper, path, value, updater) do
+            {:ok, zipper}
+          else
+            _ ->
+              :error
+          end
+      end
     end
   end
 

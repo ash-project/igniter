@@ -81,6 +81,39 @@ defmodule Igniter.ConfigTest do
              """
     end
 
+    test "it choosees the thre 3 arg version when first item in path is not pretty" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+        """)
+        |> Igniter.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+             config :fake, Foo.Bar, bar: "baz"
+             """
+    end
+
+    test "it choosees the thre 3 arg version when first item in path is not pretty, and merges that way" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+        """)
+        |> Igniter.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
+        |> Igniter.Config.configure("fake.exs", :fake, [Foo.Bar, :buz], "biz")
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+             config :fake, Foo.Bar, bar: "baz", buz: "biz"
+             """
+    end
+
     test "it merges with 3 arg version of existing config" do
       %{rewrite: rewrite} =
         Igniter.new()

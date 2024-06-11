@@ -338,10 +338,13 @@ defmodule Igniter do
                   |> Rewrite.write_all()
                   |> case do
                     {:ok, _result} ->
-                      igniter.tasks
-                      |> Enum.each(fn {task, args} ->
-                        Mix.Task.run(task, args)
-                      end)
+                      unless Enum.empty?(igniter.tasks) do
+                        igniter.tasks
+                        |> Enum.each(fn {task, args} ->
+                          # TODO: don't do this, this is horrible and ugly
+                          Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
+                        end)
+                      end
 
                       :changes_made
 

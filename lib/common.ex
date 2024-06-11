@@ -203,14 +203,14 @@ defmodule Igniter.Common do
             |> Zipper.subtree()
             |> Zipper.node()
             |> case do
-              [{{:__block__, meta, _}, {:__block__, _, _}} | _] ->
+              [{{:__block__, meta, _}, _} | _] ->
                 if meta[:format] do
                   {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [value]}}
                 else
                   {{:__block__, [], [key]}, {:__block__, [], [value]}}
                 end
 
-              _ ->
+              _current_node ->
                 {key, value}
             end
 

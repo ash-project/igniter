@@ -47,10 +47,11 @@ defmodule Igniter.Application do
         v when is_atom(v) ->
           &Common.equal_modules?/2
 
-        {v, opts} when is_atom(v) ->
+        {v, _opts} when is_atom(v) ->
           fn
             {item, _}, {right, _} ->
               Common.equal_modules?(item, right)
+
             item, {right, _} ->
               Common.equal_modules?(item, right)
 
