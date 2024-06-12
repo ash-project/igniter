@@ -1,13 +1,25 @@
 defmodule Igniter.Config do
-  @moduledoc "Codemods and utilities for configuring Elixir applications."
-  require Igniter.Common
-  alias Igniter.Common
+  @moduledoc "Codemods and utilities for modifying Elixir config files."
+
+  require Igniter.Code.Function
+  alias Igniter.Code.Common
   alias Sourceror.Zipper
 
+  @doc "Sets a config value in the given configuration file, if it is not already set."
+  @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term()) :: Igniter.t()
   def configure_new(igniter, file_path, app_name, config_path, value) do
     configure(igniter, file_path, app_name, config_path, value, & &1)
   end
 
+  @doc "Sets a config value in the given configuration file, updating it with `updater` if it is already set."
+  @spec configure(
+          Igniter.t(),
+          Path.t(),
+          atom(),
+          list(atom),
+          term(),
+          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+        ) :: Igniter.t()
   def configure(igniter, file_name, app_name, config_path, value, updater \\ nil) do
     file_contents = "import Config\n"
 
@@ -20,7 +32,7 @@ defmodule Igniter.Config do
         value -> Macro.escape(value)
       end
 
-    updater = updater || fn zipper -> Zipper.replace(zipper, value) end
+    updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
 
     igniter
     |> ensure_default_configs_exist(file_name)
@@ -67,8 +79,21 @@ defmodule Igniter.Config do
     """)
   end
 
+  @doc """
+  Modifies elixir configuration code starting at the configured zipper.
+
+  If you want to set configuration, use `configure/6` or `configure_new/5` instead. This is a lower-level
+  tool for modifying configuration files when you need to adjust some specific part of them.
+  """
+  @spec modify_configuration_code(
+          Zipper.t(),
+          list(atom),
+          atom(),
+          term(),
+          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+        ) :: Igniter.t()
   def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
-    updater = updater || fn zipper -> Zipper.replace(zipper, value) end
+    updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
 
     case try_update_three_arg(zipper, config_path, app_name, value, updater) do
       {:ok, zipper} ->
@@ -85,20 +110,20 @@ defmodule Igniter.Config do
             # this indicates its a module / not a "pretty" atom
             config =
               if is_atom(first) && String.downcase(to_string(first)) != to_string(first) do
-                {:config, [], [app_name, first, Igniter.Common.keywordify(rest, value)]}
+                {:config, [], [app_name, first, Igniter.Code.Keyword.keywordify(rest, value)]}
               else
-                {:config, [], [app_name, [{first, Igniter.Common.keywordify(rest, value)}]]}
+                {:config, [], [app_name, [{first, Igniter.Code.Keyword.keywordify(rest, value)}]]}
               end
 
-            case Common.move_to_function_call_in_current_scope(
+            case Igniter.Code.Function.move_to_function_call_in_current_scope(
                    zipper,
                    :import,
                    1,
                    fn function_call ->
-                     Common.argument_matches_predicate?(
+                     Igniter.Code.Function.argument_matches_predicate?(
                        function_call,
                        0,
-                       &Common.equal_modules?(&1, Config)
+                       &Common.nodes_equal?(&1, Config)
                      )
                    end
                  ) do
@@ -107,24 +132,31 @@ defmodule Igniter.Config do
                 |> Zipper.right()
                 |> case do
                   nil ->
-                    Igniter.Common.add_code(zipper, config)
+                    Common.add_code(zipper, config)
 
                   zipper ->
-                    Igniter.Common.add_code(zipper, config, :before)
+                    Common.add_code(zipper, config, :before)
                 end
             end
         end
     end
   end
 
+  @doc "Returns `true` if the given configuration path is set somewhere after the provided zipper."
+  @spec configures?(Zipper.t(), list(atom), atom()) :: boolean()
   def configures?(zipper, config_path, app_name) do
     if Enum.count(config_path) == 1 do
       config_item = Enum.at(config_path, 0)
 
-      case Common.move_to_function_call_in_current_scope(zipper, :config, 3, fn function_call ->
-             Common.argument_matches_pattern?(function_call, 0, ^app_name) &&
-               Common.argument_matches_pattern?(function_call, 1, ^config_item)
-           end) do
+      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             3,
+             fn function_call ->
+               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name) &&
+                 Igniter.Code.Function.argument_matches_pattern?(function_call, 1, ^config_item)
+             end
+           ) do
         :error ->
           false
 
@@ -132,15 +164,20 @@ defmodule Igniter.Config do
           true
       end
     else
-      case Common.move_to_function_call_in_current_scope(zipper, :config, 2, fn function_call ->
-             Common.argument_matches_pattern?(function_call, 0, ^app_name)
-           end) do
+      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             2,
+             fn function_call ->
+               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name)
+             end
+           ) do
         :error ->
           :error
 
         {:ok, zipper} ->
-          Common.argument_matches_predicate?(zipper, 1, fn zipper ->
-            Igniter.Common.keyword_has_path?(zipper, config_path)
+          Igniter.Code.Function.argument_matches_predicate?(zipper, 1, fn zipper ->
+            Igniter.Code.Keyword.keyword_has_path?(zipper, config_path)
           end)
       end
     end
@@ -150,34 +187,44 @@ defmodule Igniter.Config do
     if Enum.count(config_path) == 1 do
       config_item = Enum.at(config_path, 0)
 
-      case Common.move_to_function_call_in_current_scope(zipper, :config, 3, fn function_call ->
-             Common.argument_matches_pattern?(function_call, 0, ^app_name) &&
-               Common.argument_matches_pattern?(function_call, 1, ^config_item)
-           end) do
+      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             3,
+             fn function_call ->
+               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name) &&
+                 Igniter.Code.Function.argument_matches_pattern?(function_call, 1, ^config_item)
+             end
+           ) do
         :error ->
           :error
 
         {:ok, zipper} ->
-          Common.update_nth_argument(zipper, 2, updater)
+          Igniter.Code.Function.update_nth_argument(zipper, 2, updater)
       end
     else
       [config_item | path] = config_path
 
-      case Common.move_to_function_call_in_current_scope(zipper, :config, 3, fn function_call ->
-             Common.argument_matches_pattern?(function_call, 0, ^app_name) &&
-               (Common.argument_matches_pattern?(function_call, 1, ^config_item) ||
-                  Common.argument_matches_predicate?(
-                    function_call,
-                    1,
-                    &Common.equal_modules?(&1, config_item)
-                  ))
-           end) do
+      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             3,
+             fn function_call ->
+               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name) &&
+                 (Igniter.Code.Function.argument_matches_pattern?(function_call, 1, ^config_item) ||
+                    Igniter.Code.Function.argument_matches_predicate?(
+                      function_call,
+                      1,
+                      &Common.nodes_equal?(&1, config_item)
+                    ))
+             end
+           ) do
         :error ->
           :error
 
         {:ok, zipper} ->
-          with {:ok, zipper} <- Common.move_to_nth_argument(zipper, 2),
-               {:ok, zipper} <- Common.put_in_keyword(zipper, path, value, updater) do
+          with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 2),
+               {:ok, zipper} <- Igniter.Code.Keyword.put_in_keyword(zipper, path, value, updater) do
             {:ok, zipper}
           else
             _ ->
@@ -188,22 +235,23 @@ defmodule Igniter.Config do
   end
 
   defp try_update_two_arg(zipper, config_path, app_name, value, updater) do
-    case Common.move_to_function_call_in_current_scope(zipper, :config, 2, fn function_call ->
-           Common.argument_matches_pattern?(function_call, 0, ^app_name)
-         end) do
+    case Igniter.Code.Function.move_to_function_call_in_current_scope(
+           zipper,
+           :config,
+           2,
+           fn function_call ->
+             Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name)
+           end
+         ) do
       :error ->
         :error
 
       {:ok, zipper} ->
-        Common.update_nth_argument(zipper, 1, fn zipper ->
-          case Igniter.Common.put_in_keyword(zipper, config_path, value, updater) do
-            {:ok, new_zipper} ->
-              new_zipper
-
-            _ ->
-              zipper
-          end
-        end)
+        Igniter.Code.Function.update_nth_argument(
+          zipper,
+          1,
+          &Igniter.Code.Keyword.put_in_keyword(&1, config_path, value, updater)
+        )
     end
   end
 end

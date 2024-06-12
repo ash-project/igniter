@@ -1,6 +1,6 @@
 defmodule Igniter do
   @moduledoc """
-  Igniter is a library for installing packages and generating code.
+  Tools for generating and patching code into an Elixir project.
   """
 
   defstruct [:rewrite, issues: [], tasks: [], warnings: [], assigns: %{}]
@@ -13,10 +13,16 @@ defmodule Igniter do
           assigns: map()
         }
 
+  @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
+
+  @doc "Returns a new igniter"
+  @spec new() :: t()
   def new do
     %__MODULE__{rewrite: Rewrite.new()}
   end
 
+  @doc "Stores the key/value pair in `igniter.assigns`"
+  @spec assign(t, atom, term()) :: t()
   def assign(igniter, key, value) do
     %{igniter | assigns: Map.put(igniter.assigns, key, value)}
   end
@@ -27,6 +33,8 @@ defmodule Igniter do
     end)
   end
 
+  @doc "Includes all files matching the given glob, expecting them all (for now) to be elixir files."
+  @spec include_glob(t, String.t()) :: t()
   def include_glob(igniter, glob) do
     glob
     |> Path.wildcard()
@@ -40,6 +48,16 @@ defmodule Igniter do
     end)
   end
 
+  @doc """
+  Updates all files matching the given glob with the given zipper function.
+
+  Adds any new files matching that glob to the igniter first.
+  """
+  @spec update_glob(
+          t,
+          String.t(),
+          zipper_updater
+        ) :: t()
   def update_glob(igniter, glob, func) do
     igniter = include_glob(igniter, glob)
 
@@ -54,18 +72,23 @@ defmodule Igniter do
     end)
   end
 
+  @doc "Adds an issue to the issues list. Any issues will prevent writing and be displayed to the user."
+  @spec add_issue(t, term) :: t()
   def add_issue(igniter, issue) do
     %{igniter | issues: [issue | igniter.issues]}
   end
 
+  @doc "Adds a warning to the warnings list. Warnings will not prevent writing, but will be displayed to the user."
   def add_warning(igniter, warning) do
     %{igniter | issues: [warning | igniter.warnings]}
   end
 
+  @doc "Adds a task to the tasks list. Tasks will be run after all changes have been commited"
   def add_task(igniter, task, argv \\ []) when is_binary(task) do
     %{igniter | tasks: igniter.tasks ++ [{task, argv}]}
   end
 
+  @doc "Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter."
   def compose_task(igniter, task, argv) when is_atom(task) do
     Code.ensure_compiled!(task)
 
@@ -96,6 +119,10 @@ defmodule Igniter do
     end
   end
 
+  @doc """
+  Updates the source code of the given elixir file
+  """
+  @spec update_elixir_file(t(), Path.t(), zipper_updater()) :: Igniter.t()
   def update_elixir_file(igniter, path, func) do
     if Rewrite.has_source?(igniter.rewrite, path) do
       %{
@@ -123,6 +150,10 @@ defmodule Igniter do
     end
   end
 
+  @doc """
+  Updates a given file's `Rewrite.Source`
+  """
+  @spec update_file(t(), Path.t(), (Rewrite.Source.t() -> Rewrite.Source.t())) :: t()
   def update_file(igniter, path, func) do
     if Rewrite.has_source?(igniter.rewrite, path) do
       %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, func)}
@@ -142,6 +173,8 @@ defmodule Igniter do
     end
   end
 
+  @doc "Includes the given file in the project, expecting it to exist. Does nothing if its already been added."
+  @spec include_existing_elixir_file(t(), Path.t()) :: t()
   def include_existing_elixir_file(igniter, path) do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
@@ -155,6 +188,8 @@ defmodule Igniter do
     end
   end
 
+  @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
+  @spec include_or_create_elixir_file(t(), Path.t(), contents :: String.t()) :: t()
   def include_or_create_elixir_file(igniter, path, contents \\ "") do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
@@ -174,6 +209,8 @@ defmodule Igniter do
     end
   end
 
+  @doc "Updates or creates the given file in the project with the provided contents."
+  @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
   def create_or_update_elixir_file(igniter, path, contents, func) do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
@@ -202,6 +239,8 @@ defmodule Igniter do
     end
   end
 
+  @doc "Creates a new elixir file in the project with the provided contents. Adds an error if it already exists."
+  @spec create_new_elixir_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_elixir_file(igniter, path, contents \\ "") do
     source =
       try do
@@ -219,6 +258,11 @@ defmodule Igniter do
     |> format(path)
   end
 
+  @doc """
+  Executes or dry-runs a given Igniter.
+
+  This takes `argv` to parameterize it as it is generally invoked from a mix task.
+  """
   def do_or_dry_run(igniter, argv, opts \\ []) do
     igniter = %{igniter | issues: Enum.uniq(igniter.issues)}
     title = opts[:title] || "Igniter"

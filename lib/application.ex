@@ -1,23 +1,28 @@
 defmodule Igniter.Application do
   @moduledoc "Codemods and tools for working with Application modules."
 
-  require Igniter.Common
+  require Igniter.Code.Common
+  require Igniter.Code.Function
 
-  alias Igniter.Common
+  alias Igniter.Code.Common
   alias Sourceror.Zipper
 
+  @doc "Returns the name of the current application."
+  @spec app_name() :: atom()
   def app_name do
     Mix.Project.config()[:app]
   end
 
-  def add_child(igniter, to_supervise) do
+  @doc "Adds a new child to the `children` list in the application file"
+  @spec add_new_child(Igniter.t(), module() | {module, term()}) :: Igniter.t()
+  def add_new_child(igniter, to_supervise) do
     project = Mix.Project.get!()
 
     # TODO: Would be better to check the source and parse the app module out
     # as something else may have set an app module
     to_perform =
       case project.application()[:mod] do
-        nil -> {:create_an_app, Igniter.Module.module_name("Application")}
+        nil -> {:create_an_app, Igniter.Code.Module.module_name("Application")}
         {mod, _} -> {:modify, mod}
         mod -> {:modify, mod}
       end
@@ -40,20 +45,20 @@ defmodule Igniter.Application do
   end
 
   def do_add_child(igniter, application, to_supervise) do
-    path = Igniter.Module.proper_location(application)
+    path = Igniter.Code.Module.proper_location(application)
 
     diff_checker =
       case to_supervise do
         v when is_atom(v) ->
-          &Common.equal_modules?/2
+          &Common.nodes_equal?/2
 
         {v, _opts} when is_atom(v) ->
           fn
             {item, _}, {right, _} ->
-              Common.equal_modules?(item, right)
+              Common.nodes_equal?(item, right)
 
             item, {right, _} ->
-              Common.equal_modules?(item, right)
+              Common.nodes_equal?(item, right)
 
             _, _ ->
               false
@@ -61,19 +66,23 @@ defmodule Igniter.Application do
       end
 
     Igniter.update_elixir_file(igniter, path, fn zipper ->
-      with {:ok, zipper} <- Common.move_to_module_using(zipper, Application),
-           {:ok, zipper} <- Common.move_to_def(zipper, :start, 2) do
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Application),
+           {:ok, zipper} <- Igniter.Code.Module.move_to_def(zipper, :start, 2) do
         zipper
-        |> Common.move_to_function_call_in_current_scope(:=, [2], fn call ->
-          Common.argument_matches_pattern?(call, 0, {:children, _, context} when is_atom(context)) &&
-            Common.argument_matches_pattern?(call, 1, v when is_list(v))
+        |> Igniter.Code.Function.move_to_function_call_in_current_scope(:=, [2], fn call ->
+          Igniter.Code.Function.argument_matches_pattern?(
+            call,
+            0,
+            {:children, _, context} when is_atom(context)
+          ) &&
+            Igniter.Code.Function.argument_matches_pattern?(call, 1, v when is_list(v))
         end)
         |> case do
           {:ok, zipper} ->
             zipper
             |> Zipper.down()
             |> Zipper.rightmost()
-            |> Igniter.Common.append_new_to_list(to_supervise, diff_checker)
+            |> Igniter.Code.List.append_new_to_list(to_supervise, diff_checker)
 
           _ ->
             {:error,
@@ -87,7 +96,7 @@ defmodule Igniter.Application do
   end
 
   defp create_application_file(igniter, application) do
-    path = Igniter.Module.proper_location(application)
+    path = Igniter.Code.Module.proper_location(application)
 
     contents = """
     defmodule #{inspect(application)} do
@@ -110,14 +119,14 @@ defmodule Igniter.Application do
 
   defp point_to_application_in_mix_exs(igniter, application) do
     Igniter.update_elixir_file(igniter, "mix.exs", fn zipper ->
-      case Common.move_to_module_using(zipper, Mix.Project) do
+      case Igniter.Code.Module.move_to_module_using(zipper, Mix.Project) do
         {:ok, zipper} ->
-          case Common.move_to_def(zipper, :application, 0) do
+          case Igniter.Code.Module.move_to_def(zipper, :application, 0) do
             {:ok, zipper} ->
               zipper
               |> Zipper.rightmost()
-              |> Common.set_keyword_key(:mod, {application, []}, fn z ->
-                Zipper.replace(z, {application, []})
+              |> Igniter.Code.Keyword.set_keyword_key(:mod, {application, []}, fn z ->
+                {:ok, Zipper.replace(z, {application, []})}
               end)
 
             _ ->

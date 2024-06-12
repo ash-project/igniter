@@ -1,5 +1,5 @@
-![Logo](https://github.com/ash-project/igniter/blob/main/logos/igniter-logo.png?raw=true#gh-light-mode-only)
-![Logo](https://github.com/ash-project/igniter/blob/main/logos/igniter-logo.png?raw=true#gh-dark-mode-only)
+![Logo](https://github.com/ash-project/igniter/blob/main/logos/igniter-logo-small.png?raw=true#gh-light-mode-only)
+![Logo](https://github.com/ash-project/igniter/blob/main/logos/igniter-logo-small.png?raw=true#gh-dark-mode-only)
 
 ![Elixir CI](https://github.com/ash-project/igniter/workflows/Ash%20CI/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -44,9 +44,9 @@ defmodule Mix.Tasks.MyApp.Gen.Resource do
   use Igniter.Mix.Task
 
   def igniter(igniter, [resource | _] = argv) do
-    resource = Igniter.Module.parse(resource)
+    resource = Igniter.Code.Module.parse(resource)
     my_special_thing = Module.concat([resource, SpecialThing])
-    location = Igniter.Module.proper_location(my_special_thing)
+    location = Igniter.Code.Module.proper_location(my_special_thing)
 
     igniter
     |> Igniter.compose_task("ash.gen.resource", argv)

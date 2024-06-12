@@ -163,7 +163,7 @@ defmodule Igniter.ConfigTest do
           config :fake, :buz, [:blat]
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:buz], "baz", fn list ->
-          Igniter.Common.prepend_new_to_list(list, "baz")
+          Igniter.Code.List.prepend_new_to_list(list, "baz")
         end)
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
@@ -203,15 +203,11 @@ defmodule Igniter.ConfigTest do
           config :fake, foo: %{"a" => ["a", "b"]}
         """)
         |> Igniter.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]}, fn zipper ->
-          Igniter.Common.set_map_key(zipper, "b", ["c", "d"], fn zipper ->
-            zipper
-            |> Igniter.Common.prepend_new_to_list(zipper, "c")
-            |> Igniter.Common.prepend_new_to_list(zipper, "d")
+          Igniter.Code.Map.set_map_key(zipper, "b", ["c", "d"], fn zipper ->
+            with {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, "c") do
+              Igniter.Code.List.prepend_new_to_list(zipper, "d")
+            end
           end)
-          |> case do
-            {:ok, zipper} -> zipper
-            _ -> zipper
-          end
         end)
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")

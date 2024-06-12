@@ -1,7 +1,7 @@
 defmodule Igniter.Deps do
   @moduledoc "Codemods and utilities for managing dependencies declared in mix.exs"
-  require Igniter.Common
-  alias Igniter.Common
+  require Igniter.Code.Common
+  alias Igniter.Code.Common
   alias Sourceror.Zipper
 
   def add_dependency(igniter, name, version, yes? \\ false) do
@@ -46,14 +46,19 @@ defmodule Igniter.Deps do
       |> Rewrite.Source.get(:quoted)
       |> Zipper.zip()
 
-    with {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
-         {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
+    with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+         {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
          true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
          {:ok, current_declaration} <-
-           Common.move_to_list_item(zipper, fn item ->
-             if Common.tuple?(item) do
-               first_elem = Common.tuple_elem(item, 0)
-               first_elem && Common.node_matches_pattern?(first_elem, ^name)
+           Igniter.Code.List.move_to_list_item(zipper, fn item ->
+             if Igniter.Code.Tuple.tuple?(item) do
+               case Igniter.Code.Tuple.tuple_elem(item, 0) do
+                 {:ok, first_elem} ->
+                   Common.node_matches_pattern?(first_elem, ^name)
+
+                 :error ->
+                   false
+               end
              end
            end) do
       current_declaration
@@ -69,17 +74,22 @@ defmodule Igniter.Deps do
   defp remove_dependency(igniter, name) do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
-      with {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
-           {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+           {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
            true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
            current_declaration_index when not is_nil(current_declaration_index) <-
-             Common.find_list_item_index(zipper, fn item ->
-               if Common.tuple?(item) do
-                 first_elem = Common.tuple_elem(item, 0)
-                 first_elem && Common.node_matches_pattern?(first_elem, ^name)
+             Igniter.Code.List.find_list_item_index(zipper, fn item ->
+               if Igniter.Code.Tuple.tuple?(item) do
+                 case Igniter.Code.Tuple.tuple_elem(item, 0) do
+                   {:ok, first_elem} ->
+                     Common.node_matches_pattern?(first_elem, ^name)
+
+                   :error ->
+                     false
+                 end
                end
              end) do
-        Common.remove_index(zipper, current_declaration_index)
+        Igniter.Code.List.remove_index(zipper, current_declaration_index)
       else
         _ ->
           {:error, "Failed to remove dependency #{inspect(name)}"}
@@ -90,15 +100,15 @@ defmodule Igniter.Deps do
   defp do_add_dependency(igniter, name, version) do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
-      with {:ok, zipper} <- Common.move_to_module_using(zipper, Mix.Project),
-           {:ok, zipper} <- Common.move_to_defp(zipper, :deps, 0),
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+           {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
            true <- Common.node_matches_pattern?(zipper, value when is_list(value)) do
         quoted =
           quote do
             {unquote(name), unquote(version)}
           end
 
-        Common.prepend_to_list(zipper, quoted)
+        Igniter.Code.List.prepend_to_list(zipper, quoted)
       else
         _ ->
           {:error, "Failed to add dependency #{inspect({inspect(name), inspect(version)})}"}

@@ -1,6 +1,6 @@
 defmodule Igniter.Formatter do
   @moduledoc "Codemods and utilities for interacting with `.formatter.exs` files"
-  alias Igniter.Common
+  alias Igniter.Code.Common
   alias Sourceror.Zipper
 
   @default_formatter """
@@ -10,6 +10,10 @@ defmodule Igniter.Formatter do
   ]
   """
 
+  @doc """
+  Adds a new dep to the list of imported deps in the root `.formatter.exs`
+  """
+  @spec import_dep(Igniter.t(), dep :: atom) :: Igniter.t()
   def import_dep(igniter, dep) do
     igniter
     |> Igniter.include_or_create_elixir_file(".formatter.exs", @default_formatter)
@@ -23,13 +27,13 @@ defmodule Igniter.Formatter do
               [import_deps: [unquote(dep)]]
             end
 
-          Igniter.Common.add_code(zipper, code)
+          Common.add_code(zipper, code)
 
         zipper ->
           zipper
           |> Zipper.rightmost()
-          |> Common.put_in_keyword([:import_deps], [dep], fn nested_zipper ->
-            Igniter.Common.prepend_new_to_list(
+          |> Igniter.Code.Keyword.put_in_keyword([:import_deps], [dep], fn nested_zipper ->
+            Igniter.Code.List.prepend_new_to_list(
               nested_zipper,
               dep
             )
@@ -45,6 +49,10 @@ defmodule Igniter.Formatter do
     end)
   end
 
+  @doc """
+  Adds a new plugin to the list of plugins in the root `.formatter.exs`
+  """
+  @spec add_formatter_plugin(Igniter.t(), plugin :: module()) :: Igniter.t()
   def add_formatter_plugin(igniter, plugin) do
     igniter
     |> Igniter.include_or_create_elixir_file(".formatter.exs", @default_formatter)
@@ -59,18 +67,21 @@ defmodule Igniter.Formatter do
             end
 
           zipper
-          |> Igniter.Common.add_code(code)
+          |> Common.add_code(code)
 
         zipper ->
           zipper
           |> Zipper.rightmost()
-          |> Common.put_in_keyword([:plugins], [Spark.Formatter], fn nested_zipper ->
-            Igniter.Common.prepend_new_to_list(
-              nested_zipper,
-              Spark.Formatter,
-              &Igniter.Common.equal_modules?/2
-            )
-          end)
+          |> Igniter.Code.Keyword.put_in_keyword(
+            [:plugins],
+            [Spark.Formatter],
+            fn nested_zipper ->
+              Igniter.Code.List.prepend_new_to_list(
+                nested_zipper,
+                Spark.Formatter
+              )
+            end
+          )
           |> case do
             {:ok, zipper} ->
               zipper
