@@ -29,7 +29,8 @@ defmodule Igniter.MixProject do
       logo: "logos/igniter-logo-small.png",
       extra_section: "GUIDES",
       extras: [
-        {"README.md", title: "Home"}
+        {"README.md", title: "Home"},
+        "documentation/writing-generators.md"
         # "CHANGELOG.md"
       ],
       before_closing_head_tag: fn type ->

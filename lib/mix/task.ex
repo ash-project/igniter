@@ -1,6 +1,12 @@
 defmodule Igniter.Mix.Task do
   @moduledoc "A behaviour for implementing a Mix task that is enriched to be composable with other Igniter tasks."
+  @doc """
+  Whether or not it supports being run in the root of an umbrella project
+
+  At the moment, this is still experimental and we suggest not turning it on.
+  """
   @callback supports_umbrella?() :: boolean()
+  @doc "All the generator behavior happens here, you take an igniter and task arguments, and return an igniter."
   @callback igniter(igniter :: Igniter.t(), argv :: list(String.t())) :: Igniter.t()
 
   defmacro __using__(_opts) do

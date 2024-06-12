@@ -96,6 +96,8 @@ defmodule Igniter do
   end
 
   @doc "Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter."
+  def compose_task(igniter, task, argv \\ [])
+
   def compose_task(igniter, task, argv) when is_atom(task) do
     Code.ensure_compiled!(task)
 
