@@ -60,6 +60,7 @@ defmodule Igniter.Code.Module do
     end
   end
 
+  # sobelow_skip ["DOS.StringToAtom"]
   def move_to_module_using(zipper, module) do
     split_module =
       module

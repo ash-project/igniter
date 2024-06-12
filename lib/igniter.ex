@@ -5,6 +5,8 @@ defmodule Igniter do
 
   defstruct [:rewrite, issues: [], tasks: [], warnings: [], assigns: %{}]
 
+  alias Sourceror.Zipper
+
   @type t :: %__MODULE__{
           rewrite: Rewrite.t(),
           issues: [String.t()],
@@ -34,10 +36,14 @@ defmodule Igniter do
   end
 
   @doc "Includes all files matching the given glob, expecting them all (for now) to be elixir files."
-  @spec include_glob(t, String.t()) :: t()
+  @spec include_glob(t, Path.t() | GlobEx.t()) :: t()
   def include_glob(igniter, glob) do
     glob
-    |> Path.wildcard()
+    |> case do
+      %GlobEx{} = glob -> glob
+      string -> GlobEx.compile!(string)
+    end
+    |> GlobEx.ls()
     |> Enum.reduce(igniter, fn path, igniter ->
       if Path.extname(path) in [".ex", ".exs"] do
         Igniter.include_existing_elixir_file(igniter, path)
@@ -55,10 +61,11 @@ defmodule Igniter do
   """
   @spec update_glob(
           t,
-          String.t(),
+          Path.t(),
           zipper_updater
         ) :: t()
   def update_glob(igniter, glob, func) do
+    glob = GlobEx.compile!(glob)
     igniter = include_glob(igniter, glob)
 
     Enum.reduce(igniter.rewrite, igniter, fn source, igniter ->
@@ -382,13 +389,10 @@ defmodule Igniter do
                   |> Rewrite.write_all()
                   |> case do
                     {:ok, _result} ->
-                      unless Enum.empty?(igniter.tasks) do
-                        igniter.tasks
-                        |> Enum.each(fn {task, args} ->
-                          # TODO: don't do this, this is horrible and ugly
-                          Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
-                        end)
-                      end
+                      igniter.tasks
+                      |> Enum.each(fn {task, args} ->
+                        Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
+                      end)
 
                       :changes_made
 

@@ -1,7 +1,10 @@
 defmodule Igniter.Code.Keyword do
+  @moduledoc """
+  Utilities for working with keyword.
+  """
   require Igniter.Code.Common
-  alias Sourceror.Zipper
   alias Igniter.Code.Common
+  alias Sourceror.Zipper
 
   @doc "Returns true if the node is a nested keyword list containing a value at the given path."
   @spec keyword_has_path?(Zipper.t(), [atom()]) :: boolean()
@@ -21,9 +24,10 @@ defmodule Igniter.Code.Keyword do
              end
            end) do
         {:ok, zipper} ->
-          with {:ok, second_elem} <- Igniter.Code.Tuple.tuple_elem(zipper, 1) do
-            keyword_has_path?(second_elem, rest)
-          else
+          case Igniter.Code.Tuple.tuple_elem(zipper, 1) do
+            {:ok, second_elem} ->
+              keyword_has_path?(second_elem, rest)
+
             _ ->
               false
           end
@@ -41,7 +45,7 @@ defmodule Igniter.Code.Keyword do
           Zipper.t(),
           list(atom()),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error)
+          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
         ) ::
           {:ok, Zipper.t()} | :error
   def put_in_keyword(zipper, path, value, updater \\ nil) do

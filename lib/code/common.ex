@@ -274,8 +274,8 @@ defmodule Igniter.Code.Common do
       :error ->
         :error
 
-      zipper ->
-        {:ok, move_to_cursor(zipper, pattern)}
+      {:ok, zipper} ->
+        move_to_cursor(zipper, pattern)
     end
   end
 
@@ -333,8 +333,7 @@ defmodule Igniter.Code.Common do
   # => 10
   ```
   """
-  # TODO: replace with `Sourceror` when `move_to_cursor/2` is merged there
-  @spec move_to_cursor(Zipper.t(), String.t()) :: {:ok, Zipper.t()} | :error
+  @spec move_to_cursor(Zipper.t(), Zipper.t() | String.t()) :: {:ok, Zipper.t()} | :error
   def move_to_cursor(%Zipper{} = zipper, pattern) when is_binary(pattern) do
     pattern
     |> Sourceror.parse_string!()
@@ -348,7 +347,7 @@ defmodule Igniter.Code.Common do
 
   defp do_move_to_cursor(%Zipper{} = zipper, %Zipper{} = pattern_zipper) do
     cond do
-      is_cursor?(pattern_zipper |> Zipper.subtree() |> Zipper.node()) ->
+      cursor?(pattern_zipper |> Zipper.subtree() |> Zipper.node()) ->
         {:ok, zipper}
 
       match_type = zippers_match(zipper, pattern_zipper) ->
@@ -368,8 +367,8 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  defp is_cursor?({:__cursor__, _, []}), do: true
-  defp is_cursor?(_other), do: false
+  defp cursor?({:__cursor__, _, []}), do: true
+  defp cursor?(_other), do: false
 
   defp zippers_match(zipper, pattern_zipper) do
     zipper_node =

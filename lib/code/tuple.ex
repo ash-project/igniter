@@ -2,8 +2,8 @@ defmodule Igniter.Code.Tuple do
   @moduledoc """
   Utilities for working with tuples.
   """
-  alias Sourceror.Zipper
   alias Igniter.Code.Common
+  alias Sourceror.Zipper
 
   @doc "Returns `true` if the zipper is at a literal tuple, `false` if not."
   @spec tuple?(Zipper.t()) :: boolean()

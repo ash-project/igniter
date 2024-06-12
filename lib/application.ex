@@ -18,8 +18,6 @@ defmodule Igniter.Application do
   def add_new_child(igniter, to_supervise) do
     project = Mix.Project.get!()
 
-    # TODO: Would be better to check the source and parse the app module out
-    # as something else may have set an app module
     to_perform =
       case project.application()[:mod] do
         nil -> {:create_an_app, Igniter.Code.Module.module_name("Application")}

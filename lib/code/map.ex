@@ -8,7 +8,12 @@ defmodule Igniter.Code.Map do
   alias Sourceror.Zipper
 
   @doc "Puts a value at a path into a map, calling `updater` on the zipper at the value if the key is already present"
-  @spec put_in_map(Zipper.t(), list(term()), term(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
+  @spec put_in_map(
+          Zipper.t(),
+          list(term()),
+          term(),
+          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+        ) ::
           {:ok, Zipper.t()} | :error
   def put_in_map(zipper, path, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end

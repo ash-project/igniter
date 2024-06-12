@@ -10,7 +10,7 @@ defmodule Igniter.Version do
   and
   `0.2.4` would be `~> 0.2`
   """
-  @spec version_string_to_general_requirement(String.t()) :: String.t() | no_return
+  @spec version_string_to_general_requirement!(String.t()) :: String.t() | no_return
   def version_string_to_general_requirement!(version) do
     case version_string_to_general_requirement(version) do
       {:ok, requirement} -> requirement

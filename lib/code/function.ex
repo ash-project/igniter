@@ -2,8 +2,9 @@ defmodule Igniter.Code.Function do
   @moduledoc """
   Utilities for working with functions.
   """
-  alias Sourceror.Zipper
+
   alias Igniter.Code.Common
+  alias Sourceror.Zipper
 
   @doc "Returns `true` if the argument at the provided index exists and matches the provided pattern"
   defmacro argument_matches_pattern?(zipper, index, pattern) do
@@ -109,16 +110,16 @@ defmodule Igniter.Code.Function do
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
-      {name, _, _} when is_atom(name) ->
-        true
-
-      {{name, _, context}, _, _} when is_atom(context) and is_atom(name) ->
-        true
-
       {:|>, _, [{name, _, context} | _rest]} when is_atom(context) and is_atom(name) ->
         true
 
       {:|>, _, [name | _rest]} when is_atom(name) ->
+        true
+
+      {name, _, _} when is_atom(name) ->
+        true
+
+      {{name, _, context}, _, _} when is_atom(context) and is_atom(name) ->
         true
 
       _ ->

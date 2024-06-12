@@ -13,6 +13,7 @@ defmodule Igniter.Install do
     ]
   ]
 
+  # sobelow_skip ["DOS.StringToAtom"]
   def install(install, argv) do
     install_list =
       if is_binary(install) do
