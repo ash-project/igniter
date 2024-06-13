@@ -499,20 +499,23 @@ defmodule Igniter do
           if is_nil(adding_path) || path == adding_path do
             dir = Path.dirname(path)
 
-            case find_formatter_exs_file_options(dir, formatter_exs_files) do
-              :error ->
-                source
+            opts =
+              case find_formatter_exs_file_options(dir, formatter_exs_files) do
+                :error ->
+                  []
 
-              {:ok, opts} ->
-                formatted =
-                  with_evaled_configs(rewrite, fn ->
-                    Rewrite.Source.Ex.format(source, opts)
-                  end)
+                {:ok, opts} ->
+                  opts
+              end
 
-                source
-                |> Rewrite.Source.Ex.put_formatter_opts(opts)
-                |> Rewrite.Source.update(:content, formatted)
-            end
+            formatted =
+              with_evaled_configs(rewrite, fn ->
+                Rewrite.Source.Ex.format(source, opts)
+              end)
+
+            source
+            |> Rewrite.Source.Ex.put_formatter_opts(opts)
+            |> Rewrite.Source.update(:content, formatted)
           else
             source
           end
