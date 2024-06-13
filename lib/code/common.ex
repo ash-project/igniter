@@ -78,7 +78,7 @@ defmodule Igniter.Code.Common do
 
   existing_code
   |> Sourceror.Zipper.zip()
-  Code.|> Igniter.Common.add_code(new_code)
+  |> Igniter.Common.add_code(new_code)
   |> Sourceror.Zipper.root()
   |> Sourceror.to_string()
   ```
