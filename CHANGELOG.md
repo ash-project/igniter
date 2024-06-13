@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.6](https://github.com/ash-project/igniter/compare/v0.1.5...v0.1.6) (2024-06-13)
+
+
+
+
+### Bug Fixes:
+
+* patch formatter fix, to be removed later when rewrite PR is merged
+
+* properly find functions in scope
+
 ## [v0.1.5](https://github.com/ash-project/igniter/compare/v0.1.4...v0.1.5) (2024-06-13)
 
 
