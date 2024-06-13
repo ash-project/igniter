@@ -211,7 +211,7 @@ defmodule Igniter.Install do
               [github: requirement]
             end
 
-          "local:" <> requirement ->
+          "path:" <> requirement ->
             [path: requirement]
 
           version ->

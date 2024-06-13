@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Igniter.Install do
      if it is specific, like `3.0.1`, it will be pinned at that *exact* version with `==`.
   * `package@git:git_url` - The package will be installed from the specified git url.
   * `package@github:project/repo` - The package will be installed from the specified github repo.
-  * `package@local:path/to/local` - The package will be installed from the specified local path.
+  * `package@path:path/to/dep` - The package will be installed from the specified path.
 
   ## Switches
 
