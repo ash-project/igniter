@@ -15,7 +15,7 @@ defmodule Igniter.New.MixProject do
         maintainers: ["Zach Daniel"],
         licenses: ["MIT"],
         links: %{"GitHub" => @scm_url},
-        files: ~w(lib templates mix.exs README.md)
+        files: ~w(lib mix.exs README.md)
       ],
       preferred_cli_env: [docs: :docs],
       source_url: @scm_url,
@@ -29,7 +29,7 @@ defmodule Igniter.New.MixProject do
 
   def deps do
     [
-      {:ex_doc, "~> 0.24", only: :docs}
+      {:ex_doc, "~> 0.24", only: :dev}
     ]
   end
 
