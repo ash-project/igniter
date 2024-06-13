@@ -408,8 +408,8 @@ defmodule Igniter.Code.Common do
 
   `fun` must return {:ok, zipper} or `:error`, which may be positioned at the top of the subtree.
   """
-  def within(%Zipper{} = zipper, fun) when is_function(fun, 1) do
-    zipper
+  def within(%Zipper{} = top_zipper, fun) when is_function(fun, 1) do
+    top_zipper
     |> Zipper.subtree()
     |> fun.()
     |> case do
@@ -420,7 +420,7 @@ defmodule Igniter.Code.Common do
         {:ok,
          zipper
          |> Zipper.top()
-         |> into(zipper)}
+         |> into(top_zipper)}
     end
   end
 

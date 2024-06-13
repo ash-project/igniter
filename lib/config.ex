@@ -91,7 +91,7 @@ defmodule Igniter.Config do
           atom(),
           term(),
           (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
-        ) :: Igniter.t()
+        ) :: Zipper.t()
   def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
 
@@ -128,6 +128,17 @@ defmodule Igniter.Config do
                    end
                  ) do
               {:ok, zipper} ->
+                zipper
+                |> Zipper.right()
+                |> case do
+                  nil ->
+                    Common.add_code(zipper, config)
+
+                  zipper ->
+                    Common.add_code(zipper, config, :before)
+                end
+
+              :error ->
                 zipper
                 |> Zipper.right()
                 |> case do

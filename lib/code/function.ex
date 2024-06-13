@@ -127,196 +127,240 @@ defmodule Igniter.Code.Function do
     end
   end
 
+  @doc "Updates the `nth` argument of a function call, leaving the zipper at the function call's node."
+  @spec update_nth_argument(
+          Zipper.t(),
+          non_neg_integer(),
+          (Zipper.t() ->
+             {:ok, Zipper.t()} | :error)
+        ) ::
+          {:ok, Zipper.t()} | :error
   def update_nth_argument(zipper, index, func) do
-    if pipeline?(zipper) do
-      if index == 0 do
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            :error
-
-          zipper ->
-            func.(zipper)
-        end
-      else
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            :error
-
-          zipper ->
-            zipper
-            |> Zipper.rightmost()
-            |> Zipper.down()
-            |> case do
-              nil ->
-                :error
-
-              zipper ->
-                zipper
-                |> Common.nth_right(index)
-                |> case do
-                  :error ->
-                    :error
-
-                  {:ok, nth} ->
-                    func.(nth)
-                end
-            end
-        end
-      end
-    else
-      zipper
-      |> Zipper.down()
-      |> case do
-        nil ->
-          :error
-
-        zipper ->
+    Common.within(zipper, fn zipper ->
+      if pipeline?(zipper) do
+        if index == 0 do
           zipper
-          |> Common.nth_right(index)
+          |> Zipper.down()
           |> case do
-            :error ->
+            nil ->
               :error
 
-            {:ok, nth} ->
-              func.(nth)
+            zipper ->
+              func.(zipper)
           end
-      end
-    end
-  end
-
-  def move_to_nth_argument(zipper, index) do
-    if pipeline?(zipper) do
-      if index == 0 do
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            :error
-
-          zipper ->
-            {:ok, zipper}
-        end
-      else
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            :error
-
-          zipper ->
-            zipper
-            |> Zipper.rightmost()
-            |> Zipper.down()
-            |> case do
-              nil ->
-                :error
-
-              zipper ->
-                zipper
-                |> Common.nth_right(index)
-                |> case do
-                  :error ->
-                    :error
-
-                  {:ok, nth} ->
-                    {:ok, nth}
-                end
-            end
-        end
-      end
-    else
-      zipper
-      |> Zipper.down()
-      |> case do
-        nil ->
-          :error
-
-        zipper ->
+        else
           zipper
-          |> Common.nth_right(index)
+          |> Zipper.down()
           |> case do
-            :error ->
+            nil ->
               :error
 
-            {:ok, nth} ->
-              {:ok, nth}
-          end
-      end
-    end
-  end
-
-  def append_argument(zipper, value) do
-    zipper
-    |> Zipper.append_child(value)
-  end
-
-  def argument_matches_predicate?(zipper, index, func) do
-    if pipeline?(zipper) do
-      if index == 0 do
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil -> nil
-          zipper -> func.(zipper)
-        end
-      else
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            nil
-
-          zipper ->
-            zipper
-            |> Zipper.rightmost()
-            |> Zipper.down()
-            |> case do
-              nil ->
-                nil
-
-              zipper ->
-                zipper
-                |> Common.nth_right(index - 1)
-                |> case do
-                  :error ->
-                    false
-
-                  {:ok, zipper} ->
-                    zipper
-                    |> Common.maybe_move_to_block()
-                    |> func.()
-                end
-            end
-        end
-      end
-    else
-      zipper
-      |> Zipper.down()
-      |> case do
-        nil ->
-          false
-
-        zipper ->
-          zipper
-          |> Common.nth_right(index)
-          |> case do
-            :error ->
-              false
-
-            {:ok, zipper} ->
+            zipper ->
               zipper
-              |> Common.maybe_move_to_block()
-              |> func.()
+              |> Zipper.rightmost()
+              |> Zipper.down()
+              |> case do
+                nil ->
+                  :error
+
+                zipper ->
+                  zipper
+                  |> Common.nth_right(index)
+                  |> case do
+                    :error ->
+                      :error
+
+                    {:ok, nth} ->
+                      func.(nth)
+                  end
+              end
           end
+        end
+      else
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            :error
+
+          zipper ->
+            zipper
+            |> Common.nth_right(index)
+            |> case do
+              :error ->
+                :error
+
+              {:ok, nth} ->
+                func.(nth)
+            end
+        end
       end
+    end)
+  end
+
+  @doc "Moves to the `nth` argument of a function call."
+  @spec move_to_nth_argument(
+          Zipper.t(),
+          non_neg_integer()
+        ) ::
+          {:ok, Zipper.t()} | :error
+  def move_to_nth_argument(zipper, index) do
+    if function_call?(zipper) do
+      if pipeline?(zipper) do
+        if index == 0 do
+          zipper
+          |> Zipper.down()
+          |> case do
+            nil ->
+              :error
+
+            zipper ->
+              {:ok, zipper}
+          end
+        else
+          zipper
+          |> Zipper.down()
+          |> case do
+            nil ->
+              :error
+
+            zipper ->
+              zipper
+              |> Zipper.rightmost()
+              |> Zipper.down()
+              |> case do
+                nil ->
+                  :error
+
+                zipper ->
+                  zipper
+                  |> Common.nth_right(index)
+                  |> case do
+                    :error ->
+                      :error
+
+                    {:ok, nth} ->
+                      {:ok, nth}
+                  end
+              end
+          end
+        end
+      else
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            :error
+
+          zipper ->
+            zipper
+            |> Common.nth_right(index)
+            |> case do
+              :error ->
+                :error
+
+              {:ok, nth} ->
+                {:ok, nth}
+            end
+        end
+      end
+    else
+      :error
     end
   end
 
-  def pipeline?(zipper) do
+  @doc "Appends an argument to a function call, leaving the zipper at the function call's node."
+  @spec append_argument(Zipper.t(), any()) :: {:ok, Zipper.t()} | :error
+  def append_argument(zipper, value) do
+    if function_call?(zipper) do
+      if pipeline?(zipper) do
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            :error
+
+          zipper ->
+            {:ok, Zipper.append_child(zipper, value)}
+        end
+      else
+        {:ok, Zipper.append_child(zipper, value)}
+      end
+    else
+      :error
+    end
+  end
+
+  @doc "Returns true if the argument at the given index matches the provided predicate"
+  @spec argument_matches_predicate?(Zipper.t(), non_neg_integer(), (Zipper.t() -> boolean)) ::
+          boolean()
+  def argument_matches_predicate?(zipper, index, func) do
+    if function_call?(zipper) do
+      if pipeline?(zipper) do
+        if index == 0 do
+          zipper
+          |> Zipper.down()
+          |> case do
+            nil -> nil
+            zipper -> func.(zipper)
+          end
+        else
+          zipper
+          |> Zipper.down()
+          |> case do
+            nil ->
+              nil
+
+            zipper ->
+              zipper
+              |> Zipper.rightmost()
+              |> Zipper.down()
+              |> case do
+                nil ->
+                  nil
+
+                zipper ->
+                  zipper
+                  |> Common.nth_right(index - 1)
+                  |> case do
+                    :error ->
+                      false
+
+                    {:ok, zipper} ->
+                      zipper
+                      |> Common.maybe_move_to_block()
+                      |> func.()
+                  end
+              end
+          end
+        end
+      else
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            false
+
+          zipper ->
+            zipper
+            |> Common.nth_right(index)
+            |> case do
+              :error ->
+                false
+
+              {:ok, zipper} ->
+                zipper
+                |> Common.maybe_move_to_block()
+                |> func.()
+            end
+        end
+      end
+    else
+      :error
+    end
+  end
+
+  defp pipeline?(zipper) do
     zipper
     |> Zipper.subtree()
     |> Zipper.root()
