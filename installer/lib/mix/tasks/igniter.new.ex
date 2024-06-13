@@ -1,9 +1,20 @@
 defmodule Mix.Tasks.Igniter.New do
+  @moduledoc """
+  Creates a new project using `mix new`, and adds `igniter` to the project.
+
+  ## Options
+
+  All options are passed through to `mix new`, except for:
+
+  * `--install` - A comma-separated list of dependencies to install using `mix igniter.install` after creating the project.
+  * `--example` - Request example code to be added to the project when installing packages.
+  """
+  @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
   @igniter_version Mix.Project.config()[:version]
 
-  @shortdoc "Creates a new Igniter application"
+  @impl Mix.Task
   def run([name | _ ] = argv) do
     {options, argv, _errors} = OptionParser.parse(argv,
       strict: [install: :keep, local: :string, example: :boolean],

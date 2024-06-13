@@ -112,7 +112,8 @@ defmodule Igniter.Install do
     |> Enum.flat_map(fn install ->
       all_tasks
       |> Enum.find(fn task ->
-        Mix.Task.task_name(task) == "#{install}.install"
+        Mix.Task.task_name(task) == "#{install}.install" &&
+          implements_behaviour?(task, Igniter.Mix.Task)
       end)
       |> List.wrap()
     end)
