@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.2](https://github.com/ash-project/igniter/compare/v0.1.1...v0.1.2) (2024-06-13)
+
+
+
+
+### Bug Fixes:
+
+* remove unsupportable package installation symbols
+
+* don't run `mix deps.get` if dependency changes are aborted
+
 ## [v0.1.1](https://github.com/ash-project/igniter/compare/v0.1.0...v0.1.1) (2024-06-13)
 
 
