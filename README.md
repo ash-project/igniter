@@ -17,6 +17,10 @@ For end-users, this means `mix igniter.install <package>`, which will _add it to
 
 This project is in early beta. There is _so much to add_! There are lots of DX/UX things to improve, but it does already provide some great utility. Contributions welcome!
 
+## Limitations
+
+Right now, all files that are touched are formatted in their entirety. This may be a deal breaker for some users. I believe that we can solve this without changing the fundemental design of the project, but it is not a high priority in the early stages.
+
 ## Installation
 
 Igniter can be added to an existing elixir project by adding it to your dependencies:
