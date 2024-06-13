@@ -6,6 +6,17 @@ defmodule Mix.Tasks.Igniter.Install do
 
   mix igniter.install package1,package2,package3
 
+  ## Package formats
+
+  * `package` - The latest version of the package will be installed, pinned at the
+     major version, or minor version if there is no major version yet.
+  * `package@version` - The package will be installed at the specified version.
+     If the version given is generic, like `3.0`, it will be pinned as described above.
+     if it is specific, like `3.0.1`, it will be pinned at that *exact* version with `==`.
+  * `package@git:git_url` - The package will be installed from the specified git url.
+  * `package@github:project/repo` - The package will be installed from the specified github repo.
+  * `package@local:path/to/local` - The package will be installed from the specified local path.
+
   ## Switches
 
   * `--dry-run` - `d` - Run the task without making any changes.

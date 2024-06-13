@@ -88,39 +88,43 @@ defmodule Igniter.Install do
       end
     end
 
-    Mix.shell().info("running mix deps.get")
+    if dependency_add_result == :changes_aborted do
+      Mix.shell().info("\nChanges aborted by user request.")
+    else
+      Mix.shell().info("running mix deps.get")
 
-    case Mix.shell().cmd("mix deps.get") do
-      0 ->
-        Mix.Task.reenable("compile")
-        Mix.Task.run("compile")
+      case Mix.shell().cmd("mix deps.get") do
+        0 ->
+          Mix.Task.reenable("compile")
+          Mix.Task.run("compile")
 
-      exit_code ->
-        Mix.shell().info("""
-        mix deps.get returned exited with code: `#{exit_code}`
-        """)
-    end
+        exit_code ->
+          Mix.shell().info("""
+          mix deps.get returned exited with code: `#{exit_code}`
+          """)
+      end
 
-    all_tasks =
-      Enum.filter(Mix.Task.load_all(), &implements_behaviour?(&1, Igniter.Mix.Task))
+      all_tasks =
+        Enum.filter(Mix.Task.load_all(), &implements_behaviour?(&1, Igniter.Mix.Task))
 
-    igniter =
-      Igniter.new()
-      |> Igniter.assign(%{manually_installed: install_list})
+      igniter =
+        Igniter.new()
+        |> Igniter.assign(%{manually_installed: install_list})
 
-    install_list
-    |> Enum.flat_map(fn install ->
-      all_tasks
-      |> Enum.find(fn task ->
-        Mix.Task.task_name(task) == "#{install}.install" &&
-          implements_behaviour?(task, Igniter.Mix.Task)
+      install_list
+      |> Enum.flat_map(fn install ->
+        all_tasks
+        |> Enum.find(fn task ->
+          Mix.Task.task_name(task) == "#{install}.install" &&
+            implements_behaviour?(task, Igniter.Mix.Task)
+        end)
+        |> List.wrap()
       end)
-      |> List.wrap()
-    end)
-    |> Enum.reduce(igniter, fn task, igniter ->
-      Igniter.compose_task(igniter, task, argv)
-    end)
-    |> Igniter.do_or_dry_run(argv)
+      |> Enum.reduce(igniter, fn task, igniter ->
+        Igniter.compose_task(igniter, task, argv)
+      end)
+      |> Igniter.do_or_dry_run(argv)
+    end
 
     :ok
   end
@@ -209,15 +213,6 @@ defmodule Igniter.Install do
 
           "local:" <> requirement ->
             [path: requirement]
-
-          "~>" <> version ->
-            "~> #{version}"
-
-          "==" <> version ->
-            "== #{version}"
-
-          ">=" <> version ->
-            ">= #{version}"
 
           version ->
             case Version.parse(version) do

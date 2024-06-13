@@ -300,6 +300,7 @@ defmodule Igniter do
     case issues do
       [_ | _] ->
         explain_issues(issues)
+
         :issues
 
       [] ->
