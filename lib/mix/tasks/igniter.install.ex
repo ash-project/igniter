@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Igniter.Install do
 
   ## Args
 
-  mix igniter.install package1,package2,package3
+  mix igniter.install package1 package2 package3
 
   ## Package formats
 
@@ -27,13 +27,15 @@ defmodule Mix.Tasks.Igniter.Install do
 
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
-  def run([install | argv]) do
+  def run(argv) do
+    {packages, argv} = Enum.split_while(argv, fn arg -> !String.starts_with?(arg, "-") end)
+
+    if Enum.empty?(packages) do
+      raise ArgumentError, "must provide at least one package to install"
+    end
+
     Application.ensure_all_started([:rewrite])
 
-    Igniter.Install.install(install, argv)
-  end
-
-  def run([]) do
-    raise "must provide a package to install!"
+    Igniter.Install.install(Enum.join(packages, ","), argv)
   end
 end
