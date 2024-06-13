@@ -10,6 +10,7 @@ defmodule Igniter.MixProject do
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
+      package: package(),
       docs: docs(),
       deps: deps()
     ]
@@ -48,6 +49,21 @@ defmodule Igniter.MixProject do
           """
         end
       end
+    ]
+  end
+
+  defp package do
+    [
+      name: :igniter,
+      licenses: ["MIT"],
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*
+      CHANGELOG*),
+      links: %{
+        GitHub: "https://github.com/ash-project/igniter",
+        Discord: "https://discord.gg/HTHRaaVPUc",
+        Website: "https://ash-hq.org",
+        Forum: "https://elixirforum.com/c/elixir-framework-forums/ash-framework-forum"
+      }
     ]
   end
 
