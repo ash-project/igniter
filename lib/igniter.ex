@@ -218,6 +218,11 @@ defmodule Igniter do
     end
   end
 
+  @spec exists?(t(), Path.t()) :: boolean()
+  def exists?(igniter, path) do
+    Rewrite.has_source?(igniter.rewrite, path) || File.exists?(path)
+  end
+
   @doc "Updates or creates the given file in the project with the provided contents."
   @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
   def create_or_update_elixir_file(igniter, path, contents, func) do
@@ -501,7 +506,7 @@ defmodule Igniter do
             dir = Path.dirname(path)
 
             opts =
-              case find_formatter_exs_file_options(dir, formatter_exs_files) do
+              case find_formatter_exs_file_options(dir, formatter_exs_files, Path.extname(path)) do
                 :error ->
                   []
 
@@ -569,12 +574,12 @@ defmodule Igniter do
   end
 
   # sobelow_skip ["RCE.CodeModule"]
-  defp find_formatter_exs_file_options(path, formatter_exs_files) do
+  defp find_formatter_exs_file_options(path, formatter_exs_files, ext) do
     case Map.fetch(formatter_exs_files, path) do
       {:ok, source} ->
         {opts, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
 
-        {:ok, eval_deps(opts)}
+        {:ok, opts |> eval_deps() |> filter_plugins(ext)}
 
       :error ->
         if path in ["/", "."] do
@@ -585,7 +590,7 @@ defmodule Igniter do
             |> Path.expand()
             |> Path.relative_to_cwd()
 
-          find_formatter_exs_file_options(new_path, formatter_exs_files)
+          find_formatter_exs_file_options(new_path, formatter_exs_files, ext)
         end
     end
   end
@@ -674,5 +679,18 @@ defmodule Igniter do
       {:error, error} ->
         Rewrite.Source.add_issues(source, List.wrap(error))
     end
+  end
+
+  defp filter_plugins(opts, ext) do
+    Keyword.put(opts, :plugins, plugins_for_ext(opts, ext))
+  end
+
+  defp plugins_for_ext(formatter_opts, ext) do
+    formatter_opts
+    |> Keyword.get(:plugins, [])
+    |> Enum.filter(fn plugin ->
+      Code.ensure_loaded?(plugin) and function_exported?(plugin, :features, 1) and
+        ext in List.wrap(plugin.features(formatter_opts)[:extensions])
+    end)
   end
 end
