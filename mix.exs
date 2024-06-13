@@ -3,12 +3,17 @@ defmodule Igniter.MixProject do
 
   @version "0.1.0"
 
+  @description """
+  A code generation and project patching framework
+  """
+
   def project do
     [
       app: :igniter,
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
+      description: @description,
       aliases: aliases(),
       package: package(),
       docs: docs(),
