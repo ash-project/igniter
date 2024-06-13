@@ -30,8 +30,8 @@ defmodule Igniter.MixProject do
       extra_section: "GUIDES",
       extras: [
         {"README.md", title: "Home"},
-        "documentation/writing-generators.md"
-        # "CHANGELOG.md"
+        "documentation/writing-generators.md",
+        "CHANGELOG.md"
       ],
       before_closing_head_tag: fn type ->
         if type == :html do
