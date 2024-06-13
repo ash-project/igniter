@@ -77,7 +77,7 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @doc "Returns `true` if the ndoe is a function call of the given name"
+  @doc "Returns `true` if the node is a function call of the given name"
   @spec function_call?(Zipper.t(), atom) :: boolean()
   def function_call?(%Zipper{} = zipper, name) do
     zipper
@@ -102,7 +102,7 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @doc "Returns `true` if the ndoe is a function call"
+  @doc "Returns `true` if the node is a function call"
   @spec function_call?(Zipper.t()) :: boolean()
   def function_call?(%Zipper{} = zipper) do
     zipper
