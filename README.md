@@ -19,10 +19,14 @@ Igniter can be added to an existing elixir project by adding it to your dependen
 
 You can also generate new projects with igniter preinstalled, and run installers in the same command.
 
-The archive is not published yet, so these instructions are ommitted, but once it is, you will be able to install the archive, and say:
-
 ```
 mix igniter.new app_name --install ash
+```
+
+To use this command, install the archive:
+
+```elixir
+mix archive.install hex igniter_new
 ```
 
 ## Patterns
