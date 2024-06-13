@@ -29,8 +29,7 @@ defmodule Igniter.Code.Function do
           {:ok, Zipper.t()} | :error
   def move_to_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end)
 
-  def move_to_function_call_in_current_scope(zipper, name, [arity | arities], predicate)
-      when is_list(arities) do
+  def move_to_function_call_in_current_scope(zipper, name, [arity | arities], predicate) do
     case move_to_function_call_in_current_scope(zipper, name, arity, predicate) do
       :error ->
         move_to_function_call_in_current_scope(zipper, name, arities, predicate)

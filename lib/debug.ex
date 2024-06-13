@@ -14,6 +14,14 @@ defmodule Igniter.Debug do
     zipper
   end
 
+  @doc "Returns the formatted code at the node of the zipper to the console"
+  def code_at_node(zipper) do
+    zipper
+    |> Zipper.subtree()
+    |> Zipper.root()
+    |> Sourceror.to_string()
+  end
+
   @doc "Puts the ast at the node of the zipper to the console"
   def puts_ast_at_node(zipper) do
     zipper

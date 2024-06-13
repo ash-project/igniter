@@ -208,7 +208,7 @@ defmodule Igniter.Code.Common do
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
-      {:__block__, _, [_]} ->
+      {:__block__, _, _} ->
         zipper
         |> Zipper.down()
         |> case do
