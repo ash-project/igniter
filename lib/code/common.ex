@@ -33,7 +33,7 @@ defmodule Igniter.Code.Common do
     quote do
       ast =
         unquote(zipper)
-        |> Igniter.Code.Common.maybe_move_to_block()
+        |> Igniter.Code.Common.maybe_move_to_singleton_block()
         |> Zipper.subtree()
         |> Zipper.root()
 
@@ -102,10 +102,22 @@ defmodule Igniter.Code.Common do
   end
 
   def add_code(zipper, new_code, placement) do
+    do_add_code(zipper, new_code, placement)
+  end
+
+  defp do_add_code(zipper, new_code, placement, expand_env? \\ true) do
     current_code =
       zipper
       |> Zipper.subtree()
-      |> Zipper.root()
+
+    new_code =
+      if expand_env? do
+        use_aliases(new_code, current_code)
+      else
+        new_code
+      end
+
+    current_code = Zipper.root(current_code)
 
     case current_code do
       {:__block__, meta, stuff} ->
@@ -120,7 +132,7 @@ defmodule Igniter.Code.Common do
 
       code ->
         zipper
-        |> Zipper.up()
+        |> highest_adjacent_block()
         |> case do
           nil ->
             if placement == :after do
@@ -137,9 +149,9 @@ defmodule Igniter.Code.Common do
               {:__block__, meta, stuff} ->
                 new_stuff =
                   if placement == :after do
-                    stuff ++ [new_code]
+                    List.wrap(stuff) ++ [new_code]
                   else
-                    case stuff do
+                    case List.wrap(stuff) do
                       [first | rest] ->
                         [first, new_code | rest]
 
@@ -158,6 +170,84 @@ defmodule Igniter.Code.Common do
                 end
             end
         end
+    end
+  end
+
+  defp highest_adjacent_block(zipper) do
+    case Zipper.up(zipper) do
+      nil ->
+        nil
+
+      upwards ->
+        upwards
+        |> Zipper.subtree()
+        |> Zipper.root()
+        |> case do
+          {:__block__, _, _} ->
+            case highest_adjacent_block(upwards) do
+              nil -> upwards
+              zipper -> zipper
+            end
+
+          _ ->
+            nil
+        end
+    end
+  end
+
+  defp use_aliases(new_code, current_code) do
+    case env_at_cursor(current_code) do
+      {:ok, env} ->
+        Macro.prewalk(new_code, fn
+          {:__aliases__, _, parts} = node ->
+            case use_alias(env, parts) do
+              {:alias, new_parts} ->
+                {:__aliases__, [], new_parts}
+
+              _ ->
+                node
+            end
+
+          node ->
+            node
+        end)
+
+      :error ->
+        new_code
+    end
+  end
+
+  defp use_alias(env, parts) do
+    env.aliases
+    |> Enum.filter(fn {_as, fqn} ->
+      fqn_split = Enum.map(Module.split(fqn), &String.to_atom/1)
+      List.starts_with?(parts, fqn_split)
+    end)
+    |> Enum.sort_by(fn {_as, fqn} ->
+      fqn
+      |> Module.split()
+      |> Enum.count()
+    end)
+    |> Enum.reverse()
+    |> Enum.at(0)
+    |> case do
+      nil ->
+        :error
+
+      {as, fqn} ->
+        to_drop =
+          fqn
+          |> Module.split()
+          |> Enum.count()
+
+        after_as =
+          Enum.drop(parts, to_drop)
+
+        as
+        |> Module.split()
+        |> Enum.map(&String.to_atom/1)
+        |> Enum.concat(after_as)
+        |> then(&{:alias, &1})
     end
   end
 
@@ -190,8 +280,7 @@ defmodule Igniter.Code.Common do
           zipper ->
             {:ok,
              zipper
-             |> Zipper.rightmost()
-             |> maybe_move_to_block()}
+             |> Zipper.rightmost()}
         end
     end
   end
@@ -199,6 +288,33 @@ defmodule Igniter.Code.Common do
   @doc """
   Enters a block with a single child, and moves to that child,
   or returns the zipper unmodified
+  """
+  @spec maybe_move_to_singleton_block(Zipper.t()) :: Zipper.t()
+  def maybe_move_to_singleton_block(nil), do: nil
+
+  def maybe_move_to_singleton_block(zipper) do
+    zipper
+    |> Zipper.subtree()
+    |> Zipper.root()
+    |> case do
+      {:__block__, _, [_]} ->
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            zipper
+
+          zipper ->
+            maybe_move_to_singleton_block(zipper)
+        end
+
+      _ ->
+        zipper
+    end
+  end
+
+  @doc """
+  Enters a block, and moves to the first child, or returns the zipper unmodified.
   """
   @spec maybe_move_to_block(Zipper.t()) :: Zipper.t()
   def maybe_move_to_block(nil), do: nil
@@ -216,7 +332,7 @@ defmodule Igniter.Code.Common do
             zipper
 
           zipper ->
-            maybe_move_to_block(zipper)
+            zipper
         end
 
       _ ->
@@ -286,19 +402,30 @@ defmodule Igniter.Code.Common do
   """
   @spec move_right(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
   def move_right(%Zipper{} = zipper, pred) do
-    zipper_in_block = maybe_move_to_block(zipper)
+    zipper
+    |> maybe_move_to_block()
+    |> do_move_right(pred)
+  end
 
-    if pred.(zipper_in_block) do
-      {:ok, zipper_in_block}
-    else
-      case Zipper.right(zipper) do
-        nil ->
-          :error
+  defp do_move_right(zipper, pred) do
+    zipper_in_block = maybe_move_to_singleton_block(zipper)
 
-        zipper ->
-          zipper
-          |> move_right(pred)
-      end
+    cond do
+      pred.(zipper_in_block) ->
+        {:ok, zipper_in_block}
+
+      pred.(zipper) ->
+        {:ok, zipper}
+
+      true ->
+        case Zipper.right(zipper) do
+          nil ->
+            :error
+
+          zipper ->
+            zipper
+            |> move_right(pred)
+        end
     end
   end
 
@@ -402,6 +529,25 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @spec env_at_cursor(Zipper.t()) :: {:ok, Macro.Env.t()} | :error
+  def env_at_cursor(zipper) do
+    zipper
+    |> do_add_code({:__cursor__, [], []}, :after, false)
+    |> Zipper.topmost()
+    |> Zipper.node()
+    |> Sourceror.to_string()
+    |> String.split("__cursor__()", parts: 2)
+    |> Enum.at(0)
+    |> Spitfire.container_cursor_to_quoted()
+    |> elem(1)
+    |> Spitfire.Env.expand("file.ex")
+    |> elem(3)
+    |> then(&{:ok, &1})
+  rescue
+    _e ->
+      :error
+  end
+
   @doc """
   Runs the function `fun` on the subtree of the currently focused `node` and
   returns the updated `zipper`.
@@ -424,19 +570,17 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  @spec nodes_equal?(Zipper.t() | Macro.t(), Zipper.t() | Macro.t()) :: boolean
+  @spec nodes_equal?(Zipper.t() | Macro.t(), Macro.t()) :: boolean
   def nodes_equal?(%Zipper{} = left, right) do
     left
+    |> expand_aliases()
     |> Zipper.subtree()
     |> Zipper.node()
     |> nodes_equal?(right)
   end
 
-  def nodes_equal?(left, %Zipper{} = right) do
-    right
-    |> Zipper.subtree()
-    |> Zipper.node()
-    |> then(&nodes_equal?(left, &1))
+  def nodes_equal?(_left, %Zipper{}) do
+    raise ArgumentError, "right side of `nodes_equal?` must not be a zipper"
   end
 
   def nodes_equal?(v, v), do: true
@@ -445,8 +589,33 @@ defmodule Igniter.Code.Common do
     equal_modules?(l, r)
   end
 
-  @compile {:inline, into: 2}
-  defp into(%Zipper{path: nil} = zipper, %Zipper{path: path}), do: %{zipper | path: path}
+  @spec expand_aliases(Zipper.t()) :: Macro.t()
+  def expand_aliases(zipper) do
+    case env_at_cursor(zipper) do
+      {:ok, env} ->
+        Zipper.traverse(zipper, fn x ->
+          x
+          |> Zipper.subtree()
+          |> Zipper.node()
+          |> case do
+            {:__aliases__, _, parts} ->
+              case Macro.Env.expand_alias(env, [], parts) do
+                {:alias, value} ->
+                  Zipper.replace(x, {:__aliases__, [], Module.split(value)})
+
+                _ ->
+                  x
+              end
+
+            _ ->
+              x
+          end
+        end)
+
+      :error ->
+        zipper
+    end
+  end
 
   # aliases will confuse this, but that is a later problem :)
   # probably the best thing we can do here is a pre-processing alias replacement pass?
@@ -464,4 +633,10 @@ defmodule Igniter.Code.Common do
   defp equal_modules?(_left, _right) do
     false
   end
+
+  @compile {:inline, into: 2}
+  defp into(zipper, nil), do: zipper
+
+  defp into(%Zipper{path: nil} = zipper, %Zipper{path: path, supertree: supertree}),
+    do: %{zipper | path: path, supertree: supertree}
 end

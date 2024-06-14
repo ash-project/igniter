@@ -40,6 +40,38 @@ defmodule Igniter.Code.Keyword do
     end
   end
 
+  @doc "Returns true if the node is a nested keyword list containing a value at the given path."
+  @spec get_key(Zipper.t(), atom()) :: term()
+  def get_key(zipper, key) do
+    if Igniter.Code.List.list?(zipper) do
+      case Igniter.Code.List.move_to_list_item(zipper, fn item ->
+             if Igniter.Code.Tuple.tuple?(item) do
+               case Igniter.Code.Tuple.tuple_elem(item, 0) do
+                 {:ok, first_elem} ->
+                   Common.node_matches_pattern?(first_elem, ^key)
+
+                 :error ->
+                   false
+               end
+             end
+           end) do
+        {:ok, zipper} ->
+          case Igniter.Code.Tuple.tuple_elem(zipper, 1) do
+            {:ok, second_elem} ->
+              {:ok, second_elem}
+
+            _ ->
+              :error
+          end
+
+        _ ->
+          :error
+      end
+    else
+      :error
+    end
+  end
+
   @doc "Puts a value at a path into a keyword, calling `updater` on the zipper at the value if the key is already present"
   @spec put_in_keyword(
           Zipper.t(),
@@ -116,6 +148,8 @@ defmodule Igniter.Code.Keyword do
           {:ok, Zipper.t()} | :error
   def set_keyword_key(zipper, key, value, updater) do
     if Common.node_matches_pattern?(zipper, value when is_list(value)) do
+      zipper = Common.maybe_move_to_singleton_block(zipper)
+
       case Igniter.Code.List.move_to_list_item(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do

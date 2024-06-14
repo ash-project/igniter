@@ -48,7 +48,7 @@ defmodule Igniter.Code.List do
       |> case do
         nil ->
           zipper
-          |> Common.maybe_move_to_block()
+          |> Common.maybe_move_to_singleton_block()
           |> Zipper.append_child(quoted)
 
         _ ->
@@ -65,7 +65,7 @@ defmodule Igniter.Code.List do
     if list?(zipper) do
       {:ok,
        zipper
-       |> Common.maybe_move_to_block()
+       |> Common.maybe_move_to_singleton_block()
        |> Zipper.insert_child(quoted)}
     else
       :error
@@ -78,15 +78,43 @@ defmodule Igniter.Code.List do
     if list?(zipper) do
       {:ok,
        zipper
-       |> Common.maybe_move_to_block()
+       |> Common.maybe_move_to_singleton_block()
        |> Zipper.append_child(quoted)}
     else
       :error
     end
   end
 
+  @spec remove_from_list(Zipper.t(), predicate :: (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def remove_from_list(zipper, predicate) do
+    if list?(zipper) do
+      Common.within(zipper, fn zipper ->
+        zipper
+        |> Zipper.down()
+        |> Common.move_right(predicate)
+        |> case do
+          :error ->
+            :error
+
+          {:ok, zipper} ->
+            {:ok, Zipper.remove(zipper)}
+        end
+      end)
+      |> case do
+        :error ->
+          {:ok, zipper}
+
+        {:ok, zipper} ->
+          remove_from_list(zipper, predicate)
+      end
+    else
+      :error
+    end
+  end
+
   @doc "Removes the item at the given index, returning `:error` if nothing is at that index"
-  @spec append_to_list(Zipper.t(), quoted :: Macro.t()) :: {:ok, Zipper.t()} | :error
+  @spec remove_index(Zipper.t(), index :: non_neg_integer()) :: {:ok, Zipper.t()} | :error
   def remove_index(zipper, index) do
     if list?(zipper) do
       Common.within(zipper, fn zipper ->
@@ -111,7 +139,7 @@ defmodule Igniter.Code.List do
   def find_list_item_index(zipper, pred) do
     # go into first list item
     zipper
-    |> Common.maybe_move_to_block()
+    |> Common.maybe_move_to_singleton_block()
     |> Zipper.down()
     |> case do
       nil ->
@@ -127,7 +155,7 @@ defmodule Igniter.Code.List do
   def move_to_list_item(zipper, pred) do
     # go into first list item
     zipper
-    |> Common.maybe_move_to_block()
+    |> Common.maybe_move_to_singleton_block()
     |> Zipper.down()
     |> case do
       nil ->
@@ -139,7 +167,7 @@ defmodule Igniter.Code.List do
   end
 
   defp find_index_right(zipper, pred, index) do
-    if pred.(Common.maybe_move_to_block(zipper)) do
+    if pred.(Common.maybe_move_to_singleton_block(zipper)) do
       index
     else
       case Zipper.right(zipper) do

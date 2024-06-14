@@ -27,7 +27,7 @@ defmodule Igniter.Debug do
     zipper
     |> Zipper.subtree()
     |> Zipper.root()
-    |> then(&"==ast==\n#{inspect(&1)}\n==ast==\n")
+    |> then(&"==ast==\n#{inspect(&1, pretty: true)}\n==ast==\n")
     |> IO.puts()
 
     zipper

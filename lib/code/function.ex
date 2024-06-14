@@ -44,18 +44,20 @@ defmodule Igniter.Code.Function do
   end
 
   def move_to_function_call_in_current_scope(%Zipper{} = zipper, name, arity, predicate) do
-    zipper
-    |> Common.maybe_move_to_block()
-    |> Common.move_right(fn zipper ->
-      function_call?(zipper, name, arity) && predicate.(zipper)
-    end)
+    if function_call?(zipper, name, arity) && predicate.(zipper) do
+      {:ok, zipper}
+    else
+      Common.move_right(zipper, fn zipper ->
+        function_call?(zipper, name, arity) && predicate.(zipper)
+      end)
+    end
   end
 
   @doc "Returns `true` if the node is a function call of the given name and arity"
   @spec function_call?(Zipper.t(), atom, non_neg_integer()) :: boolean()
   def function_call?(%Zipper{} = zipper, name, arity) do
     zipper
-    |> Common.maybe_move_to_block()
+    |> Common.maybe_move_to_singleton_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -80,7 +82,7 @@ defmodule Igniter.Code.Function do
   @spec function_call?(Zipper.t(), atom) :: boolean()
   def function_call?(%Zipper{} = zipper, name) do
     zipper
-    |> Common.maybe_move_to_block()
+    |> Common.maybe_move_to_singleton_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -105,7 +107,7 @@ defmodule Igniter.Code.Function do
   @spec function_call?(Zipper.t()) :: boolean()
   def function_call?(%Zipper{} = zipper) do
     zipper
-    |> Common.maybe_move_to_block()
+    |> Common.maybe_move_to_singleton_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -327,7 +329,7 @@ defmodule Igniter.Code.Function do
 
                     {:ok, zipper} ->
                       zipper
-                      |> Common.maybe_move_to_block()
+                      |> Common.maybe_move_to_singleton_block()
                       |> func.()
                   end
               end
@@ -349,7 +351,7 @@ defmodule Igniter.Code.Function do
 
               {:ok, zipper} ->
                 zipper
-                |> Common.maybe_move_to_block()
+                |> Common.maybe_move_to_singleton_block()
                 |> func.()
             end
         end

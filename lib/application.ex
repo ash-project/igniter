@@ -65,30 +65,29 @@ defmodule Igniter.Application do
 
     Igniter.update_elixir_file(igniter, path, fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Application),
-           {:ok, zipper} <- Igniter.Code.Module.move_to_def(zipper, :start, 2) do
+           {:ok, zipper} <- Igniter.Code.Module.move_to_def(zipper, :start, 2),
+           {:ok, zipper} <-
+             Igniter.Code.Function.move_to_function_call_in_current_scope(
+               zipper,
+               :=,
+               [2],
+               fn call ->
+                 Igniter.Code.Function.argument_matches_pattern?(
+                   call,
+                   0,
+                   {:children, _, context} when is_atom(context)
+                 ) &&
+                   Igniter.Code.Function.argument_matches_pattern?(call, 1, v when is_list(v))
+               end
+             ) do
         zipper
-        |> Igniter.Code.Function.move_to_function_call_in_current_scope(:=, [2], fn call ->
-          Igniter.Code.Function.argument_matches_pattern?(
-            call,
-            0,
-            {:children, _, context} when is_atom(context)
-          ) &&
-            Igniter.Code.Function.argument_matches_pattern?(call, 1, v when is_list(v))
-        end)
-        |> case do
-          {:ok, zipper} ->
-            zipper
-            |> Zipper.down()
-            |> Zipper.rightmost()
-            |> Igniter.Code.List.append_new_to_list(to_supervise, diff_checker)
-
-          _ ->
-            {:error,
-             "Expected the `start/2` function in `#{path}` to have a `children = [...]` assignment."}
-        end
+        |> Zipper.down()
+        |> Zipper.rightmost()
+        |> Igniter.Code.List.append_new_to_list(to_supervise, diff_checker)
       else
         _ ->
-          {:error, "Expected `#{path}` to be an Application with a `start` function"}
+          {:error,
+           "Expected `#{path}` to be an Application with a `start` function that has a `children = [...]` assignment"}
       end
     end)
   end
@@ -123,6 +122,7 @@ defmodule Igniter.Application do
             {:ok, zipper} ->
               zipper
               |> Zipper.rightmost()
+              |> Igniter.Debug.puts_ast_at_node()
               |> Igniter.Code.Keyword.set_keyword_key(:mod, {application, []}, fn z ->
                 {:ok, Zipper.replace(z, {application, []})}
               end)

@@ -22,12 +22,12 @@ defmodule Igniter.Code.Tuple do
   @spec tuple_elem(Zipper.t(), elem :: non_neg_integer()) :: {:ok, Zipper.t()} | :error
   def tuple_elem(item, elem) do
     item
-    |> Common.maybe_move_to_block()
+    |> Common.maybe_move_to_singleton_block()
     |> Zipper.down()
     |> Common.nth_right(elem)
     |> case do
       {:ok, nth} ->
-        {:ok, Common.maybe_move_to_block(nth)}
+        {:ok, Common.maybe_move_to_singleton_block(nth)}
 
       :error ->
         :error

@@ -8,7 +8,7 @@ defmodule Igniter.Config do
   @doc "Sets a config value in the given configuration file, if it is not already set."
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term()) :: Igniter.t()
   def configure_new(igniter, file_path, app_name, config_path, value) do
-    configure(igniter, file_path, app_name, config_path, value, & &1)
+    configure(igniter, file_path, app_name, config_path, value, &{:ok, &1})
   end
 
   @doc "Sets a config value in the given configuration file, updating it with `updater` if it is already set."

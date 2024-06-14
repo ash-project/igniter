@@ -25,6 +25,10 @@ defmodule Igniter.Code.Module do
     Path.join(["lib" | leading] ++ ["#{last}.ex"])
   end
 
+  def module?(zipper) do
+    Common.node_matches_pattern?(zipper, {:__aliases__, _, [_ | _]})
+  end
+
   @doc "Parses a string into a module name"
   @spec parse(String.t()) :: module()
   def parse(module_name) do
@@ -40,6 +44,12 @@ defmodule Igniter.Code.Module do
     |> Module.split()
     |> :lists.droplast()
     |> Module.concat()
+  end
+
+  @doc "Moves the zipper to a defmodule call"
+  @spec move_to_defmodule(Zipper.t()) :: {:ok, Zipper.t()} | :error
+  def move_to_defmodule(zipper) do
+    Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :defmodule, 2)
   end
 
   # sobelow_skip ["DOS.StringToAtom"]
@@ -78,9 +88,8 @@ defmodule Igniter.Code.Module do
 
              {:use, _, [{:__aliases__, _, ^split_module} | _]} ->
                true
-           end),
-         {:ok, zipper} <- Common.move_to_do_block(zipper) do
-      {:ok, zipper}
+           end) do
+      Common.move_to_do_block(zipper)
     else
       _ ->
         :error
