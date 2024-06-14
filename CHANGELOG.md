@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.7](https://github.com/ash-project/igniter/compare/v0.1.6...v0.1.7) (2024-06-14)
+
+
+
+
+### Improvements:
+
+* various restructurings and improvements across the board
+
+* use `Spitfire` to ensure that aliases are considered when comparing modules
+
+* use `Spitfire` to *use* any existing aliases when inserting code
+
+* use `Zipper.topmost` to power new `Spitfire`-related features
+
 ## [v0.1.6](https://github.com/ash-project/igniter/compare/v0.1.5...v0.1.6) (2024-06-13)
 
 
