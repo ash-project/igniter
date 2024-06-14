@@ -217,6 +217,7 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  # sobelow_skip ["DOS.StringToAtom"]
   defp use_alias(env, parts) do
     env.aliases
     |> Enum.filter(fn {_as, fqn} ->
@@ -529,7 +530,6 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  @spec env_at_cursor(Zipper.t()) :: {:ok, Macro.Env.t()} | :error
   def env_at_cursor(zipper) do
     zipper
     |> do_add_code({:__cursor__, [], []}, :after, false)
@@ -542,7 +542,10 @@ defmodule Igniter.Code.Common do
     |> elem(1)
     |> Spitfire.Env.expand("file.ex")
     |> elem(3)
-    |> then(&{:ok, &1})
+    |> then(fn value ->
+      # makes dialyzer happy?
+      {:ok, Map.take(value, Map.keys(%Macro.Env{}))}
+    end)
   rescue
     _e ->
       :error
@@ -589,7 +592,7 @@ defmodule Igniter.Code.Common do
     equal_modules?(l, r)
   end
 
-  @spec expand_aliases(Zipper.t()) :: Macro.t()
+  @spec expand_aliases(Zipper.t()) :: Zipper.t()
   def expand_aliases(zipper) do
     case env_at_cursor(zipper) do
       {:ok, env} ->
@@ -635,7 +638,6 @@ defmodule Igniter.Code.Common do
   end
 
   @compile {:inline, into: 2}
-  defp into(zipper, nil), do: zipper
 
   defp into(%Zipper{path: nil} = zipper, %Zipper{path: path, supertree: supertree}),
     do: %{zipper | path: path, supertree: supertree}
