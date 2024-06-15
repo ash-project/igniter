@@ -80,14 +80,15 @@ defmodule Igniter do
   end
 
   @doc "Adds an issue to the issues list. Any issues will prevent writing and be displayed to the user."
-  @spec add_issue(t, term) :: t()
+  @spec add_issue(t, term | list(term)) :: t()
   def add_issue(igniter, issue) do
-    %{igniter | issues: [issue | igniter.issues]}
+    %{igniter | issues: List.wrap(issue) ++ igniter.issues}
   end
 
   @doc "Adds a warning to the warnings list. Warnings will not prevent writing, but will be displayed to the user."
+  @spec add_warning(t, term | list(term)) :: t()
   def add_warning(igniter, warning) do
-    %{igniter | issues: [warning | igniter.warnings]}
+    %{igniter | warnings: List.wrap(warning) ++ igniter.warnings}
   end
 
   @doc "Adds a task to the tasks list. Tasks will be run after all changes have been commited"
@@ -134,13 +135,10 @@ defmodule Igniter do
   @spec update_elixir_file(t(), Path.t(), zipper_updater()) :: Igniter.t()
   def update_elixir_file(igniter, path, func) do
     if Rewrite.has_source?(igniter.rewrite, path) do
-      %{
-        igniter
-        | rewrite:
-            Rewrite.update!(igniter.rewrite, path, fn source ->
-              apply_func_with_zipper(source, func)
-            end)
-      }
+      source = Rewrite.source!(igniter.rewrite, path)
+
+      igniter
+      |> apply_func_with_zipper(source, func)
       |> format(path)
     else
       if File.exists?(path) do
@@ -148,11 +146,7 @@ defmodule Igniter do
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> format(path)
-        |> Map.update!(:rewrite, fn rewrite ->
-          Rewrite.update!(rewrite, path, fn source ->
-            apply_func_with_zipper(source, func)
-          end)
-        end)
+        |> apply_func_with_zipper(source, func)
       else
         add_issue(igniter, "Required #{path} but it did not exist")
       end
@@ -368,6 +362,20 @@ defmodule Igniter do
                   :dry_run_with_changes
               end
 
+            if igniter.warnings != [] do
+              Mix.shell().info("\n#{title} - #{IO.ANSI.yellow()}Notices:#{IO.ANSI.reset()}\n")
+
+              igniter.warnings
+              |> Enum.map_join("\n --- \n", fn error ->
+                if is_binary(error) do
+                  "* #{IO.ANSI.yellow()}#{error}#{IO.ANSI.reset()}"
+                else
+                  "* #{IO.ANSI.yellow()}#{Exception.format(:error, error)}#{IO.ANSI.reset()}"
+                end
+              end)
+              |> Mix.shell().info()
+            end
+
             if igniter.tasks != [] do
               message =
                 if result_of_dry_run == :dry_run_with_no_changes do
@@ -455,7 +463,7 @@ defmodule Igniter do
           "* #{Exception.format(:error, error)}"
         end
       end)
-      |> Mix.shell().info()
+      |> Mix.shell().error()
     end)
   end
 
@@ -655,29 +663,44 @@ defmodule Igniter do
     opts
   end
 
-  defp apply_func_with_zipper(source, func) do
+  defp apply_func_with_zipper(igniter, source, func) do
     quoted = Rewrite.Source.get(source, :quoted)
     zipper = Sourceror.Zipper.zip(quoted)
 
     case func.(zipper) do
       {:ok, %Sourceror.Zipper{} = zipper} ->
-        Rewrite.Source.update(
-          source,
-          :configure,
-          :quoted,
-          Sourceror.Zipper.root(zipper)
+        Rewrite.update!(
+          igniter.rewrite,
+          Rewrite.Source.update(
+            source,
+            :configure,
+            :quoted,
+            Sourceror.Zipper.root(zipper)
+          )
         )
+        |> then(&Map.put(igniter, :rewrite, &1))
 
       %Sourceror.Zipper{} = zipper ->
-        Rewrite.Source.update(
-          source,
-          :configure,
-          :quoted,
-          Sourceror.Zipper.root(zipper)
+        Rewrite.update!(
+          igniter.rewrite,
+          Rewrite.Source.update(
+            source,
+            :configure,
+            :quoted,
+            Sourceror.Zipper.root(zipper)
+          )
         )
+        |> then(&Map.put(igniter, :rewrite, &1))
 
       {:error, error} ->
-        Rewrite.Source.add_issues(source, List.wrap(error))
+        Rewrite.update!(
+          igniter.rewrite,
+          Rewrite.Source.add_issues(source, List.wrap(error))
+        )
+        |> then(&Map.put(igniter, :rewrite, &1))
+
+      {:warning, warning} ->
+        Igniter.add_warning(igniter, warning)
     end
   end
 

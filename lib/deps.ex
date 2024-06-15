@@ -4,13 +4,21 @@ defmodule Igniter.Deps do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  def add_dependency(igniter, name, version, yes? \\ false) do
+  @doc """
+  Adds a dependency to the mix.exs file.
+
+  # Options
+
+  - `:yes?` - Automatically answer yes to any prompts.
+  - `:error?` - Returns an error instead of a notice on failure.
+  """
+  def add_dependency(igniter, name, version, opts \\ []) do
     if name in List.wrap(igniter.assigns[:manually_installed]) do
       igniter
     else
       case get_dependency_declaration(igniter, name) do
         nil ->
-          do_add_dependency(igniter, name, version)
+          do_add_dependency(igniter, name, version, opts)
 
         current ->
           desired = "`{#{inspect(name)}, #{inspect(version)}}`"
@@ -19,7 +27,7 @@ defmodule Igniter.Deps do
           if desired == current do
             igniter
           else
-            if yes? ||
+            if opts[:yes?] ||
                  Mix.shell().yes?("""
                  Dependency #{name} is already in mix.exs. Should we replace it?
 
@@ -28,7 +36,7 @@ defmodule Igniter.Deps do
                  """) do
               igniter
               |> remove_dependency(name)
-              |> do_add_dependency(name, version)
+              |> do_add_dependency(name, version, opts)
             else
               igniter
             end
@@ -97,7 +105,7 @@ defmodule Igniter.Deps do
     end)
   end
 
-  defp do_add_dependency(igniter, name, version) do
+  defp do_add_dependency(igniter, name, version, opts) do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
@@ -111,7 +119,26 @@ defmodule Igniter.Deps do
         Igniter.Code.List.prepend_to_list(zipper, quoted)
       else
         _ ->
-          {:error, "Failed to add dependency #{inspect({inspect(name), inspect(version)})}"}
+          if opts[:error?] do
+            {:error,
+             """
+             Could not add dependency #{inspect({inspect(name), inspect(version)})}
+
+             `mix.exs` file does not contain a simple list of dependencies in a `deps/0` function.
+             Please add it manually and run the installer again.
+             """}
+          else
+            {:warning,
+             [
+               """
+               Could not add dependency #{inspect({inspect(name), inspect(version)})}
+
+               `mix.exs` file does not contain a simple list of dependencies in a `deps/0` function.
+
+               Please add it manually.
+               """
+             ]}
+          end
       end
     end)
   end
