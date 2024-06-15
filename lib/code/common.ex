@@ -543,8 +543,7 @@ defmodule Igniter.Code.Common do
     |> Spitfire.Env.expand("file.ex")
     |> elem(3)
     |> then(fn value ->
-      # makes dialyzer happy?
-      {:ok, Map.take(value, Map.keys(%Macro.Env{}))}
+      {:ok, struct(Macro.Env, value)}
     end)
   rescue
     _e ->
