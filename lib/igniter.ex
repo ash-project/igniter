@@ -61,11 +61,16 @@ defmodule Igniter do
   """
   @spec update_glob(
           t,
-          Path.t(),
+          Path.t() | GlobEx.t(),
           zipper_updater
         ) :: t()
   def update_glob(igniter, glob, func) do
-    glob = GlobEx.compile!(glob)
+    glob =
+      case glob do
+        %GlobEx{} = glob -> glob
+        string -> GlobEx.compile!(string)
+      end
+
     igniter = include_glob(igniter, glob)
 
     Enum.reduce(igniter.rewrite, igniter, fn source, igniter ->
@@ -157,9 +162,9 @@ defmodule Igniter do
   Updates a given file's `Rewrite.Source`
   """
   @spec update_file(t(), Path.t(), (Rewrite.Source.t() -> Rewrite.Source.t())) :: t()
-  def update_file(igniter, path, func) do
+  def update_file(igniter, path, updater) do
     if Rewrite.has_source?(igniter.rewrite, path) do
-      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, func)}
+      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
     else
       if File.exists?(path) do
         source = Rewrite.Source.Ex.read!(path)
@@ -168,7 +173,7 @@ defmodule Igniter do
         |> format(path)
         |> Map.update!(:rewrite, fn rewrite ->
           source = Rewrite.source!(rewrite, path)
-          Rewrite.update!(rewrite, path, func.(source))
+          Rewrite.update!(rewrite, path, updater.(source))
         end)
       else
         add_issue(igniter, "Required #{path} but it did not exist")
@@ -217,12 +222,12 @@ defmodule Igniter do
     Rewrite.has_source?(igniter.rewrite, path) || File.exists?(path)
   end
 
-  @doc "Updates or creates the given file in the project with the provided contents."
+  @doc "Creates the given file in the project with the provided string contents, or updates it with a function of type `zipper_updater()` if it already exists."
   @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
-  def create_or_update_elixir_file(igniter, path, contents, func) do
+  def create_or_update_elixir_file(igniter, path, contents, updater) do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
-      |> update_elixir_file(path, func)
+      |> update_elixir_file(path, updater)
     else
       {created?, source} =
         try do
@@ -241,13 +246,13 @@ defmodule Igniter do
         if created? do
           igniter
         else
-          update_elixir_file(igniter, path, func)
+          update_elixir_file(igniter, path, updater)
         end
       end)
     end
   end
 
-  @doc "Creates a new elixir file in the project with the provided contents. Adds an error if it already exists."
+  @doc "Creates a new elixir file in the project with the provided string contents. Adds an error if it already exists."
   @spec create_new_elixir_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_elixir_file(igniter, path, contents \\ "") do
     source =

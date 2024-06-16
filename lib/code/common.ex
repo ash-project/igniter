@@ -28,6 +28,17 @@ defmodule Igniter.Code.Common do
 
   @doc """
   Returns `true` if the current node matches the given pattern.
+
+  ## Examples:
+
+  ```elixir
+  list_zipper =
+    "[1, 2, 3]"
+    |> Sourceror.parse_string!()
+    |> Sourceror.Zipper.zip()
+
+  Common.node_matches_pattern?(list_zipper, value when is_list(value)) # true
+  ```
   """
   defmacro node_matches_pattern?(zipper, pattern) do
     quote do
@@ -62,22 +73,22 @@ defmodule Igniter.Code.Common do
   @doc """
   Adds the provided code to the zipper.
 
-  Use the `placement` to determine if the code goes `:after` or `:before` the current node.
+  Use `placement` to determine if the code goes `:after` or `:before` the current node.
 
   ## Example:
 
   ```elixir
-  existing_code = \"\"\"
+  existing_zipper = \"\"\"
   IO.inspect("Hello, world!")
   \"\"\"
   |> Sourceror.parse_string!()
+  |> Sourceror.Zipper.zip()
 
   new_code = \"\"\"
   IO.inspect("Goodbye, world!")
   \"\"\"
 
-  existing_code
-  |> Sourceror.Zipper.zip()
+  existing_zipper
   |> Igniter.Common.add_code(new_code)
   |> Sourceror.Zipper.root()
   |> Sourceror.to_string()
@@ -88,7 +99,7 @@ defmodule Igniter.Code.Common do
   ```elixir
   \"\"\"
   IO.inspect("Hello, world!")
-  |> Sourceror.to_string()
+  IO.inspect("Goodbye, world!") 
   \"\"\"
   ```
   """
@@ -180,8 +191,7 @@ defmodule Igniter.Code.Common do
 
       upwards ->
         upwards
-        |> Zipper.subtree()
-        |> Zipper.root()
+        |> Zipper.node()
         |> case do
           {:__block__, _, _} ->
             case highest_adjacent_block(upwards) do
@@ -530,20 +540,24 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @doc """
+  Expands the environment at the current zipper position and returns the
+  expanded environment. Currently used for properly working with aliases.
+  """
   def env_at_cursor(zipper) do
     zipper
     |> do_add_code({:__cursor__, [], []}, :after, false)
-    |> Zipper.topmost()
-    |> Zipper.node()
+    |> Zipper.topmost_root()
     |> Sourceror.to_string()
     |> String.split("__cursor__()", parts: 2)
-    |> Enum.at(0)
+    |> List.first()
     |> Spitfire.container_cursor_to_quoted()
-    |> elem(1)
+    |> then(fn {:ok, ast} ->
+      ast
+    end)
     |> Spitfire.Env.expand("file.ex")
-    |> elem(3)
-    |> then(fn value ->
-      {:ok, struct(Macro.Env, value)}
+    |> then(fn {_ast, _final_state, _final_env, cursor_env} ->
+      {:ok, struct(Macro.Env, cursor_env)}
     end)
   rescue
     _e ->
