@@ -122,9 +122,8 @@ defmodule Igniter.Application do
             {:ok, zipper} ->
               zipper
               |> Zipper.rightmost()
-              |> Igniter.Debug.puts_ast_at_node()
               |> Igniter.Code.Keyword.set_keyword_key(:mod, {application, []}, fn z ->
-                {:ok, Zipper.replace(z, {application, []})}
+                {:ok, Common.replace_code(z, {application, []})}
               end)
 
             _ ->

@@ -32,7 +32,7 @@ defmodule Igniter.Config do
         value -> Macro.escape(value)
       end
 
-    updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
+    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     igniter
     |> ensure_default_configs_exist(file_name)
@@ -93,7 +93,7 @@ defmodule Igniter.Config do
           (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
         ) :: Zipper.t()
   def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
-    updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
+    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     case try_update_three_arg(zipper, config_path, app_name, value, updater) do
       {:ok, zipper} ->

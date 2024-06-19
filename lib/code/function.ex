@@ -57,7 +57,7 @@ defmodule Igniter.Code.Function do
   @spec function_call?(Zipper.t(), atom, non_neg_integer()) :: boolean()
   def function_call?(%Zipper{} = zipper, name, arity) do
     zipper
-    |> Common.maybe_move_to_singleton_block()
+    |> Common.maybe_move_to_single_child_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -82,7 +82,7 @@ defmodule Igniter.Code.Function do
   @spec function_call?(Zipper.t(), atom) :: boolean()
   def function_call?(%Zipper{} = zipper, name) do
     zipper
-    |> Common.maybe_move_to_singleton_block()
+    |> Common.maybe_move_to_single_child_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -107,7 +107,7 @@ defmodule Igniter.Code.Function do
   @spec function_call?(Zipper.t()) :: boolean()
   def function_call?(%Zipper{} = zipper) do
     zipper
-    |> Common.maybe_move_to_singleton_block()
+    |> Common.maybe_move_to_single_child_block()
     |> Zipper.subtree()
     |> Zipper.root()
     |> case do
@@ -329,7 +329,7 @@ defmodule Igniter.Code.Function do
 
                     {:ok, zipper} ->
                       zipper
-                      |> Common.maybe_move_to_singleton_block()
+                      |> Common.maybe_move_to_single_child_block()
                       |> func.()
                   end
               end
@@ -351,7 +351,7 @@ defmodule Igniter.Code.Function do
 
               {:ok, zipper} ->
                 zipper
-                |> Common.maybe_move_to_singleton_block()
+                |> Common.maybe_move_to_single_child_block()
                 |> func.()
             end
         end

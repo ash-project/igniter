@@ -81,7 +81,7 @@ defmodule Igniter.Code.Keyword do
         ) ::
           {:ok, Zipper.t()} | :error
   def put_in_keyword(zipper, path, value, updater \\ nil) do
-    updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
+    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     do_put_in_keyword(zipper, path, value, updater)
   end
@@ -111,6 +111,8 @@ defmodule Igniter.Code.Keyword do
             value
             |> Sourceror.to_string()
             |> Sourceror.parse_string!()
+
+          value = Common.use_aliases(value, zipper)
 
           to_append =
             zipper
@@ -148,7 +150,7 @@ defmodule Igniter.Code.Keyword do
           {:ok, Zipper.t()} | :error
   def set_keyword_key(zipper, key, value, updater) do
     if Common.node_matches_pattern?(zipper, value when is_list(value)) do
-      zipper = Common.maybe_move_to_singleton_block(zipper)
+      zipper = Common.maybe_move_to_single_child_block(zipper)
 
       case Igniter.Code.List.move_to_list_item(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
@@ -172,6 +174,10 @@ defmodule Igniter.Code.Keyword do
                   value
                   |> Sourceror.to_string()
                   |> Sourceror.parse_string!()
+
+                Common.env_at_cursor(zipper) |> IO.inspect()
+
+                value = Common.use_aliases(value, zipper)
 
                 if meta[:format] do
                   {{:__block__, [format: meta[:format]], [key]}, value}

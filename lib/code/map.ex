@@ -16,7 +16,7 @@ defmodule Igniter.Code.Map do
         ) ::
           {:ok, Zipper.t()} | :error
   def put_in_map(zipper, path, value, updater \\ nil) do
-    updater = updater || fn zipper -> {:ok, Zipper.replace(zipper, value)} end
+    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     do_put_in_map(zipper, path, value, updater)
   end
@@ -28,6 +28,8 @@ defmodule Igniter.Code.Map do
   defp do_put_in_map(zipper, [key | rest], value, updater) do
     cond do
       Common.node_matches_pattern?(zipper, {:%{}, _, []}) ->
+        value = Common.use_aliases(value, zipper)
+
         {:ok,
          Zipper.append_child(
            zipper,
@@ -50,6 +52,7 @@ defmodule Igniter.Code.Map do
         end)
         |> case do
           :error ->
+            value = Common.use_aliases(value, zipper)
             format = map_keys_format(zipper)
             value = mappify(rest, value)
 
@@ -82,6 +85,8 @@ defmodule Igniter.Code.Map do
   def set_map_key(zipper, key, value, updater) do
     cond do
       Common.node_matches_pattern?(zipper, {:%{}, _, []}) ->
+        value = Common.use_aliases(value, zipper)
+
         {:ok,
          Zipper.append_child(
            zipper,
@@ -104,6 +109,7 @@ defmodule Igniter.Code.Map do
         end)
         |> case do
           :error ->
+            value = Common.use_aliases(value, zipper)
             format = map_keys_format(zipper)
 
             {:ok,

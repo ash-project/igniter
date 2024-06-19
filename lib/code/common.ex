@@ -44,7 +44,7 @@ defmodule Igniter.Code.Common do
     quote do
       ast =
         unquote(zipper)
-        |> Igniter.Code.Common.maybe_move_to_singleton_block()
+        |> Igniter.Code.Common.maybe_move_to_single_child_block()
         |> Zipper.subtree()
         |> Zipper.root()
 
@@ -184,6 +184,20 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  def replace_code(zipper, code) when is_binary(code) do
+    add_code(zipper, Sourceror.parse_string!(code))
+  end
+
+  def replace_code(zipper, code) do
+    current_code =
+      zipper
+      |> Zipper.subtree()
+
+    code = use_aliases(code, current_code)
+
+    Zipper.replace(zipper, code)
+  end
+
   defp highest_adjacent_block(zipper) do
     case Zipper.up(zipper) do
       nil ->
@@ -205,7 +219,7 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  defp use_aliases(new_code, current_code) do
+  def use_aliases(new_code, current_code) do
     case env_at_cursor(current_code) do
       {:ok, env} ->
         Macro.prewalk(new_code, fn
@@ -222,7 +236,7 @@ defmodule Igniter.Code.Common do
             node
         end)
 
-      :error ->
+      _ ->
         new_code
     end
   end
@@ -300,10 +314,10 @@ defmodule Igniter.Code.Common do
   Enters a block with a single child, and moves to that child,
   or returns the zipper unmodified
   """
-  @spec maybe_move_to_singleton_block(Zipper.t()) :: Zipper.t()
-  def maybe_move_to_singleton_block(nil), do: nil
+  @spec maybe_move_to_single_child_block(Zipper.t()) :: Zipper.t()
+  def maybe_move_to_single_child_block(nil), do: nil
 
-  def maybe_move_to_singleton_block(zipper) do
+  def maybe_move_to_single_child_block(zipper) do
     zipper
     |> Zipper.subtree()
     |> Zipper.root()
@@ -316,7 +330,7 @@ defmodule Igniter.Code.Common do
             zipper
 
           zipper ->
-            maybe_move_to_singleton_block(zipper)
+            maybe_move_to_single_child_block(zipper)
         end
 
       _ ->
@@ -419,7 +433,7 @@ defmodule Igniter.Code.Common do
   end
 
   defp do_move_right(zipper, pred) do
-    zipper_in_block = maybe_move_to_singleton_block(zipper)
+    zipper_in_block = maybe_move_to_single_child_block(zipper)
 
     cond do
       pred.(zipper_in_block) ->
@@ -560,8 +574,12 @@ defmodule Igniter.Code.Common do
       {:ok, struct(Macro.Env, cursor_env)}
     end)
   rescue
-    _e ->
-      :error
+    e ->
+      # if Application.get_env(:igniter, :testing) do
+      reraise e, __STACKTRACE__
+      # else
+      #   {:error, e}
+      # end
   end
 
   @doc """
@@ -628,7 +646,7 @@ defmodule Igniter.Code.Common do
           end
         end)
 
-      :error ->
+      _ ->
         zipper
     end
   end

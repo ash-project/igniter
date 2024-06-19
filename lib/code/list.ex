@@ -48,7 +48,7 @@ defmodule Igniter.Code.List do
       |> case do
         nil ->
           zipper
-          |> Common.maybe_move_to_singleton_block()
+          |> Common.maybe_move_to_single_child_block()
           |> Zipper.append_child(quoted)
 
         _ ->
@@ -65,7 +65,7 @@ defmodule Igniter.Code.List do
     if list?(zipper) do
       {:ok,
        zipper
-       |> Common.maybe_move_to_singleton_block()
+       |> Common.maybe_move_to_single_child_block()
        |> Zipper.insert_child(quoted)}
     else
       :error
@@ -78,7 +78,7 @@ defmodule Igniter.Code.List do
     if list?(zipper) do
       {:ok,
        zipper
-       |> Common.maybe_move_to_singleton_block()
+       |> Common.maybe_move_to_single_child_block()
        |> Zipper.append_child(quoted)}
     else
       :error
@@ -139,7 +139,7 @@ defmodule Igniter.Code.List do
   def find_list_item_index(zipper, pred) do
     # go into first list item
     zipper
-    |> Common.maybe_move_to_singleton_block()
+    |> Common.maybe_move_to_single_child_block()
     |> Zipper.down()
     |> case do
       nil ->
@@ -155,7 +155,7 @@ defmodule Igniter.Code.List do
   def move_to_list_item(zipper, pred) do
     # go into first list item
     zipper
-    |> Common.maybe_move_to_singleton_block()
+    |> Common.maybe_move_to_single_child_block()
     |> Zipper.down()
     |> case do
       nil ->
@@ -167,7 +167,7 @@ defmodule Igniter.Code.List do
   end
 
   defp find_index_right(zipper, pred, index) do
-    if pred.(Common.maybe_move_to_singleton_block(zipper)) do
+    if pred.(Common.maybe_move_to_single_child_block(zipper)) do
       index
     else
       case Zipper.right(zipper) do
