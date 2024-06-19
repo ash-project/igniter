@@ -78,7 +78,7 @@ defmodule Igniter.MixProject do
       {:rewrite, "~> 0.9"},
       {:req, "~> 0.4"},
       {:glob_ex, "~> 0.1.7"},
-      {:spitfire, "~> 0.1 and >= 0.1.1"},
+      {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.3"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
