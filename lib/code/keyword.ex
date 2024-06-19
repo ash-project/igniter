@@ -175,8 +175,6 @@ defmodule Igniter.Code.Keyword do
                   |> Sourceror.to_string()
                   |> Sourceror.parse_string!()
 
-                Common.env_at_cursor(zipper) |> IO.inspect()
-
                 value = Common.use_aliases(value, zipper)
 
                 if meta[:format] do

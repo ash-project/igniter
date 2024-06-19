@@ -31,7 +31,7 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
-  describe "env_at_cursor/2" do
+  describe "current_env/2" do
     test "knows about aliases" do
       zipper =
         """

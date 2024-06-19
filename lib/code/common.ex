@@ -99,7 +99,7 @@ defmodule Igniter.Code.Common do
   ```elixir
   \"\"\"
   IO.inspect("Hello, world!")
-  IO.inspect("Goodbye, world!") 
+  IO.inspect("Goodbye, world!")
   \"\"\"
   ```
   """
@@ -220,7 +220,7 @@ defmodule Igniter.Code.Common do
   end
 
   def use_aliases(new_code, current_code) do
-    case env_at_cursor(current_code) do
+    case current_env(current_code) do
       {:ok, env} ->
         Macro.prewalk(new_code, fn
           {:__aliases__, _, parts} = node ->
@@ -558,7 +558,7 @@ defmodule Igniter.Code.Common do
   Expands the environment at the current zipper position and returns the
   expanded environment. Currently used for properly working with aliases.
   """
-  def env_at_cursor(zipper) do
+  def current_env(zipper) do
     zipper
     |> do_add_code({:__cursor__, [], []}, :after, false)
     |> Zipper.topmost_root()
@@ -575,11 +575,7 @@ defmodule Igniter.Code.Common do
     end)
   rescue
     e ->
-      # if Application.get_env(:igniter, :testing) do
-      reraise e, __STACKTRACE__
-      # else
-      #   {:error, e}
-      # end
+      {:error, e}
   end
 
   @doc """
@@ -625,7 +621,7 @@ defmodule Igniter.Code.Common do
 
   @spec expand_aliases(Zipper.t()) :: Zipper.t()
   def expand_aliases(zipper) do
-    case env_at_cursor(zipper) do
+    case current_env(zipper) do
       {:ok, env} ->
         Zipper.traverse(zipper, fn x ->
           x
