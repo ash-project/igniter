@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.1.8](https://github.com/ash-project/igniter/compare/v0.1.7...v0.1.8) (2024-06-19)
+
+
+
+
+### Bug Fixes:
+
+* update spitfire for env fix
+
+### Improvements:
+
+* rename `env_at_cursor` to `current_env`
+
+* improve marshalling of spitfire env to macro env
+
+* show warning when adding dependencies by default
+
 ## [v0.1.7](https://github.com/ash-project/igniter/compare/v0.1.6...v0.1.7) (2024-06-14)
 
 
