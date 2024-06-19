@@ -15,7 +15,7 @@ defmodule Igniter.Code.List do
     Common.node_matches_pattern?(zipper, value when is_list(value))
   end
 
-  @doc "Prepends `quoted` to the list unless it is alread present, determined by `equality_pred`."
+  @doc "Prepends `quoted` to the list unless it is already present, determined by `equality_pred`."
   @spec prepend_new_to_list(Zipper.t(), quoted :: Macro.t(), equality_pred) ::
           {:ok, Zipper.t()} | :error
   def prepend_new_to_list(zipper, quoted, equality_pred \\ &Common.nodes_equal?/2) do
@@ -36,7 +36,7 @@ defmodule Igniter.Code.List do
     end
   end
 
-  @doc "Appends `quoted` to the list unless it is alread present, determined by `equality_pred`."
+  @doc "Appends `quoted` to the list unless it is already present, determined by `equality_pred`."
   @spec append_new_to_list(Zipper.t(), quoted :: Macro.t(), equality_pred) ::
           {:ok, Zipper.t()} | :error
   def append_new_to_list(zipper, quoted, equality_pred \\ &Common.nodes_equal?/2) do
