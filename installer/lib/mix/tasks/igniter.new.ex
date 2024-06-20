@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Igniter.New do
 
   * `--install` - A comma-separated list of dependencies to install using `mix igniter.install` after creating the project.
   * `--example` - Request example code to be added to the project when installing packages.
+  * `--with` - The command to use instead of `new`, i.e `phx.new`
   """
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
@@ -15,11 +16,20 @@ defmodule Mix.Tasks.Igniter.New do
   @igniter_version Mix.Project.config()[:version]
 
   @impl Mix.Task
-  def run([name | _ ] = argv) do
-    {options, argv, _errors} = OptionParser.parse(argv,
-      strict: [install: :keep, local: :string, example: :boolean],
-      aliases: [i: :install, l: :local, e: :example]
-    )
+  def run([name | _] = argv) do
+    {options, argv, _errors} =
+      OptionParser.parse(argv,
+        strict: [install: :keep, local: :string, example: :boolean, with: :string],
+        aliases: [i: :install, l: :local, e: :example, w: :with]
+      )
+
+    install_with = options[:with] || "new"
+
+    unless install_with in ["phx.new", "new"] do
+      if String.match?(install_with, ~r/\s/) do
+        raise ArgumentError, "The --with option must not contain any spaces, got: #{install_with}"
+      end
+    end
 
     install =
       options[:install]
@@ -38,49 +48,48 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
-    exit = Mix.shell().cmd("mix new #{Enum.join(argv, " ")}")
+    Mix.Task.run(install_with, argv)
 
-    if exit == 0 do
-      version_requirement =
-        if options[:local] do
-          local = Path.join(["..", Path.relative_to_cwd(options[:local])])
-          "path: #{inspect(local)}, override: true"
-        else
-          inspect(version_requirement())
+    version_requirement =
+      if options[:local] do
+        local = Path.join(["..", Path.relative_to_cwd(options[:local])])
+        "path: #{inspect(local)}, override: true"
+      else
+        inspect(version_requirement())
+      end
+
+    File.cd!(name)
+
+    contents =
+      "mix.exs"
+      |> File.read!()
+
+    if String.contains?(contents, "{:igniter") do
+      Mix.shell().info(
+        "It looks like the project already exists and igniter is already installed, not adding it to deps."
+      )
+    else
+      # the spaces are required here to avoid the need for a format
+      new_contents =
+        String.replace(
+          contents,
+          "defp deps do\n    [\n",
+          "defp deps do\n    [\n      {:igniter, #{version_requirement}},\n"
+        )
+
+      File.write!("mix.exs", new_contents)
+    end
+
+    unless Enum.empty?(install) do
+      Mix.shell().cmd("mix deps.get")
+      Mix.shell().cmd("mix compile")
+
+      example =
+        if options[:example] do
+          "--example"
         end
 
-      File.cd!(name)
-
-      contents =
-        "mix.exs"
-        |> File.read!()
-
-      if String.contains?(contents, "{:igniter") do
-        Mix.shell().info("It looks like the project already exists and igniter is already installed, not adding it to deps.")
-      else
-        # the spaces are required here to avoid the need for a format
-        new_contents =
-          String.replace(contents, "defp deps do\n    [\n", "defp deps do\n    [\n      {:igniter, #{version_requirement}}\n")
-
-        File.write!("mix.exs", new_contents)
-      end
-
-      unless Enum.empty?(install) do
-        Mix.shell().cmd("mix deps.get")
-        Mix.shell().cmd("mix compile")
-
-        example =
-          if options[:example] do
-            "--example"
-          end
-
-        Mix.shell().cmd("mix igniter.install #{Enum.join(install, ",")} --yes #{example}")
-      end
-
-    else
-      Mix.shell().info("Aborting command because associated `mix new` command failed.")
-
-      exit({:shutdown, 1})
+      Mix.shell().cmd("mix igniter.install #{Enum.join(install, ",")} --yes #{example}")
     end
 
     :ok
