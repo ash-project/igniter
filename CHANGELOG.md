@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.0](https://github.com/ash-project/igniter/compare/v0.1.8...v0.2.0) (2024-06-20)
+
+
+
+
+### Improvements:
+
+* make installer use `override: true` on local dependency
+
+* ensure dependencies are compiled after `mix deps.get`
+
+* use warnings instead of errors for better UX
+
+* move proejct related things to `Project` namespace
+
 ## [v0.1.8](https://github.com/ash-project/igniter/compare/v0.1.7...v0.1.8) (2024-06-19)
 
 
