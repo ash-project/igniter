@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Igniter.New do
       version_requirement =
         if options[:local] do
           local = Path.join(["..", Path.relative_to_cwd(options[:local])])
-          "path: #{inspect(local)}"
+          "path: #{inspect(local)}, override: true"
         else
           inspect(version_requirement())
         end
@@ -58,20 +58,22 @@ defmodule Mix.Tasks.Igniter.New do
       if String.contains?(contents, "{:igniter") do
         Mix.shell().info("It looks like the project already exists and igniter is already installed, not adding it to deps.")
       else
+        # the spaces are required here to avoid the need for a format
         new_contents =
-          String.replace(contents, "defp deps do\n    [\n", "defp deps do\n    [\n{:igniter, #{version_requirement}}\n")
+          String.replace(contents, "defp deps do\n    [\n", "defp deps do\n    [\n      {:igniter, #{version_requirement}}\n")
 
         File.write!("mix.exs", new_contents)
       end
 
-      Mix.shell().cmd("mix deps.get")
-      Mix.shell().cmd("mix compile")
-
       unless Enum.empty?(install) do
+        Mix.shell().cmd("mix deps.get")
+        Mix.shell().cmd("mix compile")
+
         example =
           if options[:example] do
             "--example"
           end
+
         Mix.shell().cmd("mix igniter.install #{Enum.join(install, ",")} --yes #{example}")
       end
 

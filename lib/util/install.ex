@@ -13,7 +13,7 @@ defmodule Igniter.Util.Install do
     ]
   ]
 
-  # sobelow_skip ["DOS.StringToAtom"]
+  # sobelow_skip ["DOS.StringToAtom", "RCE.CodeModule"]
   def install(install, argv) do
     install_list =
       if is_binary(install) do
@@ -100,28 +100,37 @@ defmodule Igniter.Util.Install do
           Mix.Task.reenable("compile")
           Mix.Task.run("compile")
 
+          Mix.Project.clear_deps_cache()
+          Mix.Project.pop()
+
+          "mix.exs"
+          |> File.read!()
+          |> Code.eval_string([], file: Path.expand("mix.exs"))
+
+          Mix.Task.run("deps.compile", Enum.map(install_list, &to_string/1))
+
+          Mix.Task.reenable("compile")
+          Mix.Task.run("compile")
+
         exit_code ->
           Mix.shell().info("""
           mix deps.get returned exited with code: `#{exit_code}`
           """)
       end
 
-      all_tasks =
-        Enum.filter(Mix.Task.load_all(), &implements_behaviour?(&1, Igniter.Mix.Task))
-
       igniter =
         Igniter.new()
         |> Igniter.assign(%{manually_installed: install_list})
 
-      install_list
-      |> Enum.flat_map(fn install ->
-        all_tasks
-        |> Enum.find(fn task ->
-          Mix.Task.task_name(task) == "#{install}.install" &&
-            implements_behaviour?(task, Igniter.Mix.Task)
-        end)
-        |> List.wrap()
+      desired_tasks = Enum.map(install_list, &"#{&1}.install")
+
+      Mix.Task.load_all()
+      |> Stream.map(fn item ->
+        Code.ensure_compiled!(item)
+        item
       end)
+      |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
+      |> Stream.filter(&(Mix.Task.task_name(&1) in desired_tasks))
       |> Enum.reduce(igniter, fn task, igniter ->
         Igniter.compose_task(igniter, task, argv)
       end)
@@ -131,7 +140,7 @@ defmodule Igniter.Util.Install do
     :ok
   end
 
-  defp implements_behaviour?(module, behaviour) do
+  def implements_behaviour?(module, behaviour) do
     :attributes
     |> module.module_info()
     |> Enum.any?(fn
