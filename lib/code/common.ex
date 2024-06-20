@@ -645,6 +645,9 @@ defmodule Igniter.Code.Common do
       _ ->
         zipper
     end
+  rescue
+    _ ->
+      zipper
   end
 
   # aliases will confuse this, but that is a later problem :)
