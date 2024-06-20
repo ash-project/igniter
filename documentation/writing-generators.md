@@ -20,7 +20,7 @@ defmodule Mix.Tasks.YourLib.Gen.YourThing do
       ...some_code
     end
     """)
-    |> Igniter.Config.configure(
+    |> Igniter.Project.Config.configure(
       "config.exs",
       app_name,
       [:list_of_things],

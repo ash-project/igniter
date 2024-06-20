@@ -1,4 +1,4 @@
-defmodule Igniter.Deps do
+defmodule Igniter.Project.Deps do
   @moduledoc "Codemods and utilities for managing dependencies declared in mix.exs"
   require Igniter.Code.Common
   alias Igniter.Code.Common
@@ -100,7 +100,12 @@ defmodule Igniter.Deps do
         Igniter.Code.List.remove_index(zipper, current_declaration_index)
       else
         _ ->
-          {:error, "Failed to remove dependency #{inspect(name)}"}
+          {:warning,
+           """
+           Failed to remove dependency #{inspect(name)} from `mix.exs`.
+
+           Please remove the old dependency manually.
+           """}
       end
     end)
   end

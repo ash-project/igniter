@@ -1,4 +1,4 @@
-defmodule Igniter.Formatter do
+defmodule Igniter.Project.Formatter do
   @moduledoc "Codemods and utilities for interacting with `.formatter.exs` files"
   alias Igniter.Code.Common
   alias Sourceror.Zipper
@@ -43,7 +43,14 @@ defmodule Igniter.Formatter do
               zipper
 
             :error ->
-              zipper
+              {:warning,
+               """
+               Could not import dependency #{inspect(dep)} into `.formatter.exs`.
+
+               Please add the import manually, i.e
+
+                   import_deps: [#{inspect(dep)}]
+               """}
           end
       end
     end)
@@ -87,7 +94,14 @@ defmodule Igniter.Formatter do
               zipper
 
             _ ->
-              zipper
+              {:warning,
+               """
+               Could not add formatter plugin #{inspect(plugin)} into `.formatter.exs`.
+
+               Please add the import manually, i.e
+
+                   plugins: [#{inspect(plugin)}]
+               """}
           end
       end
     end)

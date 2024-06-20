@@ -1,4 +1,4 @@
-defmodule Igniter.Application do
+defmodule Igniter.Project.Application do
   @moduledoc "Codemods and tools for working with Application modules."
 
   require Igniter.Code.Common
@@ -83,11 +83,14 @@ defmodule Igniter.Application do
         zipper
         |> Zipper.down()
         |> Zipper.rightmost()
-        |> Igniter.Code.List.append_new_to_list(to_supervise, diff_checker)
+        |> Igniter.Code.List.append_new_to_list(Macro.escape(to_supervise), diff_checker)
       else
         _ ->
-          {:error,
-           "Expected `#{path}` to be an Application with a `start` function that has a `children = [...]` assignment"}
+          {:warning,
+           """
+           Could not find a `children = [...]` assignment in the `start` function of the `#{application}` module.
+           Please ensure that #{inspect(to_supervise)} is added started by the application `#{application}` manually.
+           """}
       end
     end)
   end
@@ -137,7 +140,19 @@ defmodule Igniter.Application do
           end
 
         _ ->
-          {:error, "Required a module using `Mix.Project` to exist in `mix.exs`"}
+          {:warning,
+           """
+           No module in `mix.exs` using `Mix.Project` was found. Please update your `mix.exs`
+           to point to the application module `#{inspect(application)}`.
+
+           For example:
+
+           def application do
+             [
+               mod: {#{inspect(application)}, []}
+             ]
+           end
+           """}
       end
     end)
   end

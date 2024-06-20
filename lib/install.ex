@@ -43,7 +43,7 @@ defmodule Igniter.Install do
 
               {igniter, [install | install_list]}
             else
-              {Igniter.Deps.add_dependency(igniter, install, requirement,
+              {Igniter.Project.Deps.add_dependency(igniter, install, requirement,
                  error?: true,
                  yes?: "--yes" in argv
                ), [install | install_list]}

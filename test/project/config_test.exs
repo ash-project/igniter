@@ -1,4 +1,4 @@
-defmodule Igniter.ConfigTest do
+defmodule Igniter.Project.ConfigTest do
   use ExUnit.Case
 
   alias Rewrite.Source
@@ -6,7 +6,7 @@ defmodule Igniter.ConfigTest do
   describe "configure/6" do
     test "it creates the config file if it does not exist" do
       %{rewrite: rewrite} =
-        Igniter.Config.configure(Igniter.new(), "fake.exs", :fake, [:foo, :bar], "baz")
+        Igniter.Project.Config.configure(Igniter.new(), "fake.exs", :fake, [:foo, :bar], "baz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -26,7 +26,7 @@ defmodule Igniter.ConfigTest do
 
           config :fake, buz: [:blat]
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -41,18 +41,20 @@ defmodule Igniter.ConfigTest do
     test "it merges the spark formatter plugins" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.Config.configure(
+        |> Igniter.Project.Config.configure(
           "fake.exs",
           :spark,
           [:formatter, :"Ash.Resource"],
           [],
-          fn x ->
+          updater: fn x ->
             x
           end
         )
-        |> Igniter.Config.configure("fake.exs", :spark, [:formatter, :"Ash.Domain"], [], fn x ->
-          x
-        end)
+        |> Igniter.Project.Config.configure("fake.exs", :spark, [:formatter, :"Ash.Domain"], [],
+          updater: fn x ->
+            x
+          end
+        )
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -70,7 +72,7 @@ defmodule Igniter.ConfigTest do
 
           config :fake, buz: [:blat]
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:foo], "baz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo], "baz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -87,7 +89,7 @@ defmodule Igniter.ConfigTest do
         |> Igniter.create_new_elixir_file("config/fake.exs", """
           import Config
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -103,8 +105,8 @@ defmodule Igniter.ConfigTest do
         |> Igniter.create_new_elixir_file("config/fake.exs", """
           import Config
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
-        |> Igniter.Config.configure("fake.exs", :fake, [Foo.Bar, :buz], "biz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :buz], "biz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -122,7 +124,7 @@ defmodule Igniter.ConfigTest do
 
           config :fake, :buz, [:blat]
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -142,7 +144,7 @@ defmodule Igniter.ConfigTest do
 
           config :fake, :buz, [:blat]
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:foo], "baz")
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo], "baz")
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -162,9 +164,11 @@ defmodule Igniter.ConfigTest do
 
           config :fake, :buz, [:blat]
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:buz], "baz", fn list ->
-          Igniter.Code.List.prepend_new_to_list(list, "baz")
-        end)
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:buz], "baz",
+          updater: fn list ->
+            Igniter.Code.List.prepend_new_to_list(list, "baz")
+          end
+        )
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -183,7 +187,7 @@ defmodule Igniter.ConfigTest do
 
           config :fake, :buz, [:blat]
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:buz], 12)
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:buz], 12)
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -202,13 +206,15 @@ defmodule Igniter.ConfigTest do
 
           config :fake, foo: %{"a" => ["a", "b"]}
         """)
-        |> Igniter.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]}, fn zipper ->
-          Igniter.Code.Map.set_map_key(zipper, "b", ["c", "d"], fn zipper ->
-            with {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, "c") do
-              Igniter.Code.List.prepend_new_to_list(zipper, "d")
-            end
-          end)
-        end)
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]},
+          updater: fn zipper ->
+            Igniter.Code.Map.set_map_key(zipper, "b", ["c", "d"], fn zipper ->
+              with {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, "c") do
+                Igniter.Code.List.prepend_new_to_list(zipper, "d")
+              end
+            end)
+          end
+        )
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -216,6 +222,25 @@ defmodule Igniter.ConfigTest do
              import Config
 
              config :fake, foo: %{"a" => ["a", "b"], "b" => ["c", "d"]}
+             """
+    end
+
+    test "it presents users with instructions on how to update a malformed config" do
+      %{warnings: [warning]} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          config :fake, foo: %{"a" => ["a", "b"]}
+        """)
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]},
+          failure_message: "A failure message!"
+        )
+
+      assert warning == """
+             Please set the following config in config/fake.exs:
+
+                 config :fake, foo: %{"b" => ["c", "d"]}
+
+             A failure message!
              """
     end
   end

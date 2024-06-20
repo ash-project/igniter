@@ -1,26 +1,47 @@
-defmodule Igniter.Config do
+defmodule Igniter.Project.Config do
   @moduledoc "Codemods and utilities for modifying Elixir config files."
 
   require Igniter.Code.Function
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  @doc "Sets a config value in the given configuration file, if it is not already set."
-  @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term()) :: Igniter.t()
-  def configure_new(igniter, file_path, app_name, config_path, value) do
-    configure(igniter, file_path, app_name, config_path, value, &{:ok, &1})
+  @doc """
+  Sets a config value in the given configuration file, if it is not already set.
+
+  ## Opts
+
+  * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  """
+  @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
+          Igniter.t()
+  def configure_new(igniter, file_path, app_name, config_path, value, opts \\ []) do
+    configure(
+      igniter,
+      file_path,
+      app_name,
+      config_path,
+      value,
+      Keyword.put(opts, :updater, &{:ok, &1})
+    )
   end
 
-  @doc "Sets a config value in the given configuration file, updating it with `updater` if it is already set."
+  @doc """
+  Sets a config value in the given configuration file, updating it with `updater` if it is already set.
+
+  ## Opts
+
+  * `:updater` - A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  """
   @spec configure(
           Igniter.t(),
           Path.t(),
           atom(),
           list(atom),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+          opts :: Keyword.t()
         ) :: Igniter.t()
-  def configure(igniter, file_name, app_name, config_path, value, updater \\ nil) do
+  def configure(igniter, file_name, app_name, config_path, value, opts \\ []) do
     file_contents = "import Config\n"
 
     file_path = Path.join("config", file_name)
@@ -32,7 +53,7 @@ defmodule Igniter.Config do
         value -> Macro.escape(value)
       end
 
-    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     igniter
     |> ensure_default_configs_exist(file_name)
@@ -49,7 +70,7 @@ defmodule Igniter.Config do
                false
            end) do
         nil ->
-          {:error, "No call to `import Config` found in configuration file"}
+          {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
         zipper ->
           modify_configuration_code(zipper, config_path, app_name, value, updater)
@@ -78,6 +99,44 @@ defmodule Igniter.Config do
     import Config
     """)
   end
+
+  defp bad_config_message(app_name, file_path, config_path, value, opts) do
+    path =
+      config_path
+      |> keywordify(value)
+
+    code =
+      quote do
+        config unquote(app_name), unquote(path)
+      end
+
+    message =
+      if opts[:failure_message] do
+        """
+
+
+        #{opts[:failure_message]}
+        """
+      else
+        ""
+      end
+
+    or_update =
+      if opts[:updater] do
+        " or update"
+      else
+        ""
+      end
+
+    """
+    Please set#{or_update} the following config in #{file_path}:
+
+        #{Macro.to_string(code)}#{String.trim_trailing(message)}
+    """
+  end
+
+  defp keywordify([], value), do: value
+  defp keywordify([key | rest], value), do: [{key, keywordify(rest, value)}]
 
   @doc """
   Modifies elixir configuration code starting at the configured zipper.
