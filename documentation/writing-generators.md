@@ -48,3 +48,12 @@ igniter
 ## Writing a library installer
 
 Igniter will look for a mix task called `your_library.install` when a user runs `mix igniter.install your_library`. As long as it has the correct name, it will be run automatically as part of installation!
+
+## Navigating the Igniter Codebase
+
+A large part of writing generators with igniter is leveraging our built-in suite of tools for working with zippers and AST, as well as our off-the-shelf patchers for making project modifications. The codebase is split up into four primary divisions:
+
+- `Igniter.Project.*` - project-level, off-the-shelf patchers
+- `Igniter.Code.*` - working with zippers and manipulating source code
+- `Ignier.Mix.*` - mix tasks, tools for writing igniter mix tasks
+- `Igniter.Util.*` - various utilities and helpers

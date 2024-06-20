@@ -1,4 +1,4 @@
-defmodule Igniter.Debug do
+defmodule Igniter.Util.Debug do
   @moduledoc "Tools for debugging zippers."
   alias Sourceror.Zipper
 

@@ -1,4 +1,4 @@
-defmodule Igniter.Version do
+defmodule Igniter.Util.Version do
   @moduledoc "Utilities for working versions and version requirements"
 
   @doc """

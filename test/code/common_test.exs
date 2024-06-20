@@ -21,7 +21,7 @@ defmodule Igniter.Code.CommonTest do
 
       assert_received {:zipper, zipper}
 
-      assert Igniter.Debug.code_at_node(zipper) ==
+      assert Igniter.Util.Debug.code_at_node(zipper) ==
                String.trim_trailing("""
                [
                  [1, 2, 3],
@@ -50,7 +50,7 @@ defmodule Igniter.Code.CommonTest do
            {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, Foo.Bar.Baz) do
         assert zipper
                |> Sourceror.Zipper.top()
-               |> Igniter.Debug.code_at_node() ==
+               |> Igniter.Util.Debug.code_at_node() ==
                  String.trim_trailing("""
                  defmodule Foo do
                    alias Foo.Bar.Baz
@@ -84,7 +84,7 @@ defmodule Igniter.Code.CommonTest do
         assert zipper
                |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]")
                |> Sourceror.Zipper.top()
-               |> Igniter.Debug.code_at_node() ==
+               |> Igniter.Util.Debug.code_at_node() ==
                  String.trim_trailing("""
                  defmodule Foo do
                    alias Foo.Bar

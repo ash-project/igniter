@@ -1,4 +1,4 @@
-defmodule Igniter.Install do
+defmodule Igniter.Util.Install do
   @moduledoc false
   @option_schema [
     strict: [
@@ -176,7 +176,7 @@ defmodule Igniter.Install do
                 | _
               ]
             } ->
-              {package, Igniter.Version.version_string_to_general_requirement!(version)}
+              {package, Igniter.Util.Version.version_string_to_general_requirement!(version)}
 
             _ ->
               :error
@@ -222,7 +222,7 @@ defmodule Igniter.Install do
                 "== #{version}"
 
               _ ->
-                case Igniter.Version.version_string_to_general_requirement(version) do
+                case Igniter.Util.Version.version_string_to_general_requirement(version) do
                   {:ok, requirement} ->
                     requirement
 

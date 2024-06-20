@@ -36,6 +36,6 @@ defmodule Mix.Tasks.Igniter.Install do
 
     Application.ensure_all_started([:rewrite])
 
-    Igniter.Install.install(Enum.join(packages, ","), argv)
+    Igniter.Util.Install.install(Enum.join(packages, ","), argv)
   end
 end
