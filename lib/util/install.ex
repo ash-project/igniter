@@ -206,7 +206,7 @@ defmodule Igniter.Util.Install do
                   :error
               end
             else
-              [git: requirement]
+              [git: requirement, override: true]
             end
 
           "github:" <> requirement ->
@@ -219,7 +219,7 @@ defmodule Igniter.Util.Install do
                   :error
               end
             else
-              [github: requirement]
+              [github: requirement, override: true]
             end
 
           "path:" <> requirement ->
