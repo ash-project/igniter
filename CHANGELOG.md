@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.1](https://github.com/ash-project/igniter/compare/v0.2.0...v0.2.1) (2024-06-21)
+
+
+
+
+### Improvements:
+
+* workaround trailing comment issues w/ sourceror
+
+* support `--with` option in `igniter.new`
+
 ## [v0.2.0](https://github.com/ash-project/igniter/compare/v0.1.8...v0.2.0) (2024-06-20)
 
 
