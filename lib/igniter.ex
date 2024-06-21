@@ -784,6 +784,9 @@ defmodule Igniter do
         tasks: Enum.uniq(igniter.tasks)
     }
 
+    # We can remove all of the trailing comments logic when
+    # https://github.com/doorgan/sourceror/issues/150
+    # is resolved
     Map.update!(igniter, :rewrite, fn rewrite ->
       Enum.reduce(rewrite, rewrite, fn source, rewrite ->
         path = Rewrite.Source.get(source, :path)
