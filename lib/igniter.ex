@@ -207,7 +207,7 @@ defmodule Igniter do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
-      {source, assigns} =
+      {source, trailing_comments} =
         try do
           read_ex_source!(path)
         rescue
@@ -218,7 +218,7 @@ defmodule Igniter do
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-      |> assign(assigns)
+      |> set_trailing_comments(path, trailing_comments)
       |> format(path)
     end
   end
