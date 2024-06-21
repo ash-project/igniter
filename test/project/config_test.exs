@@ -179,6 +179,42 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
+    test "we workaround trailing comments bug" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        # this is too
+
+        import Config
+
+        # this is a comment
+
+        config :fake, :buz, [:blat]
+
+        # trailing comment
+        """)
+        |> Igniter.Project.Config.configure("fake.exs", :fake, [:buz], "baz",
+          updater: fn list ->
+            Igniter.Code.List.prepend_new_to_list(list, "baz")
+          end
+        )
+        |> Igniter.prepare_for_write()
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             # this is too
+
+             import Config
+
+             # this is a comment
+
+             config :fake, :buz, ["baz", :blat]
+
+             # trailing comment
+             """
+    end
+
     test "integers can be used as values" do
       %{rewrite: rewrite} =
         Igniter.new()
