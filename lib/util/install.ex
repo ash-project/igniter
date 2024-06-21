@@ -223,7 +223,7 @@ defmodule Igniter.Util.Install do
             end
 
           "path:" <> requirement ->
-            [path: requirement]
+            [path: requirement, override: true]
 
           version ->
             case Version.parse(version) do
