@@ -360,17 +360,23 @@ defmodule Igniter do
                             "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
                           end)
 
-                        Mix.shell().info("""
-                        Create: #{Rewrite.Source.get(source, :path)}
+                        if String.trim(diffish_looking_text) != "" do
+                          Mix.shell().info("""
+                          Create: #{Rewrite.Source.get(source, :path)}
 
-                        #{diffish_looking_text}
-                        """)
+                          #{diffish_looking_text}
+                          """)
+                        end
                       else
-                        Mix.shell().info("""
-                        Update: #{Rewrite.Source.get(source, :path)}
+                        diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
 
-                        #{Rewrite.Source.diff(source)}
-                        """)
+                        if String.trim(diff) != "" do
+                          Mix.shell().info("""
+                          Update: #{Rewrite.Source.get(source, :path)}
+
+                          #{diff}
+                          """)
+                        end
                       end
                     end)
                   end
@@ -392,7 +398,7 @@ defmodule Igniter do
               |> Mix.shell().info()
             end
 
-            if igniter.tasks != [] do
+            if igniter.tasks != [] && "--yes" not in argv do
               message =
                 if result_of_dry_run == :dry_run_with_no_changes do
                   "The following tasks will be run"
@@ -421,6 +427,10 @@ defmodule Igniter do
                   |> Rewrite.write_all()
                   |> case do
                     {:ok, _result} ->
+                      unless Enum.empty?(igniter.tasks) do
+                        Mix.shell().cmd("mix deps.get")
+                      end
+
                       igniter.tasks
                       |> Enum.each(fn {task, args} ->
                         Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")

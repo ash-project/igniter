@@ -97,9 +97,6 @@ defmodule Igniter.Util.Install do
 
       case Mix.shell().cmd("mix deps.get") do
         0 ->
-          Mix.Task.reenable("compile")
-          Mix.Task.run("compile")
-
           Mix.Project.clear_deps_cache()
           Mix.Project.pop()
 
@@ -107,7 +104,10 @@ defmodule Igniter.Util.Install do
           |> File.read!()
           |> Code.eval_string([], file: Path.expand("mix.exs"))
 
-          Mix.Task.run("deps.compile", Enum.map(install_list, &to_string/1))
+          Mix.Dep.clear_cached()
+          Mix.Project.clear_deps_cache()
+
+          Mix.Task.run("deps.compile")
 
           Mix.Task.reenable("compile")
           Mix.Task.run("compile")
