@@ -13,7 +13,7 @@ defmodule Mix.Tasks.YourLib.Gen.YourThing do
     app_name = Igniter.Application.app_name()
 
     igniter
-    |> Igniter.create_new_elixir_file(igniter, path, """
+    |> Igniter.create_new_elixir_file(path, """
     defmodule #{inspect(module_name)} do
       use YourLib.Thing
 
