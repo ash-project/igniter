@@ -32,6 +32,7 @@ defmodule Igniter.MixProject do
     [
       main: "readme",
       source_ref: "v#{@version}",
+      source_url: "https://github.com/ash-project/igniter",
       logo: "logos/igniter-logo-small.png",
       extra_section: "GUIDES",
       extras: [
