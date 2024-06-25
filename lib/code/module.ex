@@ -10,9 +10,24 @@ defmodule Igniter.Code.Module do
     Module.concat(module_name_prefix(), suffix)
   end
 
-  @doc "Returns the idiomatic file location for a given module"
+  @doc """
+  Returns the idiomatic file location for a given module, starting with "lib/".
+  """
   @spec proper_location(module()) :: Path.t()
   def proper_location(module_name) do
+    do_proper_test_location(module_name)
+  end
+
+  @doc """
+  Returns the test file location for a given module, according to
+  `mix test` expectations, starting with "test/" and ending with "_test.exs"
+  """
+  @spec proper_test_location(module()) :: Path.t()
+  def proper_test_location(module_name) do
+    do_proper_test_location(module_name, :test)
+  end
+
+  defp do_proper_test_location(module_name, kind \\ :lib) do
     path =
       module_name
       |> Module.split()
@@ -22,7 +37,17 @@ defmodule Igniter.Code.Module do
     last = List.last(path)
     leading = :lists.droplast(path)
 
-    Path.join(["lib" | leading] ++ ["#{last}.ex"])
+    case kind do
+      :lib ->
+        Path.join(["lib" | leading] ++ ["#{last}.ex"])
+
+      :test ->
+        if String.ends_with?(last, "_test") do
+          Path.join(["test" | leading] ++ ["#{last}.exs"])
+        else
+          Path.join(["test" | leading] ++ ["#{last}_test.exs"])
+        end
+    end
   end
 
   def module?(zipper) do
