@@ -4,7 +4,7 @@ defmodule Igniter.Code.Module do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  @doc "Given a suffix, returns a module name with the prefix of the current project"
+  @doc "Given a suffix, returns a module name with the prefix of the current project."
   @spec module_name(String.t()) :: module()
   def module_name(suffix) do
     Module.concat(module_name_prefix(), suffix)
@@ -12,22 +12,49 @@ defmodule Igniter.Code.Module do
 
   @doc """
   Returns the idiomatic file location for a given module, starting with "lib/".
+
+  Examples:
+
+    iex> Igniter.Code.Module.proper_location(MyApp.Hello)
+    "lib/my_app/hello.ex"
   """
   @spec proper_location(module()) :: Path.t()
   def proper_location(module_name) do
-    do_proper_test_location(module_name)
+    do_proper_test_location(module_name, :lib)
   end
 
   @doc """
   Returns the test file location for a given module, according to
-  `mix test` expectations, starting with "test/" and ending with "_test.exs"
+  `mix test` expectations, starting with "test/" and ending with "_test.exs".
+
+  Examples:
+
+    iex> Igniter.Code.Module.proper_test_location(MyApp.Hello)
+    "test/my_app/hello_test.exs"
+
+    iex> Igniter.Code.Module.proper_test_location(MyApp.HelloTest)
+    "test/my_app/hello_test.exs"
   """
   @spec proper_test_location(module()) :: Path.t()
   def proper_test_location(module_name) do
     do_proper_test_location(module_name, :test)
   end
 
-  defp do_proper_test_location(module_name, kind \\ :lib) do
+  @doc """
+  Returns the test support location for a given module, starting with
+  "test/support/" and dropping the module name prefix in the path.
+
+  Examples:
+
+    iex> Igniter.Code.Module.proper_test_support_location(MyApp.DataCase)
+    "test/support/data_case.ex"
+  """
+  @spec proper_test_support_location(module()) :: Path.t()
+  def proper_test_support_location(module_name) do
+    do_proper_test_location(module_name, :test_support)
+  end
+
+  defp do_proper_test_location(module_name, kind) do
     path =
       module_name
       |> Module.split()
@@ -47,6 +74,10 @@ defmodule Igniter.Code.Module do
         else
           Path.join(["test" | leading] ++ ["#{last}_test.exs"])
         end
+
+      :test_support ->
+        [_prefix | leading_rest] = leading
+        Path.join(["test/support" | leading_rest] ++ ["#{last}.ex"])
     end
   end
 
