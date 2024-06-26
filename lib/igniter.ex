@@ -101,10 +101,13 @@ defmodule Igniter do
     %{igniter | tasks: igniter.tasks ++ [{task, argv}]}
   end
 
-  @doc "Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter."
-  def compose_task(igniter, task, argv \\ [])
+  @doc """
+  Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter.
+  If the task doesn't exist, a fallback implementation may be provided as the last argument.
+  """
+  def compose_task(igniter, task, argv \\ [], fallback \\ nil)
 
-  def compose_task(igniter, task, argv) when is_atom(task) do
+  def compose_task(igniter, task, argv, fallback) when is_atom(task) do
     Code.ensure_compiled!(task)
 
     if function_exported?(task, :igniter, 2) do
@@ -114,20 +117,31 @@ defmodule Igniter do
         task.igniter(igniter, argv)
       end
     else
-      add_issue(igniter, "#{inspect(task)} does not implement `Igniter.igniter/2`")
+      if is_function(fallback) do
+        fallback.(igniter, argv)
+      else
+        add_issue(
+          igniter,
+          "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
+        )
+      end
     end
   end
 
-  def compose_task(igniter, task_name, argv) do
+  def compose_task(igniter, task_name, argv, fallback) do
     if igniter.issues == [] do
       task_name
       |> Mix.Task.get()
       |> case do
         nil ->
-          igniter
+          if is_function(fallback) do
+            fallback.(igniter, argv)
+          else
+            igniter
+          end
 
         task ->
-          compose_task(igniter, task, argv)
+          compose_task(igniter, task, argv, fallback)
       end
     else
       igniter
