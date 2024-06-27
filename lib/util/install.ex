@@ -175,7 +175,7 @@ defmodule Igniter.Util.Install do
   end
 
   defp determine_dep_type_and_version(requirement) do
-    case String.split(requirement, "@", trim: true) do
+    case String.split(requirement, "@", trim: true, parts: 2) do
       [package] ->
         if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
           case Req.get!("https://hex.pm/api/packages/#{package}").body do
