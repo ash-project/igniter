@@ -4,6 +4,75 @@ defmodule Igniter.Code.Module do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
+  @doc "Find or create module"
+  def find_and_update_or_create_module(igniter, module_name, contents, updater) do
+    igniter
+    |> Igniter.include_glob("lib/**/*.ex")
+    |> Map.get(:rewrite)
+    |> Enum.find_value(fn source ->
+      source
+      |> Rewrite.Source.get(:quoted)
+      |> Zipper.zip()
+      |> Igniter.Code.Common.move_to_zipper(fn zipper ->
+        with true <- Igniter.Code.Function.function_call?(zipper, :defmodule, 2),
+             {:ok, inner_zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
+             inner_zipper <- Igniter.Code.Common.expand_aliases(inner_zipper),
+             true <-
+               Igniter.Code.Common.nodes_equal?(
+                 inner_zipper,
+                 module_name
+               ) do
+          {:ok, inner_zipper}
+        else
+          _ ->
+            nil
+        end
+      end)
+      |> case do
+        {:ok, zipper} ->
+          {source, zipper}
+
+        _ ->
+          nil
+      end
+    end)
+    |> case do
+      {source, zipper} ->
+        case Common.move_to_do_block(zipper) do
+          {:ok, zipper} ->
+            case updater.(zipper) do
+              {:ok, zipper} ->
+                new_quoted =
+                  zipper
+                  |> Zipper.topmost()
+                  |> Zipper.node()
+
+                new_source = Rewrite.Source.update(source, :quoted, new_quoted)
+                %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
+
+              {:error, error} ->
+                Igniter.add_issue(igniter, error)
+
+              {:warning, error} ->
+                Igniter.add_warning(igniter, error)
+            end
+
+          _ ->
+            igniter
+        end
+
+      nil ->
+        contents =
+          """
+          defmodule #{inspect(module_name)} do
+            #{contents}
+          end
+          """
+
+        Igniter.create_new_elixir_file(igniter, proper_location(module_name), contents)
+    end
+  end
+
   @doc "Given a suffix, returns a module name with the prefix of the current project."
   @spec module_name(String.t()) :: module()
   def module_name(suffix) do
@@ -18,9 +87,9 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_location(MyApp.Hello)
     "lib/my_app/hello.ex"
   """
-  @spec proper_location(igniter :: Igniter.t() | nil, module()) :: Path.t()
-  def proper_location(igniter \\ nil, module_name) do
-    do_proper_location(igniter, module_name, :lib)
+  @spec proper_location(module()) :: Path.t()
+  def proper_location(module_name) do
+    do_proper_location(module_name, :lib)
   end
 
   @doc """
@@ -35,9 +104,9 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_test_location(MyApp.HelloTest)
     "test/my_app/hello_test.exs"
   """
-  @spec proper_test_location(igniter :: Igniter.t() | nil, module()) :: Path.t()
-  def proper_test_location(igniter \\ nil, module_name) do
-    do_proper_location(igniter, module_name, :test)
+  @spec proper_test_location(module()) :: Path.t()
+  def proper_test_location(module_name) do
+    do_proper_location(module_name, :test)
   end
 
   @doc """
@@ -49,9 +118,9 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_test_support_location(MyApp.DataCase)
     "test/support/data_case.ex"
   """
-  @spec proper_test_support_location(igniter :: Igniter.t() | nil, module()) :: Path.t()
-  def proper_test_support_location(igniter \\ nil, module_name) do
-    do_proper_location(igniter, module_name, :test_support)
+  @spec proper_test_support_location(module()) :: Path.t()
+  def proper_test_support_location(module_name) do
+    do_proper_location(module_name, :test_support)
   end
 
   @doc false
@@ -149,7 +218,7 @@ defmodule Igniter.Code.Module do
     split_from_path == split
   end
 
-  defp do_proper_location(igniter, module_name, kind) do
+  defp do_proper_location(module_name, kind) do
     path =
       module_name
       |> Module.split()
@@ -173,35 +242,6 @@ defmodule Igniter.Code.Module do
       :test_support ->
         [_prefix | leading_rest] = leading
         Path.join(["test/support" | leading_rest] ++ ["#{last}.ex"])
-    end
-    |> apply_leaf_module_configuration(igniter)
-  end
-
-  defp apply_leaf_module_configuration(path, nil), do: path
-
-  defp apply_leaf_module_configuration(path, igniter) do
-    case Igniter.Project.IgniterConfig.get(igniter, :leaf_module_location) do
-      :outside_folder ->
-        path
-
-      :inside_folder ->
-        path
-        |> Path.split()
-        |> Enum.reverse()
-        |> Enum.split(2)
-        |> case do
-          {[filename, last_folder_name], rest} ->
-            if Path.rootname(filename) == last_folder_name do
-              [last_folder_name <> Path.extname(filename) | rest]
-              |> Enum.reverse()
-              |> Path.join()
-            else
-              path
-            end
-
-          _ ->
-            path
-        end
     end
   end
 

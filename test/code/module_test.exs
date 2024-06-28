@@ -20,17 +20,101 @@ defmodule Igniter.Code.ModuleTest do
 
     assert "lib/foo/bar/bar.ex" in paths
     assert "lib/foo/bar/baz.ex" in paths
+  end
 
-    #   Igniter.Project.Config.configure(Igniter.new(), "fake.exs", :fake, [:foo, :bar], "baz")
+  test "modules can be found anywhere across the project" do
+    %{rewrite: rewrite} =
+      Igniter.new()
+      |> Igniter.create_new_elixir_file("lib/foo/bar.ex", """
+        defmodule Foo.Bar do
+          defmodule Baz do
+            10
+          end
+        end
+      """)
+      |> Igniter.Code.Module.find_and_update_or_create_module(
+        Foo.Bar.Baz,
+        """
+        20
+        """,
+        fn zipper ->
+          {:ok, Igniter.Code.Common.replace_code(zipper, 30)}
+        end
+      )
 
-    # config_file = Rewrite.source!(rewrite, "config/fake.exs")
+    contents =
+      rewrite
+      |> Rewrite.source!("lib/foo/bar.ex")
+      |> Rewrite.Source.get(:content)
 
-    # assert Source.from?(config_file, :string)
+    assert contents == """
+           defmodule Foo.Bar do
+             defmodule Baz do
+               30
+             end
+           end
+           """
+  end
 
-    # assert Source.get(config_file, :content) == """
-    #        import Config
-    #        config :fake, foo: [bar: "baz"]
-    #        """
-    # end
+  test "modules will be created if they do not exist, in the conventional place" do
+    %{rewrite: rewrite} =
+      Igniter.new()
+      |> Igniter.create_new_elixir_file("lib/foo/bar.ex", """
+      defmodule Foo.Bar do
+      end
+      """)
+      |> Igniter.Code.Module.find_and_update_or_create_module(
+        Foo.Bar.Baz,
+        """
+        20
+        """,
+        fn zipper ->
+          {:ok, Igniter.Code.Common.replace_code(zipper, 30)}
+        end
+      )
+
+    contents =
+      rewrite
+      |> Rewrite.source!("lib/foo/bar/baz.ex")
+      |> Rewrite.Source.get(:content)
+
+    assert contents == """
+           defmodule Foo.Bar.Baz do
+             20
+           end
+           """
+  end
+
+  test "modules will be created if they do not exist, in the conventional place, which can be configured" do
+    %{rewrite: rewrite} =
+      Igniter.new()
+      |> Igniter.assign(:igniter_exs,
+        leaf_module_location: :inside_folder
+      )
+      |> Igniter.create_new_elixir_file("lib/foo/bar/something.ex", """
+      defmodule Foo.Bar.Something do
+      end
+      """)
+      |> Igniter.Code.Module.find_and_update_or_create_module(
+        Foo.Bar,
+        """
+        20
+        """,
+        fn zipper ->
+          {:ok, Igniter.Code.Common.replace_code(zipper, 30)}
+        end
+      )
+      |> Igniter.prepare_for_write()
+
+    contents =
+      rewrite
+      |> Rewrite.source!("lib/foo/bar/bar.ex")
+      |> Rewrite.Source.get(:content)
+
+    assert contents == """
+           defmodule Foo.Bar do
+             20
+           end
+           """
   end
 end

@@ -7,7 +7,7 @@ defmodule Igniter.Code.Common do
   @doc """
   Moves to the next node that matches the predicate.
   """
-  @spec move_to(Zipper.t(), (Zipper.tree() -> Zipper.t())) :: {:ok, Zipper.t()} | :error
+  @spec move_to(Zipper.t(), (Zipper.tree() -> boolean())) :: {:ok, Zipper.t()} | :error
   def move_to(zipper, pred) do
     Zipper.find(zipper, fn thing ->
       try do
@@ -23,6 +23,22 @@ defmodule Igniter.Code.Common do
 
       zipper ->
         {:ok, zipper}
+    end
+  end
+
+  @doc """
+  Moves to the next zipper that matches the predicate.
+  """
+  @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
+  def move_to_zipper(zipper, pred) do
+    if pred.(zipper) do
+      {:ok, zipper}
+    else
+      if next = Zipper.next(zipper) do
+        move_to_zipper(next, pred)
+      else
+        :error
+      end
     end
   end
 
@@ -612,11 +628,20 @@ defmodule Igniter.Code.Common do
 
   @spec nodes_equal?(Zipper.t() | Macro.t(), Macro.t()) :: boolean
   def nodes_equal?(%Zipper{} = left, right) do
-    left
-    |> expand_aliases()
-    |> Zipper.subtree()
-    |> Zipper.node()
-    |> nodes_equal?(right)
+    with zipper when not is_nil(zipper) <- Zipper.up(left),
+         {:defmodule, _, [{:__aliases__, _, parts}, _]} <-
+           zipper |> Zipper.subtree() |> Zipper.node(),
+         {:ok, env} <- current_env(zipper),
+         true <- nodes_equal?({:__aliases__, [], [Module.concat([env.module | parts])]}, right) do
+      true
+    else
+      _ ->
+        left
+        |> expand_aliases()
+        |> Zipper.subtree()
+        |> Zipper.node()
+        |> nodes_equal?(right)
+    end
   end
 
   def nodes_equal?(_left, %Zipper{}) do
@@ -631,14 +656,14 @@ defmodule Igniter.Code.Common do
 
   @spec expand_aliases(Zipper.t()) :: Zipper.t()
   def expand_aliases(zipper) do
-    case current_env(zipper) do
-      {:ok, env} ->
-        Zipper.traverse(zipper, fn x ->
-          x
-          |> Zipper.subtree()
-          |> Zipper.node()
-          |> case do
-            {:__aliases__, _, parts} ->
+    Zipper.traverse(zipper, fn x ->
+      x
+      |> Zipper.subtree()
+      |> Zipper.node()
+      |> case do
+        {:__aliases__, _, parts} ->
+          case current_env(zipper) do
+            {:ok, env} ->
               case Macro.Env.expand_alias(env, [], parts) do
                 {:alias, value} ->
                   Zipper.replace(x, {:__aliases__, [], Module.split(value)})
@@ -650,11 +675,11 @@ defmodule Igniter.Code.Common do
             _ ->
               x
           end
-        end)
 
-      _ ->
-        zipper
-    end
+        _ ->
+          x
+      end
+    end)
   rescue
     _ ->
       zipper

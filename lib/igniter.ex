@@ -116,7 +116,7 @@ defmodule Igniter do
     glob =
       case glob do
         %GlobEx{} = glob -> glob
-        string -> GlobEx.compile!(string)
+        string -> GlobEx.compile!(Path.expand(string))
       end
 
     igniter = include_glob(igniter, glob)
@@ -885,6 +885,7 @@ defmodule Igniter do
     end)
   end
 
+  # sobelow_skip ["RCE.CodeModule"]
   defp parse_igniter_config(igniter) do
     case Rewrite.source(igniter.rewrite, ".igniter.exs") do
       {:error, _} ->

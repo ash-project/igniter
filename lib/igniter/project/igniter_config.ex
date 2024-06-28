@@ -54,7 +54,7 @@ defmodule Igniter.Project.IgniterConfig do
                 unquote(config[:default])
               end
 
-            # TODO: when we have a way to comment ahead of a keyword item
+            # when we have a way to comment ahead of a keyword item
             # we should comment the docs
             case Igniter.Code.Keyword.set_keyword_key(
                    zipper,
