@@ -1,7 +1,7 @@
 defmodule Igniter.Util.Install do
   @moduledoc false
   @option_schema [
-    strict: [
+    switches: [
       example: :boolean,
       dry_run: :boolean,
       yes: :boolean
@@ -24,8 +24,8 @@ defmodule Igniter.Util.Install do
 
     Application.ensure_all_started(:req)
 
-    {options, _errors, _unprocessed_argv} =
-      OptionParser.parse(argv, @option_schema)
+    {options, _unprocessed_argv} =
+      OptionParser.parse!(argv, @option_schema)
 
     igniter = Igniter.new()
 
@@ -124,13 +124,26 @@ defmodule Igniter.Util.Install do
 
       desired_tasks = Enum.map(install_list, &"#{&1}.install")
 
-      Mix.Task.load_all()
-      |> Stream.map(fn item ->
-        Code.ensure_compiled!(item)
-        item
-      end)
-      |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
-      |> Stream.filter(&(Mix.Task.task_name(&1) in desired_tasks))
+      igniter_tasks =
+        Mix.Task.load_all()
+        |> Stream.map(fn item ->
+          Code.ensure_compiled!(item)
+          item
+        end)
+        |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
+        |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
+
+      Igniter.Util.Options.validate!(
+        argv,
+        %{
+          schema: @option_schema[:switches],
+          aliases: @option_schema[:aliases],
+          composes: desired_tasks
+        },
+        "igniter.install"
+      )
+
+      igniter_tasks
       |> Enum.reduce(igniter, fn task, igniter ->
         Igniter.compose_task(igniter, task, argv)
       end)
