@@ -47,9 +47,7 @@ defmodule Igniter.Code.List do
       end)
       |> case do
         nil ->
-          zipper
-          |> Common.maybe_move_to_single_child_block()
-          |> Zipper.append_child(quoted)
+          append_to_list(zipper, quoted)
 
         _ ->
           zipper
