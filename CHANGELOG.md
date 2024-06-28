@@ -5,6 +5,37 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.4](https://github.com/ash-project/igniter/compare/v0.2.3...v0.2.4) (2024-06-28)
+
+
+
+
+### Bug Fixes:
+
+* fix match error in `append_new_to_list`
+
+* version string splitting (#25)
+
+### Improvements:
+
+* add an optional path argument to `find_and_update_or_create_module/5`
+
+* add `option_schema/2` callback to `Igniter.Mix.Task`
+
+* `Module.find_and_update_or_create_module`
+
+* add a way to move files
+
+* add `.igniter.exs` file, and `mix igniter.setup` to create it
+
+* move files to configured location based on changes
+
+* add fallback to compose_task (#19)
+
+* add proper_test_support_location/1 (#18)
+
+* add proper_test_location/1 (#17)
+
 ## [v0.2.3](https://github.com/ash-project/igniter/compare/v0.2.2...v0.2.3) (2024-06-21)
 
 
