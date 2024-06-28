@@ -421,6 +421,16 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Moves the zipper all the way to the right, potentially entering a single value block.
+  """
+  @spec rightmost(Zipper.t()) :: Zipper.t()
+  def rightmost(%Zipper{} = zipper) do
+    zipper
+    |> Zipper.rightmost()
+    |> maybe_move_to_single_child_block()
+  end
+
+  @doc """
   Moves right in the zipper, until the provided predicate returns `true`.
 
   Returns `:error` if the end is reached without finding a match.

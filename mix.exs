@@ -80,7 +80,9 @@ defmodule Igniter.MixProject do
       {:req, "~> 0.4"},
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
-      {:sourceror, "~> 1.3"},
+      {:sourceror, "~> 1.4"},
+      # can't use spark because spark depends on this
+      {:nimble_options, "~> 1.0"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.32", only: [:dev, :test], runtime: false},

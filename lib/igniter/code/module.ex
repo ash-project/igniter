@@ -18,9 +18,9 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_location(MyApp.Hello)
     "lib/my_app/hello.ex"
   """
-  @spec proper_location(module()) :: Path.t()
-  def proper_location(module_name) do
-    do_proper_test_location(module_name, :lib)
+  @spec proper_location(igniter :: Igniter.t() | nil, module()) :: Path.t()
+  def proper_location(igniter \\ nil, module_name) do
+    do_proper_location(igniter, module_name, :lib)
   end
 
   @doc """
@@ -35,9 +35,9 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_test_location(MyApp.HelloTest)
     "test/my_app/hello_test.exs"
   """
-  @spec proper_test_location(module()) :: Path.t()
-  def proper_test_location(module_name) do
-    do_proper_test_location(module_name, :test)
+  @spec proper_test_location(igniter :: Igniter.t() | nil, module()) :: Path.t()
+  def proper_test_location(igniter \\ nil, module_name) do
+    do_proper_location(igniter, module_name, :test)
   end
 
   @doc """
@@ -49,12 +49,107 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_test_support_location(MyApp.DataCase)
     "test/support/data_case.ex"
   """
-  @spec proper_test_support_location(module()) :: Path.t()
-  def proper_test_support_location(module_name) do
-    do_proper_test_location(module_name, :test_support)
+  @spec proper_test_support_location(igniter :: Igniter.t() | nil, module()) :: Path.t()
+  def proper_test_support_location(igniter \\ nil, module_name) do
+    do_proper_location(igniter, module_name, :test_support)
   end
 
-  defp do_proper_test_location(module_name, kind) do
+  @doc false
+  def move_modules(igniter) do
+    if Igniter.Project.IgniterConfig.get(igniter, :leaf_module_location) == :inside_folder do
+      igniter = Igniter.include_glob(igniter, "lib/**/*.ex")
+
+      igniter.rewrite
+      |> Enum.filter(&(Path.extname(&1.path) == ".ex"))
+      |> Enum.reduce(igniter, fn source, igniter ->
+        zipper =
+          source
+          |> Rewrite.Source.get(:quoted)
+          |> Zipper.zip()
+
+        with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+             {:defmodule, _, [module | _]} <-
+               zipper
+               |> Igniter.Code.Common.expand_aliases()
+               |> Zipper.subtree()
+               |> Zipper.node(),
+             module when not is_nil(module) <- to_module_name(module),
+             true <-
+               module_matches_path?(module, source.path),
+             new_path when not is_nil(new_path) <- should_move_file_to(igniter.rewrite, source) do
+          Igniter.move_file(igniter, source.path, new_path, error_if_exists?: false)
+        else
+          _ ->
+            igniter
+        end
+      end)
+    else
+      igniter
+    end
+  end
+
+  defp should_move_file_to(rewrite, source) do
+    all_paths = Rewrite.paths(rewrite)
+
+    paths_created =
+      rewrite
+      |> Enum.filter(fn source ->
+        Rewrite.Source.from?(source, :string)
+      end)
+      |> Enum.map(& &1.path)
+
+    last = source.path |> Path.split() |> List.last() |> Path.rootname()
+
+    path_it_might_live_in =
+      source.path
+      |> Path.split()
+      |> Enum.reverse()
+      |> Enum.drop(1)
+      |> Enum.reverse()
+      |> Enum.concat([last])
+
+    if Rewrite.Source.from?(source, :string) do
+      Enum.any?(all_paths, fn path ->
+        List.starts_with?(Path.split(path), path_it_might_live_in)
+      end)
+    else
+      # only move a file if we just created its new home
+      if File.dir?(Path.join(path_it_might_live_in)) do
+        false
+      else
+        Enum.any?(paths_created, fn path ->
+          List.starts_with?(Path.split(path), path_it_might_live_in)
+        end)
+      end
+    end
+    |> if do
+      Path.join(path_it_might_live_in ++ [last <> ".ex"])
+    else
+      nil
+    end
+  end
+
+  defp to_module_name({:__aliases__, _, parts}), do: Module.concat(parts)
+  defp to_module_name(value) when is_atom(value) and not is_nil(value), do: value
+  defp to_module_name(_), do: nil
+
+  defp module_matches_path?(module, path) do
+    split = Module.split(module)
+
+    rootname = Path.split(path) |> List.last() |> Path.rootname()
+
+    split_from_path =
+      path
+      |> Path.dirname()
+      |> Path.join(rootname)
+      |> Path.split()
+      |> Enum.drop(1)
+      |> Enum.map(&Macro.camelize/1)
+
+    split_from_path == split
+  end
+
+  defp do_proper_location(igniter, module_name, kind) do
     path =
       module_name
       |> Module.split()
@@ -78,6 +173,35 @@ defmodule Igniter.Code.Module do
       :test_support ->
         [_prefix | leading_rest] = leading
         Path.join(["test/support" | leading_rest] ++ ["#{last}.ex"])
+    end
+    |> apply_leaf_module_configuration(igniter)
+  end
+
+  defp apply_leaf_module_configuration(path, nil), do: path
+
+  defp apply_leaf_module_configuration(path, igniter) do
+    case Igniter.Project.IgniterConfig.get(igniter, :leaf_module_location) do
+      :outside_folder ->
+        path
+
+      :inside_folder ->
+        path
+        |> Path.split()
+        |> Enum.reverse()
+        |> Enum.split(2)
+        |> case do
+          {[filename, last_folder_name], rest} ->
+            if Path.rootname(filename) == last_folder_name do
+              [last_folder_name <> Path.extname(filename) | rest]
+              |> Enum.reverse()
+              |> Path.join()
+            else
+              path
+            end
+
+          _ ->
+            path
+        end
     end
   end
 

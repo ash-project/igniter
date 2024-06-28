@@ -146,7 +146,12 @@ defmodule Igniter.Code.Keyword do
     end
   end
 
-  @spec set_keyword_key(Zipper.t(), atom(), term(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
+  @spec set_keyword_key(
+          Zipper.t(),
+          atom(),
+          term(),
+          (Zipper.t() -> {:ok, Zipper.t()} | :error)
+        ) ::
           {:ok, Zipper.t()} | :error
   def set_keyword_key(zipper, key, value, updater) do
     if Common.node_matches_pattern?(zipper, value when is_list(value)) do

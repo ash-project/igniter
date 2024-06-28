@@ -3,7 +3,7 @@ defmodule Igniter do
   Tools for generating and patching code into an Elixir project.
   """
 
-  defstruct [:rewrite, issues: [], tasks: [], warnings: [], assigns: %{}]
+  defstruct [:rewrite, issues: [], tasks: [], warnings: [], assigns: %{}, moves: %{}]
 
   alias Sourceror.Zipper
 
@@ -12,7 +12,8 @@ defmodule Igniter do
           issues: [String.t()],
           tasks: [{String.t() | list(String.t())}],
           warnings: [String.t()],
-          assigns: map()
+          assigns: map(),
+          moves: %{optional(String.t()) => String.t()}
         }
 
   @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
@@ -21,6 +22,42 @@ defmodule Igniter do
   @spec new() :: t()
   def new do
     %__MODULE__{rewrite: Rewrite.new()}
+    |> include_existing_elixir_file(".igniter.exs", required?: false)
+    |> parse_igniter_config()
+  end
+
+  def move_file(igniter, from, from, opts \\ [])
+  def move_file(igniter, from, from, _opts), do: igniter
+
+  def move_file(igniter, from, to, opts) do
+    case Enum.find(igniter.moves, fn {_key, value} -> value == from end) do
+      {key, _} ->
+        move_file(igniter.moves, key, to)
+
+      _ ->
+        if File.exists?(to) || match?({:ok, _}, Rewrite.source(igniter.rewrite, to)) do
+          if Keyword.get(opts, :error_if_exists?, true) do
+            add_issue(igniter, "Cannot move #{from} to #{to}, as #{to} already exists.")
+          else
+            igniter
+          end
+        else
+          igniter = include_existing_file(igniter, from)
+
+          source = Rewrite.source!(igniter.rewrite, from)
+
+          if Rewrite.Source.from?(source, :string) do
+            rewrite =
+              igniter.rewrite
+              |> Rewrite.drop([source.path])
+              |> Rewrite.put!(%{source | path: to})
+
+            %{igniter | rewrite: rewrite}
+          else
+            %{igniter | moves: Map.put(igniter.moves, from, to)}
+          end
+        end
+    end
   end
 
   @doc "Stores the key/value pair in `igniter.assigns`"
@@ -35,22 +72,33 @@ defmodule Igniter do
     end)
   end
 
+  def update_assign(igniter, key, default, fun) do
+    %{igniter | assigns: Map.update(igniter.assigns, key, default, fun)}
+  end
+
   @doc "Includes all files matching the given glob, expecting them all (for now) to be elixir files."
   @spec include_glob(t, Path.t() | GlobEx.t()) :: t()
   def include_glob(igniter, glob) do
     glob
     |> case do
       %GlobEx{} = glob -> glob
-      string -> GlobEx.compile!(string)
+      string -> GlobEx.compile!(Path.expand(string))
     end
     |> GlobEx.ls()
-    |> Enum.reduce(igniter, fn path, igniter ->
+    |> Enum.filter(fn path ->
       if Path.extname(path) in [".ex", ".exs"] do
-        Igniter.include_existing_elixir_file(igniter, path)
+        true
       else
         raise ArgumentError,
               "Cannot include #{inspect(path)} because it is not an Elixir file. This can be supported in the future, but the work hasn't been done yet."
       end
+    end)
+    |> Enum.map(&Path.relative_to_cwd/1)
+    |> then(fn paths ->
+      Enum.reduce(paths, igniter, fn path, igniter ->
+        Igniter.include_existing_elixir_file(igniter, path, format?: false)
+      end)
+      |> format(paths)
     end)
   end
 
@@ -161,10 +209,9 @@ defmodule Igniter do
       |> format(path)
     else
       if File.exists?(path) do
-        {source, trailing_comments} = read_ex_source!(path)
+        source = read_ex_source!(path)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        |> set_trailing_comments(path, trailing_comments)
         |> format(path)
         |> apply_func_with_zipper(source, func)
       else
@@ -182,11 +229,10 @@ defmodule Igniter do
       %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
     else
       if File.exists?(path) do
-        {source, trailing_comments} = read_ex_source!(path)
+        source = read_ex_source!(path)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> format(path)
-        |> set_trailing_comments(path, trailing_comments)
         |> Map.update!(:rewrite, fn rewrite ->
           source = Rewrite.source!(rewrite, path)
           Rewrite.update!(rewrite, path, updater.(source))
@@ -197,20 +243,54 @@ defmodule Igniter do
     end
   end
 
-  @doc "Includes the given file in the project, expecting it to exist. Does nothing if its already been added."
-  @spec include_existing_elixir_file(t(), Path.t()) :: t()
-  def include_existing_elixir_file(igniter, path) do
+  @doc "Includes the given elixir file in the project, expecting it to exist. Does nothing if its already been added."
+  @spec include_existing_elixir_file(t(), Path.t(), opts :: Keyword.t()) :: t()
+  def include_existing_elixir_file(igniter, path, opts \\ []) do
+    required? = Keyword.get(opts, :required?, false)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
       if File.exists?(path) do
-        {source, trailing_comments} = read_ex_source!(path)
+        source = read_ex_source!(path)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        |> set_trailing_comments(path, trailing_comments)
+        |> then(fn igniter ->
+          if opts[:format?] do
+            format(igniter, path)
+          else
+            igniter
+          end
+        end)
+      else
+        if required? do
+          add_issue(igniter, "Required #{path} but it did not exist")
+        else
+          igniter
+        end
+      end
+    end
+  end
+
+  @doc "Includes the given file in the project, expecting it to exist. Does nothing if its already been added."
+  @spec include_existing_file(t(), Path.t(), opts :: Keyword.t()) :: t()
+  def include_existing_file(igniter, path, opts \\ []) do
+    required? = Keyword.get(opts, :required?, false)
+
+    if Rewrite.has_source?(igniter.rewrite, path) do
+      igniter
+    else
+      if File.exists?(path) do
+        source = Rewrite.Source.read!(path)
+
+        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> format(path)
       else
-        add_issue(igniter, "Required #{path} but it did not exist")
+        if required? do
+          add_issue(igniter, "Required #{path} but it did not exist")
+        else
+          igniter
+        end
       end
     end
   end
@@ -221,18 +301,17 @@ defmodule Igniter do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
-      {source, trailing_comments} =
+      source =
         try do
           read_ex_source!(path)
         rescue
           _ ->
-            {""
-             |> Rewrite.Source.Ex.from_string(path)
-             |> Rewrite.Source.update(:file_creator, :content, contents), []}
+            ""
+            |> Rewrite.Source.Ex.from_string(path)
+            |> Rewrite.Source.update(:file_creator, :content, contents)
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-      |> set_trailing_comments(path, trailing_comments)
       |> format(path)
     end
   end
@@ -249,22 +328,19 @@ defmodule Igniter do
       igniter
       |> update_elixir_file(path, updater)
     else
-      {created?, {source, trailing_comments}} =
+      {created?, source} =
         try do
           {false, read_ex_source!(path)}
         rescue
           _ ->
-            {contents, trailing_comments} = trim_trailing_comments(contents)
-
             {true,
-             {""
-              |> Rewrite.Source.Ex.from_string(path)
-              |> Rewrite.Source.update(:file_creator, :content, contents), trailing_comments}}
+             ""
+             |> Rewrite.Source.Ex.from_string(path)
+             |> Rewrite.Source.update(:file_creator, :content, contents)}
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
       |> format(path)
-      |> set_trailing_comments(path, trailing_comments)
       |> then(fn igniter ->
         if created? do
           igniter
@@ -278,21 +354,18 @@ defmodule Igniter do
   @doc "Creates a new elixir file in the project with the provided string contents. Adds an error if it already exists."
   @spec create_new_elixir_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_elixir_file(igniter, path, contents \\ "") do
-    {source, trailing_comments} =
+    source =
       try do
-        {source, trailing_comments} = read_ex_source!(path)
-        {Rewrite.Source.add_issue(source, "File already exists"), trailing_comments}
+        source = read_ex_source!(path)
+        Rewrite.Source.add_issue(source, "File already exists")
       rescue
         _ ->
-          {contents, trailing_comments} = trim_trailing_comments(contents)
-
-          {""
-           |> Rewrite.Source.Ex.from_string(path)
-           |> Rewrite.Source.update(:file_creator, :content, contents), trailing_comments}
+          ""
+          |> Rewrite.Source.Ex.from_string(path)
+          |> Rewrite.Source.update(:file_creator, :content, contents)
       end
 
     %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-    |> set_trailing_comments(path, trailing_comments)
     |> format(path)
   end
 
@@ -412,6 +485,16 @@ defmodule Igniter do
               |> Mix.shell().info()
             end
 
+            unless Enum.empty?(igniter.moves) do
+              Mix.shell().info("The following fils will be moved:")
+
+              Enum.each(igniter.moves, fn {from, to} ->
+                Mix.shell().info(
+                  "#{IO.ANSI.red()}#{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
+                )
+              end)
+            end
+
             if igniter.tasks != [] && "--yes" not in argv do
               message =
                 if result_of_dry_run == :dry_run_with_no_changes do
@@ -444,6 +527,11 @@ defmodule Igniter do
                       unless Enum.empty?(igniter.tasks) do
                         Mix.shell().cmd("mix deps.get")
                       end
+
+                      igniter.moves
+                      |> Enum.each(fn {from, to} ->
+                        File.rename!(from, to)
+                      end)
 
                       igniter.tasks
                       |> Enum.each(fn {task, args} ->
@@ -507,10 +595,14 @@ defmodule Igniter do
     end)
   end
 
-  defp format(igniter, adding_path \\ nil) do
-    igniter = include_glob(igniter, "config/{config,#{Mix.env()}}.exs")
+  defp format(igniter, adding_paths \\ nil) do
+    igniter =
+      igniter
+      |> include_existing_elixir_file("config/config.exs", require?: false)
+      |> include_existing_elixir_file("config/#{Mix.env()}.exs", require?: false)
 
-    if adding_path && Path.basename(adding_path) == ".formatter.exs" do
+    if adding_paths &&
+         Enum.any?(List.wrap(adding_paths), &(Path.basename(&1) == ".formatter.exs")) do
       format(igniter)
     else
       igniter =
@@ -550,7 +642,7 @@ defmodule Igniter do
         Rewrite.map!(rewrite, fn source ->
           path = source |> Rewrite.Source.get(:path)
 
-          if is_nil(adding_path) || path == adding_path do
+          if is_nil(adding_paths) || path in List.wrap(adding_paths) do
             dir = Path.dirname(path)
 
             opts =
@@ -760,79 +852,53 @@ defmodule Igniter do
   defp read_ex_source!(path) do
     source = Rewrite.Source.Ex.read!(path)
 
-    {content, trailing_comments} =
+    content =
       source
       |> Rewrite.Source.get(:content)
-      |> trim_trailing_comments()
 
-    {Rewrite.Source.update(source, :content, content), trailing_comments}
-  end
-
-  defp set_trailing_comments(igniter, path, comments) when is_list(comments) do
-    new_trailing_comments =
-      Map.put(igniter.assigns[:trailing_comments] || %{}, path, comments)
-
-    assign(
-      igniter,
-      :trailing_comments,
-      new_trailing_comments
-    )
-  end
-
-  defp trim_trailing_comments(contents) do
-    contents
-    |> String.split("\n")
-    |> Enum.reverse()
-    |> Enum.split_while(fn line -> comment?(line) || empty?(line) end)
-    |> then(fn {comments, not_comments} ->
-      {Enum.join(Enum.reverse(not_comments), "\n"), Enum.reverse(comments)}
-    end)
-  end
-
-  defp comment?(line) do
-    line
-    |> String.trim_leading()
-    |> String.starts_with?("#")
-  end
-
-  defp empty?(line) do
-    String.trim(line) == ""
+    Rewrite.Source.update(source, :content, content)
   end
 
   @doc false
   def prepare_for_write(igniter) do
-    igniter = %{
+    %{
       igniter
       | issues: Enum.uniq(igniter.issues),
         warnings: Enum.uniq(igniter.warnings),
         tasks: Enum.uniq(igniter.tasks)
     }
+    |> Igniter.Code.Module.move_modules()
+    |> remove_unchanged_files()
+  end
 
-    # We can remove all of the trailing comments logic when
-    # https://github.com/doorgan/sourceror/issues/150
-    # is resolved
-    Map.update!(igniter, :rewrite, fn rewrite ->
-      Enum.reduce(rewrite, rewrite, fn source, rewrite ->
-        path = Rewrite.Source.get(source, :path)
-
-        source =
-          if comments = igniter.assigns[:trailing_comments][path] do
-            content = Rewrite.Source.get(source, :content)
-
-            content =
-              if String.last(content) == "\n" do
-                String.slice(content, 0..-2//1)
-              else
-                content
-              end
-
-            Rewrite.Source.update(source, :content, Enum.join([content | comments], "\n"))
-          else
-            source
-          end
-
-        Rewrite.update!(rewrite, source)
-      end)
+  defp remove_unchanged_files(igniter) do
+    igniter.rewrite
+    |> Enum.flat_map(fn source ->
+      if Rewrite.Source.from?(source, :string) || changed?(source) do
+        []
+      else
+        [source.path]
+      end
     end)
+    |> then(fn paths ->
+      %{igniter | rewrite: Rewrite.drop(igniter.rewrite, paths)}
+    end)
+  end
+
+  defp parse_igniter_config(igniter) do
+    case Rewrite.source(igniter.rewrite, ".igniter.exs") do
+      {:error, _} ->
+        assign(igniter, :igniter_exs, [])
+
+      {:ok, source} ->
+        {igniter_exs, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
+        assign(igniter, :igniter_exs, igniter_exs)
+    end
+  end
+
+  defp changed?(source) do
+    diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
+
+    String.trim(diff) != ""
   end
 end
