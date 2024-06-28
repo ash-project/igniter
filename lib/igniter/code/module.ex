@@ -4,8 +4,8 @@ defmodule Igniter.Code.Module do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  @doc "Find or create module"
-  def find_and_update_or_create_module(igniter, module_name, contents, updater) do
+  @doc "Finds a module and updates its contents wherever it is. If it does not exist, it is created with the provided contents."
+  def find_and_update_or_create_module(igniter, module_name, contents, updater, path \\ nil) do
     igniter
     |> Igniter.include_glob("lib/**/*.ex")
     |> Map.get(:rewrite)
@@ -69,7 +69,7 @@ defmodule Igniter.Code.Module do
           end
           """
 
-        Igniter.create_new_elixir_file(igniter, proper_location(module_name), contents)
+        Igniter.create_new_elixir_file(igniter, path || proper_location(module_name), contents)
     end
   end
 
