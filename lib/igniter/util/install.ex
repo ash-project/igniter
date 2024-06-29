@@ -24,9 +24,6 @@ defmodule Igniter.Util.Install do
 
     Application.ensure_all_started(:req)
 
-    {options, _unprocessed_argv} =
-      OptionParser.parse!(argv, @info)
-
     igniter = Igniter.new()
 
     {igniter, install_list} =
@@ -57,98 +54,34 @@ defmodule Igniter.Util.Install do
         end
       end)
 
-    confirmation_message =
-      unless options[:dry_run] do
-        "Dependencies changes must go into effect before individual installers can be run. Proceed with changes?"
-      end
+    igniter = Igniter.apply_and_fetch_dependencies(igniter)
 
-    dependency_add_result =
-      Igniter.do_or_dry_run(igniter, argv,
-        title: "Fetching Dependency",
-        quiet_on_no_changes?: true,
-        confirmation_message: confirmation_message
-      )
+    desired_tasks = Enum.map(install_list, &"#{&1}.install")
 
-    if dependency_add_result == :issues do
-      raise "Exiting due to issues found while fetching dependency"
-    end
-
-    if dependency_add_result == :dry_run_with_changes do
-      install_dep_now? =
-        Mix.shell().yes?("""
-        Cannot run any associated installers for the requested packages without
-        commiting changes and fetching dependencies.
-
-        Would you like to do so now? The remaining steps will be displayed as a dry run.
-        """)
-
-      if install_dep_now? do
-        Igniter.do_or_dry_run(igniter, (argv ++ ["--yes"]) -- ["--dry-run"],
-          title: "Fetching Dependency",
-          quiet_on_no_changes?: true
-        )
-      end
-    end
-
-    if dependency_add_result == :changes_aborted do
-      Mix.shell().info("\nChanges aborted by user request.")
-    else
-      Mix.shell().info("running mix deps.get")
-
-      case Mix.shell().cmd("mix deps.get") do
-        0 ->
-          Mix.Project.clear_deps_cache()
-          Mix.Project.pop()
-
-          "mix.exs"
-          |> File.read!()
-          |> Code.eval_string([], file: Path.expand("mix.exs"))
-
-          Mix.Dep.clear_cached()
-          Mix.Project.clear_deps_cache()
-
-          Mix.Task.run("deps.compile")
-
-          Mix.Task.reenable("compile")
-          Mix.Task.run("compile")
-
-        exit_code ->
-          Mix.shell().info("""
-          mix deps.get returned exited with code: `#{exit_code}`
-          """)
-      end
-
-      igniter =
-        Igniter.new()
-        |> Igniter.assign(%{manually_installed: install_list})
-
-      desired_tasks = Enum.map(install_list, &"#{&1}.install")
-
-      igniter_tasks =
-        Mix.Task.load_all()
-        |> Stream.map(fn item ->
-          Code.ensure_compiled!(item)
-          item
-        end)
-        |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
-        |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
-
-      Igniter.Util.Options.validate!(
-        argv,
-        %{
-          schema: @info[:switches],
-          aliases: @info[:aliases],
-          composes: desired_tasks
-        },
-        "igniter.install"
-      )
-
-      igniter_tasks
-      |> Enum.reduce(igniter, fn task, igniter ->
-        Igniter.compose_task(igniter, task, argv)
+    igniter_tasks =
+      Mix.Task.load_all()
+      |> Stream.map(fn item ->
+        Code.ensure_compiled!(item)
+        item
       end)
-      |> Igniter.do_or_dry_run(argv)
-    end
+      |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
+      |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
+
+    Igniter.Util.Options.validate!(
+      argv,
+      %{
+        schema: @info[:switches],
+        aliases: @info[:aliases],
+        composes: desired_tasks
+      },
+      "igniter.install"
+    )
+
+    igniter_tasks
+    |> Enum.reduce(igniter, fn task, igniter ->
+      Igniter.compose_task(igniter, task, argv)
+    end)
+    |> Igniter.do_or_dry_run(argv)
 
     :ok
   end
