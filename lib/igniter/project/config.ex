@@ -78,17 +78,13 @@ defmodule Igniter.Project.Config do
     end)
   end
 
-  defp ensure_default_configs_exist(igniter, "runtime.exs"), do: igniter
-
-  defp ensure_default_configs_exist(igniter, _file) do
+  defp ensure_default_configs_exist(igniter, file)
+       when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
     igniter
     |> Igniter.include_or_create_elixir_file("config/config.exs", """
     import Config
-
-    # Import environment specific config. This must remain at the bottom
-    # of this file so it overrides the configuration defined above.
-    import_config "\#{config_env()}.exs"
     """)
+    |> ensure_config_evaluates_env()
     |> Igniter.include_or_create_elixir_file("config/dev.exs", """
     import Config
     """)
@@ -98,6 +94,23 @@ defmodule Igniter.Project.Config do
     |> Igniter.include_or_create_elixir_file("config/prod.exs", """
     import Config
     """)
+  end
+
+  defp ensure_default_configs_exist(igniter, _), do: igniter
+
+  defp ensure_config_evaluates_env(igniter) do
+    Igniter.update_elixir_file(igniter, "config/config.exs", fn zipper ->
+      case Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :import_config, 1) do
+        {:ok, _} ->
+          {:ok, zipper}
+
+        _ ->
+          {:ok,
+           Igniter.Code.Common.add_code(zipper, """
+           import_config "\#{config_env()}.exs"
+           """)}
+      end
+    end)
   end
 
   defp bad_config_message(app_name, file_path, config_path, value, opts) do
