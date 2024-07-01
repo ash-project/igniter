@@ -370,21 +370,41 @@ defmodule Igniter do
   end
 
   @doc """
-  Applies the current changes in the Igniter and fetches dependencies.
+  Applies the current changes to the `mix.exs` in the Igniter and fetches dependencies.
 
-  Returns an empty Igniter if successful.
+  Returns the remaining changes in the Igniter if successful.
+
+  ## Options
+
+  * `:error_on_abort?` - If `true`, raises an error if the user aborts the operation. Returns the original igniter if not.
   """
-  def apply_and_fetch_dependencies(igniter) do
-    if has_changes?(igniter) do
-      case Igniter.do_or_dry_run(igniter, ["--dry-run"], title: "Preview") do
+  def apply_and_fetch_dependencies(igniter, opts \\ []) do
+    if has_changes?(igniter, "mix.exs") do
+      case Igniter.do_or_dry_run(igniter, ["--dry-run"],
+             title: "Preview",
+             paths: ["mix.exs"]
+           ) do
         :issues ->
           raise "Exiting due to issues found while previewing changes."
 
         _ ->
+          message =
+            if opts[:error_on_abort?] do
+              """
+              Before continuing, we need to first apply the changes and install dependencies. Would you like to do so now?
+
+              If not, the task will be aborted.
+              """
+            else
+              """
+              We would first like to first apply the changes and install dependencies. Would you like to do so now?
+
+              If not, the task will continue, but some nested installation steps may not be performed.
+              """
+            end
+
           proceed? =
-            Mix.shell().yes?("""
-            Before continuing, we need to first apply the changes and install dependencies. Would you like to do so now?
-            """)
+            Mix.shell().yes?(message)
 
           if proceed? do
             :changes_made = Igniter.do_or_dry_run(igniter, ["--yes"], title: "Applying changes")
@@ -414,9 +434,15 @@ defmodule Igniter do
                 """)
             end
 
-            Igniter.new()
+            Map.update!(igniter, :rewrite, fn rewrite ->
+              Rewrite.drop(rewrite, ["mix.exs"])
+            end)
           else
-            raise "Aborted by the user."
+            if opts[:error_on_abort?] do
+              raise "Aborted by the user."
+            else
+              igniter
+            end
           end
       end
     else
@@ -427,14 +453,25 @@ defmodule Igniter do
   @doc """
   Returns whether the current Igniter has pending changes.
   """
-  def has_changes?(igniter) do
+  def has_changes?(igniter, paths \\ nil) do
+    paths =
+      if paths do
+        Enum.map(paths, &Path.relative_to_cwd/1)
+      end
+
     igniter.rewrite
     |> Rewrite.sources()
-    |> Enum.filter(&Rewrite.Source.updated?(&1))
-    |> case do
-      [] -> false
-      _ -> true
-    end
+    |> then(fn sources ->
+      if paths do
+        sources
+        |> Enum.filter(&(&1.path in paths))
+      else
+        sources
+      end
+    end)
+    |> Enum.any?(fn source ->
+      Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
+    end)
   end
 
   @doc """
@@ -443,7 +480,7 @@ defmodule Igniter do
   This takes `argv` to parameterize it as it is generally invoked from a mix task.
   """
   def do_or_dry_run(igniter, argv, opts \\ []) do
-    igniter = prepare_for_write(igniter)
+    igniter = prepare_for_write(igniter, opts)
     title = opts[:title] || "Igniter"
 
     sources =
@@ -922,7 +959,15 @@ defmodule Igniter do
   end
 
   @doc false
-  def prepare_for_write(igniter) do
+  def prepare_for_write(igniter, opts \\ []) do
+    igniter =
+      if opts[:paths] do
+        all_paths = Rewrite.paths(igniter.rewrite)
+        %{igniter | rewrite: Rewrite.drop(igniter.rewrite, all_paths -- opts[:paths])}
+      else
+        igniter
+      end
+
     %{
       igniter
       | issues: Enum.uniq(igniter.issues),

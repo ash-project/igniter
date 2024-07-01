@@ -54,7 +54,7 @@ defmodule Igniter.Util.Install do
         end
       end)
 
-    igniter = Igniter.apply_and_fetch_dependencies(igniter)
+    igniter = Igniter.apply_and_fetch_dependencies(igniter, cancel_on_abort?: true)
 
     desired_tasks = Enum.map(install_list, &"#{&1}.install")
 
