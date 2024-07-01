@@ -370,12 +370,117 @@ defmodule Igniter do
   end
 
   @doc """
+  Applies the current changes to the `mix.exs` in the Igniter and fetches dependencies.
+
+  Returns the remaining changes in the Igniter if successful.
+
+  ## Options
+
+  * `:error_on_abort?` - If `true`, raises an error if the user aborts the operation. Returns the original igniter if not.
+  """
+  def apply_and_fetch_dependencies(igniter, opts \\ []) do
+    if has_changes?(igniter, "mix.exs") do
+      case Igniter.do_or_dry_run(igniter, ["--dry-run"],
+             title: "Preview",
+             paths: ["mix.exs"]
+           ) do
+        :issues ->
+          raise "Exiting due to issues found while previewing changes."
+
+        _ ->
+          message =
+            if opts[:error_on_abort?] do
+              """
+              Before continuing, we need to first apply the changes and install dependencies. Would you like to do so now?
+
+              If not, the task will be aborted.
+              """
+            else
+              """
+              We would first like to first apply the changes and install dependencies. Would you like to do so now?
+
+              If not, the task will continue, but some nested installation steps may not be performed.
+              """
+            end
+
+          proceed? =
+            Mix.shell().yes?(message)
+
+          if proceed? do
+            :changes_made = Igniter.do_or_dry_run(igniter, ["--yes"], title: "Applying changes")
+
+            Mix.shell().info("running mix deps.get")
+
+            case Mix.shell().cmd("mix deps.get") do
+              0 ->
+                Mix.Project.clear_deps_cache()
+                Mix.Project.pop()
+
+                "mix.exs"
+                |> File.read!()
+                |> Code.eval_string([], file: Path.expand("mix.exs"))
+
+                Mix.Dep.clear_cached()
+                Mix.Project.clear_deps_cache()
+
+                Mix.Task.run("deps.compile")
+
+                Mix.Task.reenable("compile")
+                Mix.Task.run("compile")
+
+              exit_code ->
+                Mix.shell().info("""
+                mix deps.get returned exited with code: `#{exit_code}`
+                """)
+            end
+
+            Map.update!(igniter, :rewrite, fn rewrite ->
+              Rewrite.drop(rewrite, ["mix.exs"])
+            end)
+          else
+            if opts[:error_on_abort?] do
+              raise "Aborted by the user."
+            else
+              igniter
+            end
+          end
+      end
+    else
+      igniter
+    end
+  end
+
+  @doc """
+  Returns whether the current Igniter has pending changes.
+  """
+  def has_changes?(igniter, paths \\ nil) do
+    paths =
+      if paths do
+        Enum.map(paths, &Path.relative_to_cwd/1)
+      end
+
+    igniter.rewrite
+    |> Rewrite.sources()
+    |> then(fn sources ->
+      if paths do
+        sources
+        |> Enum.filter(&(&1.path in paths))
+      else
+        sources
+      end
+    end)
+    |> Enum.any?(fn source ->
+      Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
+    end)
+  end
+
+  @doc """
   Executes or dry-runs a given Igniter.
 
   This takes `argv` to parameterize it as it is generally invoked from a mix task.
   """
   def do_or_dry_run(igniter, argv, opts \\ []) do
-    igniter = prepare_for_write(igniter)
+    igniter = prepare_for_write(igniter, opts)
     title = opts[:title] || "Igniter"
 
     sources =
@@ -409,66 +514,60 @@ defmodule Igniter do
         case igniter do
           %{issues: []} ->
             result_of_dry_run =
-              sources
-              |> Enum.filter(fn source ->
-                Rewrite.Source.updated?(source)
-              end)
-              |> case do
-                [] ->
-                  unless opts[:quiet_on_no_changes?] || "--yes" in argv do
-                    Mix.shell().info("\n#{title}: No proposed changes!\n")
-                  end
+              if has_changes?(igniter) do
+                if "--dry-run" in argv || "--yes" not in argv do
+                  Mix.shell().info("\n#{title}: Proposed changes:\n")
 
-                  :dry_run_with_no_changes
+                  Enum.each(sources, fn source ->
+                    if Rewrite.Source.from?(source, :string) do
+                      content_lines =
+                        source
+                        |> Rewrite.Source.get(:content)
+                        |> String.split("\n")
+                        |> Enum.with_index()
 
-                sources ->
-                  if "--dry-run" in argv || "--yes" not in argv do
-                    Mix.shell().info("\n#{title}: Proposed changes:\n")
+                      space_padding =
+                        content_lines
+                        |> Enum.map(&elem(&1, 1))
+                        |> Enum.max()
+                        |> to_string()
+                        |> String.length()
 
-                    Enum.each(sources, fn source ->
-                      if Rewrite.Source.from?(source, :string) do
-                        content_lines =
-                          source
-                          |> Rewrite.Source.get(:content)
-                          |> String.split("\n")
-                          |> Enum.with_index()
+                      diffish_looking_text =
+                        Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+                          line_number = line_number_minus_one + 1
 
-                        space_padding =
-                          content_lines
-                          |> Enum.map(&elem(&1, 1))
-                          |> Enum.max()
-                          |> to_string()
-                          |> String.length()
+                          "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
+                        end)
 
-                        diffish_looking_text =
-                          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-                            line_number = line_number_minus_one + 1
+                      if String.trim(diffish_looking_text) != "" do
+                        Mix.shell().info("""
+                        Create: #{Rewrite.Source.get(source, :path)}
 
-                            "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
-                          end)
-
-                        if String.trim(diffish_looking_text) != "" do
-                          Mix.shell().info("""
-                          Create: #{Rewrite.Source.get(source, :path)}
-
-                          #{diffish_looking_text}
-                          """)
-                        end
-                      else
-                        diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
-
-                        if String.trim(diff) != "" do
-                          Mix.shell().info("""
-                          Update: #{Rewrite.Source.get(source, :path)}
-
-                          #{diff}
-                          """)
-                        end
+                        #{diffish_looking_text}
+                        """)
                       end
-                    end)
-                  end
+                    else
+                      diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
 
-                  :dry_run_with_changes
+                      if String.trim(diff) != "" do
+                        Mix.shell().info("""
+                        Update: #{Rewrite.Source.get(source, :path)}
+
+                        #{diff}
+                        """)
+                      end
+                    end
+                  end)
+                end
+
+                :dry_run_with_changes
+              else
+                unless opts[:quiet_on_no_changes?] || "--yes" in argv do
+                  Mix.shell().info("\n#{title}: No proposed changes!\n")
+                end
+
+                :dry_run_with_no_changes
               end
 
             if igniter.warnings != [] do
@@ -860,7 +959,15 @@ defmodule Igniter do
   end
 
   @doc false
-  def prepare_for_write(igniter) do
+  def prepare_for_write(igniter, opts \\ []) do
+    igniter =
+      if opts[:paths] do
+        all_paths = Rewrite.paths(igniter.rewrite)
+        %{igniter | rewrite: Rewrite.drop(igniter.rewrite, all_paths -- opts[:paths])}
+      else
+        igniter
+      end
+
     %{
       igniter
       | issues: Enum.uniq(igniter.issues),
