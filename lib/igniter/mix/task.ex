@@ -30,7 +30,7 @@ defmodule Igniter.Mix.Task do
   * You cannot use `composes` to list tasks unless they are in your library or in direct dependencies of your library.
     To validate their options, you must include their options in your own option schema.
   """
-  @callback option_schema(argv :: list(String.t()), source :: nil | String.t()) ::
+  @callback info(argv :: list(String.t()), source :: nil | String.t()) ::
               %{
                 optional(:schema) => Keyword.t(),
                 optional(:aliases) => Keyword.t(),
@@ -53,7 +53,7 @@ defmodule Igniter.Mix.Task do
 
         Application.ensure_all_started([:rewrite])
 
-        schema = option_schema(argv, nil)
+        schema = info(argv, nil)
         Igniter.Util.Options.validate!(argv, schema, Mix.Task.task_name(__MODULE__))
 
         Igniter.new()
@@ -65,20 +65,20 @@ defmodule Igniter.Mix.Task do
       def supports_umbrella?, do: false
 
       @impl Igniter.Mix.Task
-      def option_schema(argv, source) do
+      def info(argv, source) do
         require Logger
 
         if source && source != "igniter.install" do
           Logger.warning("""
           The task #{Mix.Task.task_name(__MODULE__)} is being composed by #{source}, but it does not declare an option schema.
-          Therefore, all options will be allowed. Tasks that may be composed should define `option_schema/2`.
+          Therefore, all options will be allowed. Tasks that may be composed should define `info/2`.
           """)
         end
 
         nil
       end
 
-      defoverridable supports_umbrella?: 0, option_schema: 2
+      defoverridable supports_umbrella?: 0, info: 2
     end
   end
 end

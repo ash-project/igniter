@@ -34,8 +34,8 @@ defmodule Igniter.Util.Options do
 
   defp recursively_compose_schema(%{composes: [compose | rest]} = schema, argv, parent) do
     with composing_task when not is_nil(composing_task) <- Mix.Task.get(compose),
-         true <- function_exported?(composing_task, :option_schema, 2),
-         composing_schema when not is_nil(schema) <- composing_task.option_schema(argv, parent) do
+         true <- function_exported?(composing_task, :info, 2),
+         composing_schema when not is_nil(schema) <- composing_task.info(argv, parent) do
       composing_task_name = Mix.Task.task_name(composing_task)
 
       recursively_compose_schema(

@@ -1,6 +1,6 @@
 defmodule Igniter.Util.Install do
   @moduledoc false
-  @option_schema [
+  @info [
     switches: [
       example: :boolean,
       dry_run: :boolean,
@@ -25,7 +25,7 @@ defmodule Igniter.Util.Install do
     Application.ensure_all_started(:req)
 
     {options, _unprocessed_argv} =
-      OptionParser.parse!(argv, @option_schema)
+      OptionParser.parse!(argv, @info)
 
     igniter = Igniter.new()
 
@@ -136,8 +136,8 @@ defmodule Igniter.Util.Install do
       Igniter.Util.Options.validate!(
         argv,
         %{
-          schema: @option_schema[:switches],
-          aliases: @option_schema[:aliases],
+          schema: @info[:switches],
+          aliases: @info[:aliases],
           composes: desired_tasks
         },
         "igniter.install"
