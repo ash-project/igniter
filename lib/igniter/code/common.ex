@@ -147,7 +147,7 @@ defmodule Igniter.Code.Common do
     current_code = Zipper.root(current_code)
 
     case current_code do
-      {:__block__, meta, stuff} ->
+      {:__block__, meta, stuff} when length(stuff) > 1 ->
         new_stuff =
           if placement == :after do
             stuff ++ [new_code]
@@ -446,21 +446,54 @@ defmodule Igniter.Code.Common do
     |> maybe_move_to_single_child_block()
   end
 
+  defp multi_child_block?(zipper) do
+    node_matches_pattern?(zipper, {:__block__, _, [_, _ | _]})
+  end
+
   @doc """
-  Moves right in the zipper, until the provided predicate returns `true`.
+  Moves rightwards, entering blocks (and exiting them if no match is found), until the provided predicate returns `true`.
 
   Returns `:error` if the end is reached without finding a match.
   """
   @spec move_right(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
   def move_right(%Zipper{} = zipper, pred) do
-    zipper_in_block = maybe_move_to_single_child_block(zipper)
+    zipper_in_single_child_block = maybe_move_to_single_child_block(zipper)
 
     cond do
       pred.(zipper) ->
         {:ok, zipper}
 
-      pred.(zipper_in_block) ->
-        {:ok, zipper_in_block}
+      pred.(zipper_in_single_child_block) ->
+        {:ok, zipper_in_single_child_block}
+
+      multi_child_block?(zipper) ->
+        zipper
+        |> Zipper.down()
+        |> case do
+          nil ->
+            case Zipper.right(zipper) do
+              nil ->
+                :error
+
+              zipper ->
+                move_right(zipper, pred)
+            end
+
+          zipper ->
+            case move_right(zipper, pred) do
+              {:ok, zipper} ->
+                {:ok, zipper}
+
+              :error ->
+                case Zipper.right(zipper) do
+                  nil ->
+                    :error
+
+                  zipper ->
+                    move_right(zipper, pred)
+                end
+            end
+        end
 
       true ->
         case Zipper.right(zipper) do
@@ -468,13 +501,11 @@ defmodule Igniter.Code.Common do
             :error
 
           zipper ->
-            zipper
-            |> move_right(pred)
+            move_right(zipper, pred)
         end
     end
   end
 
-  # keeping in mind that version returns `nil` on no match
   @doc """
   Matches and moves to the location of a `__cursor__` in provided source code.
 

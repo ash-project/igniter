@@ -179,7 +179,7 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
-    test "we workaround trailing comments bug" do
+    test "we merge configs even in large config files" do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
