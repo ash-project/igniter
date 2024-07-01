@@ -379,7 +379,7 @@ defmodule Igniter do
   * `:error_on_abort?` - If `true`, raises an error if the user aborts the operation. Returns the original igniter if not.
   """
   def apply_and_fetch_dependencies(igniter, opts \\ []) do
-    if has_changes?(igniter, "mix.exs") do
+    if has_changes?(igniter, ["mix.exs"]) do
       case Igniter.do_or_dry_run(igniter, ["--dry-run"],
              title: "Preview",
              paths: ["mix.exs"]

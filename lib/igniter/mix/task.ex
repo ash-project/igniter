@@ -9,20 +9,43 @@ defmodule Igniter.Mix.Task do
   @callback supports_umbrella?() :: boolean()
   @doc "All the generator behavior happens here, you take an igniter and task arguments, and return an igniter."
   @callback igniter(igniter :: Igniter.t(), argv :: list(String.t())) :: Igniter.t()
+  defmodule Info do
+    @moduledoc """
+    Info for an `Igniter.Mix.Task`, returned from the `info/2` callback
+
+    ## Configurable Keys
+
+    * `schema` - The option schema for this task, in the format given to `OptionParser`, i.e `[name: :string]`
+    * `aliases` - A map of aliases to the schema keys.
+    * `composes` - A list of tasks that this task might compose.
+    * `installs` - A list of dependencies that should be installed before continuing.
+    * `adds_deps` - A list of dependencies that should be added to the `mix.exs`, but do not need to be installed before continuing.
+    * `extra_args?` - Whether or not to allow extra arguments. This forces all tasks that compose this task to allow extra args as well.
+
+    Your task should *always* use `switches` and not `strict` to validate provided options!
+    """
+
+    defstruct schema: [],
+              aliases: [],
+              composes: [],
+              installs: [],
+              adds_deps: [],
+              extra_args?: false
+
+    @type t :: %__MODULE__{
+            schema: Keyword.t(),
+            aliases: Keyword.t(),
+            composes: [String.t()],
+            installs: [{atom(), String.t()}],
+            adds_deps: [{atom(), String.t()}],
+            extra_args?: boolean()
+          }
+  end
+
   @doc """
-  Returns an option schema and a list of tasks that this task *might* compose *and* pass all argv to.
+  Returns an `Igniter.Mix.Task.Info` struct, with information used when running the igniter task.
 
-  The option schema should be in the format you give to `OptionParser`.
-
-  This is callback is used to validate all options up front.
-
-  The following keys can be returned:
-  * `schema` - The option schema for this task.
-  * `aliases` - A map of aliases to the schema keys.
-  * `extra_args?` - Whether or not to allow extra arguments. This forces all tasks that compose this task to allow extra args as well.
-  * `composes` - A list of tasks that this task might compose.
-
-  Your task should *always* use `switches` and not `strict` to validate provided options!
+  This info will be used to validate arguments in composed tasks.
 
   ## Important Limitations
 
@@ -31,11 +54,7 @@ defmodule Igniter.Mix.Task do
     To validate their options, you must include their options in your own option schema.
   """
   @callback info(argv :: list(String.t()), source :: nil | String.t()) ::
-              %{
-                optional(:schema) => Keyword.t(),
-                optional(:aliases) => Keyword.t(),
-                optional(:composes) => [String.t()]
-              }
+              Info.t()
               | nil
 
   defmacro __using__(_opts) do
@@ -54,7 +73,7 @@ defmodule Igniter.Mix.Task do
         Application.ensure_all_started([:rewrite])
 
         schema = info(argv, nil)
-        Igniter.Util.Options.validate!(argv, schema, Mix.Task.task_name(__MODULE__))
+        Igniter.Util.Info.validate!(argv, schema, Mix.Task.task_name(__MODULE__))
 
         Igniter.new()
         |> igniter(argv)

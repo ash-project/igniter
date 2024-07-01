@@ -110,6 +110,11 @@ defmodule Igniter.Project.Deps do
     end)
   end
 
+  # defp local_dep?(install) do
+  #   config = Mix.Project.config()[:deps][install]
+  #   Keyword.keyword?(config) && config[:path]
+  # end
+
   defp do_add_dependency(igniter, name, version, opts) do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->

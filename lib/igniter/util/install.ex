@@ -14,7 +14,7 @@ defmodule Igniter.Util.Install do
   ]
 
   # sobelow_skip ["DOS.StringToAtom", "RCE.CodeModule"]
-  def install(install, argv) do
+  def install(install, argv, igniter \\ Igniter.new()) do
     install_list =
       if is_binary(install) do
         String.split(install, ",")
@@ -24,39 +24,31 @@ defmodule Igniter.Util.Install do
 
     Application.ensure_all_started(:req)
 
-    igniter = Igniter.new()
-
-    {igniter, install_list} =
+    task_installs =
       install_list
-      |> Enum.reduce({igniter, []}, fn install, {igniter, install_list} ->
+      |> Enum.map(fn install ->
         case determine_dep_type_and_version(install) do
           {install, requirement} ->
-            install = String.to_atom(install)
-
-            if local_dep?(install) do
-              Mix.shell().info(
-                "Not looking up dependency for #{install}, because a local dependency is detected"
-              )
-
-              {igniter, [install | install_list]}
-            else
-              {Igniter.Project.Deps.add_dependency(igniter, install, requirement,
-                 error?: true,
-                 yes?: "--yes" in argv
-               ), [install | install_list]}
-            end
+            {String.to_atom(install), requirement}
 
           :error ->
-            {Igniter.add_issue(
-               igniter,
-               "Could not determine source for requested package #{install}"
-             ), install_list}
+            raise "Could not determine source for requested package #{install}"
         end
       end)
 
-    igniter = Igniter.apply_and_fetch_dependencies(igniter, cancel_on_abort?: true)
+    {igniter, desired_tasks} =
+      Igniter.Util.Info.compose_install_and_validate!(
+        igniter,
+        argv,
+        %Igniter.Mix.Task.Info{
+          schema: @info[:switches],
+          aliases: @info[:aliases],
+          installs: task_installs
+        },
+        "igniter.install"
+      )
 
-    desired_tasks = Enum.map(install_list, &"#{&1}.install")
+    igniter = Igniter.apply_and_fetch_dependencies(igniter)
 
     igniter_tasks =
       Mix.Task.load_all()
@@ -66,16 +58,6 @@ defmodule Igniter.Util.Install do
       end)
       |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
       |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
-
-    Igniter.Util.Options.validate!(
-      argv,
-      %{
-        schema: @info[:switches],
-        aliases: @info[:aliases],
-        composes: desired_tasks
-      },
-      "igniter.install"
-    )
 
     igniter_tasks
     |> Enum.reduce(igniter, fn task, igniter ->
@@ -115,10 +97,10 @@ defmodule Igniter.Util.Install do
       false
   end
 
-  defp local_dep?(install) do
-    config = Mix.Project.config()[:deps][install]
-    Keyword.keyword?(config) && config[:path]
-  end
+  # defp local_dep?(install) do
+  #   config = Mix.Project.config()[:deps][install]
+  #   Keyword.keyword?(config) && config[:path]
+  # end
 
   defp determine_dep_type_and_version(requirement) do
     case String.split(requirement, "@", trim: true, parts: 2) do

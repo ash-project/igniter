@@ -453,20 +453,14 @@ defmodule Igniter.Code.Common do
   """
   @spec move_right(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
   def move_right(%Zipper{} = zipper, pred) do
-    zipper
-    |> maybe_move_to_block()
-    |> do_move_right(pred)
-  end
-
-  defp do_move_right(zipper, pred) do
     zipper_in_block = maybe_move_to_single_child_block(zipper)
 
     cond do
-      pred.(zipper_in_block) ->
-        {:ok, zipper_in_block}
-
       pred.(zipper) ->
         {:ok, zipper}
+
+      pred.(zipper_in_block) ->
+        {:ok, zipper_in_block}
 
       true ->
         case Zipper.right(zipper) do
