@@ -6,8 +6,36 @@ defmodule Igniter.Code.Module do
 
   @doc "Finds a module and updates its contents wherever it is. If it does not exist, it is created with the provided contents."
   def find_and_update_or_create_module(igniter, module_name, contents, updater, path \\ nil) do
+    case find_and_update_module(igniter, module_name, updater) do
+      {:ok, igniter} ->
+        igniter
+
+      :error ->
+        contents =
+          """
+          defmodule #{inspect(module_name)} do
+            #{contents}
+          end
+          """
+
+        Igniter.create_new_elixir_file(igniter, path || proper_location(module_name), contents)
+    end
+  end
+
+  @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
+  def module_exists?(igniter, module_name) do
+    case find_and_update_module(igniter, module_name, &{:ok, &1}) do
+      {:ok, igniter} -> {true, igniter}
+      _ -> {false, igniter}
+    end
+  end
+
+  @doc "Finds a module and updates its contents. Returns `:error` if the module could not be found."
+  @spec find_and_update_module(Igniter.t(), module(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
+          {:ok, Igniter.t()} | :error | {:zipper_error, any()}
+  def find_and_update_module(igniter, module_name, updater) do
     igniter
-    |> Igniter.include_glob("lib/**/*.ex")
+    |> Igniter.include_all_elixir_files()
     |> Map.get(:rewrite)
     |> Enum.find_value(fn source ->
       source
@@ -48,28 +76,21 @@ defmodule Igniter.Code.Module do
                   |> Zipper.node()
 
                 new_source = Rewrite.Source.update(source, :quoted, new_quoted)
-                %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
+                {:ok, %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}}
 
               {:error, error} ->
-                Igniter.add_issue(igniter, error)
+                {:ok, Igniter.add_issue(igniter, error)}
 
               {:warning, error} ->
-                Igniter.add_warning(igniter, error)
+                {:ok, Igniter.add_warning(igniter, error)}
             end
 
           _ ->
-            igniter
+            :error
         end
 
       nil ->
-        contents =
-          """
-          defmodule #{inspect(module_name)} do
-            #{contents}
-          end
-          """
-
-        Igniter.create_new_elixir_file(igniter, path || proper_location(module_name), contents)
+        :error
     end
   end
 
@@ -126,7 +147,7 @@ defmodule Igniter.Code.Module do
   @doc false
   def move_files(igniter, opts \\ []) do
     module_location_config = Igniter.Project.IgniterConfig.get(igniter, :module_location)
-    igniter = Igniter.include_glob(igniter, "lib/**/*.ex")
+    igniter = Igniter.include_all_elixir_files(igniter)
 
     igniter.rewrite
     |> Enum.filter(&(Path.extname(&1.path) == ".ex"))

@@ -451,6 +451,18 @@ defmodule Igniter do
     end
   end
 
+  @doc "This function stores in the igniter if its been run before, so it is only run once, which is expensive."
+  def include_all_elixir_files(igniter) do
+    if igniter.assigns[:private][:included_all_elixir_files?] do
+      igniter
+    else
+      igniter
+      |> include_glob("lib/**/*.ex")
+      |> include_glob("test/**/*.ex")
+      |> assign_private(:included_all_elixir_files?, true)
+    end
+  end
+
   @doc """
   Returns whether the current Igniter has pending changes.
   """
