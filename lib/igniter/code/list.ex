@@ -119,7 +119,6 @@ defmodule Igniter.Code.List do
         zipper
         |> Igniter.Code.Common.maybe_move_to_single_child_block()
         |> Zipper.down()
-        |> Igniter.Util.Debug.puts_code_at_node()
         |> Common.nth_right(index)
         |> case do
           :error ->
