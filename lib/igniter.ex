@@ -979,7 +979,7 @@ defmodule Igniter do
         warnings: Enum.uniq(igniter.warnings),
         tasks: Enum.uniq(igniter.tasks)
     }
-    |> Igniter.Code.Module.move_modules()
+    |> Igniter.Code.Module.move_files()
     |> remove_unchanged_files()
   end
 

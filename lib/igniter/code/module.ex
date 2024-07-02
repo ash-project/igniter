@@ -124,7 +124,7 @@ defmodule Igniter.Code.Module do
   end
 
   @doc false
-  def move_modules(igniter, opts \\ []) do
+  def move_files(igniter, opts \\ []) do
     module_location_config = Igniter.Project.IgniterConfig.get(igniter, :module_location)
     igniter = Igniter.include_glob(igniter, "lib/**/*.ex")
 

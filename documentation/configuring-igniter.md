@@ -10,7 +10,7 @@ See the documentation in `Igniter.Project.IgniterConfig` for available configura
 
 ## Moving modules
 
-One available configuration is `module_location`. This configuration dictates where modules are placed when there is a folder that exactly matches their module name. There are two available strategies for this, and with igniter not only can you change your mind, but you can actually _move back and forth_ between each strategy. To move any modules to their rightful place, use `mix igniter.move_modules`.
+One available configuration is `module_location`. This configuration dictates where modules are placed when there is a folder that exactly matches their module name. There are two available strategies for this, and with igniter not only can you change your mind, but you can actually _move back and forth_ between each strategy. To move any modules to their rightful place, use `mix igniter.move_files`.
 
 > ### Only for matching modules {: .tip}
 >
