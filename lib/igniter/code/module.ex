@@ -10,7 +10,7 @@ defmodule Igniter.Code.Module do
       {:ok, igniter} ->
         igniter
 
-      :error ->
+      {:error, igniter} ->
         contents =
           """
           defmodule #{inspect(module_name)} do
@@ -30,12 +30,51 @@ defmodule Igniter.Code.Module do
     end
   end
 
-  @doc "Finds a module and updates its contents. Returns `:error` if the module could not be found."
+  @doc "Finds a module and updates its contents. Returns `{:error, igniter}` if the module could not be found. Do not discard this igniter."
   @spec find_and_update_module(Igniter.t(), module(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
-          {:ok, Igniter.t()} | :error | {:zipper_error, any()}
+          {:ok, Igniter.t()} | {:error, Igniter.t()}
   def find_and_update_module(igniter, module_name, updater) do
+    case find_module(igniter, module_name) do
+      {igniter, source, zipper} ->
+        case Common.move_to_do_block(zipper) do
+          {:ok, zipper} ->
+            case updater.(zipper) do
+              {:ok, zipper} ->
+                new_quoted =
+                  zipper
+                  |> Zipper.topmost()
+                  |> Zipper.node()
+
+                new_source = Rewrite.Source.update(source, :quoted, new_quoted)
+                {:ok, %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}}
+
+              {:error, error} ->
+                {:ok, Igniter.add_issue(igniter, error)}
+
+              {:warning, error} ->
+                {:ok, Igniter.add_warning(igniter, error)}
+            end
+
+          _ ->
+            {:error, igniter}
+        end
+
+      nil ->
+        {:error, igniter}
+    end
+  end
+
+  @doc """
+  Finds a module, returning a new igniter, and the source and zipper location. This new igniter should not be discarded.
+
+  In general, you should not use the returned source and zipper to update the module, instead, use this to interrogate
+  the contents or source in some way, and then call `find_and_update_module/3` with a function to perform an update.
+  """
+  @spec find_module(Igniter.t(), module()) :: {Igniter.t(), Rewrite.Source.t(), Zipper.t()} | nil
+  def find_module(igniter, module_name) do
+    igniter = Igniter.include_all_elixir_files(igniter)
+
     igniter
-    |> Igniter.include_all_elixir_files()
     |> Map.get(:rewrite)
     |> Enum.find_value(fn source ->
       source
@@ -58,40 +97,12 @@ defmodule Igniter.Code.Module do
       end)
       |> case do
         {:ok, zipper} ->
-          {source, zipper}
+          {igniter, source, zipper}
 
         _ ->
           nil
       end
     end)
-    |> case do
-      {source, zipper} ->
-        case Common.move_to_do_block(zipper) do
-          {:ok, zipper} ->
-            case updater.(zipper) do
-              {:ok, zipper} ->
-                new_quoted =
-                  zipper
-                  |> Zipper.topmost()
-                  |> Zipper.node()
-
-                new_source = Rewrite.Source.update(source, :quoted, new_quoted)
-                {:ok, %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}}
-
-              {:error, error} ->
-                {:ok, Igniter.add_issue(igniter, error)}
-
-              {:warning, error} ->
-                {:ok, Igniter.add_warning(igniter, error)}
-            end
-
-          _ ->
-            :error
-        end
-
-      nil ->
-        :error
-    end
   end
 
   @doc "Given a suffix, returns a module name with the prefix of the current project."
