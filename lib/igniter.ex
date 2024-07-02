@@ -76,6 +76,13 @@ defmodule Igniter do
     %{igniter | assigns: Map.update(igniter.assigns, key, default, fun)}
   end
 
+  defp assign_private(igniter, key, value) do
+    %{
+      igniter
+      | assigns: Map.update(igniter.assigns, :private, %{key => value}, &Map.put(&1, key, value))
+    }
+  end
+
   @doc "Includes all files matching the given glob, expecting them all (for now) to be elixir files."
   @spec include_glob(t, Path.t() | GlobEx.t()) :: t()
   def include_glob(igniter, glob) do
@@ -380,9 +387,10 @@ defmodule Igniter do
   """
   # sobelow_skip ["RCE.CodeModule"]
   def apply_and_fetch_dependencies(igniter, opts \\ []) do
-    if has_changes?(igniter, ["mix.exs"]) do
+    if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
+         has_changes?(igniter, ["mix.exs"]) do
       case Igniter.do_or_dry_run(igniter, ["--dry-run"],
-             title: "Preview",
+             title: "Fetch Required Dependencies",
              paths: ["mix.exs"]
            ) do
         :issues ->
@@ -391,17 +399,9 @@ defmodule Igniter do
         _ ->
           message =
             if opts[:error_on_abort?] do
-              """
-              Before continuing, we need to first apply the changes and install dependencies. Would you like to do so now?
-
-              If not, the task will be aborted.
-              """
+              "The following dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
             else
-              """
-              We would first like to first apply the changes and install dependencies. Would you like to do so now?
-
-              If not, the task will continue, but some nested installation steps may not be performed.
-              """
+              "The following dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
             end
 
           proceed? =
@@ -442,7 +442,7 @@ defmodule Igniter do
             if opts[:error_on_abort?] do
               raise "Aborted by the user."
             else
-              igniter
+              assign_private(igniter, :refused_fetch_dependencies?, true)
             end
           end
       end
@@ -517,7 +517,7 @@ defmodule Igniter do
             result_of_dry_run =
               if has_changes?(igniter) do
                 if "--dry-run" in argv || "--yes" not in argv do
-                  Mix.shell().info("\n#{title}: Proposed changes:\n")
+                  Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
                   Enum.each(sources, fn source ->
                     if Rewrite.Source.from?(source, :string) do
@@ -565,7 +565,7 @@ defmodule Igniter do
                 :dry_run_with_changes
               else
                 unless opts[:quiet_on_no_changes?] || "--yes" in argv do
-                  Mix.shell().info("\n#{title}: No proposed content changes!\n")
+                  Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
                 end
 
                 :dry_run_with_no_changes

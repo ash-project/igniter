@@ -64,11 +64,22 @@ defmodule Igniter.Util.Install do
       |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
       |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
 
+    title =
+      case desired_tasks do
+        [task] ->
+          "Final result of installer: `#{task}`"
+
+        tasks ->
+          "Final result of installers: #{Enum.map_join(tasks, ", ", &"`#{&1}`")}"
+      end
+
     igniter_tasks
     |> Enum.reduce(igniter, fn task, igniter ->
       Igniter.compose_task(igniter, task, argv)
     end)
-    |> Igniter.do_or_dry_run(argv)
+    |> Igniter.do_or_dry_run(argv,
+      title: title
+    )
 
     :ok
   end
