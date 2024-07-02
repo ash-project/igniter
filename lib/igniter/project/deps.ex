@@ -133,7 +133,7 @@ defmodule Igniter.Project.Deps do
           if opts[:error?] do
             {:error,
              """
-             Could not add dependency #{inspect({inspect(name), inspect(version)})}
+             Could not add dependency #{inspect({name, version})}
 
              `mix.exs` file does not contain a simple list of dependencies in a `deps/0` function.
              Please add it manually and run the installer again.
@@ -142,7 +142,7 @@ defmodule Igniter.Project.Deps do
             {:warning,
              [
                """
-               Could not add dependency #{inspect({inspect(name), inspect(version)})}
+               Could not add dependency #{inspect({name, version})}
 
                `mix.exs` file does not contain a simple list of dependencies in a `deps/0` function.
 

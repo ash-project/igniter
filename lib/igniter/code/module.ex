@@ -334,7 +334,8 @@ defmodule Igniter.Code.Module do
   # sobelow_skip ["DOS.StringToAtom"]
   def move_to_module_using(zipper, module) do
     with {:ok, mod_zipper} <- move_to_defmodule(zipper),
-         {:ok, _} <- move_to_using(zipper, module) do
+         {:ok, mod_zipper} <- Igniter.Code.Common.move_to_do_block(mod_zipper),
+         {:ok, _} <- move_to_using(mod_zipper, module) do
       {:ok, mod_zipper}
     else
       _ ->

@@ -147,7 +147,7 @@ defmodule Igniter.Code.Common do
     current_code = Zipper.root(current_code)
 
     case current_code do
-      {:__block__, meta, stuff} when length(stuff) > 1 ->
+      {:__block__, meta, stuff} when length(stuff) > 1 or length(stuff) == 0 ->
         new_stuff =
           if placement == :after do
             stuff ++ [new_code]
