@@ -14,7 +14,7 @@ One available configuration is `module_location`. This configuration dictates wh
 
 > ### Only for matching modules {: .tip}
 >
-> The following rules are _only applied_ when a top-level moduel is defined in the file. If it is not, then the file will always be left exactly where it is. It is generally considered best-practice to define one top-level module per file.
+> The following rules are _only applied_ when a top-level module is defined in the file. If it is not, then the file will always be left exactly where it is. It is generally considered best-practice to define one top-level module per file.
 
 ## `:outside_matching_folder`
 
