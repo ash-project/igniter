@@ -53,6 +53,35 @@ defmodule Igniter.Code.Function do
     end
   end
 
+  @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current or lower scope"
+  @spec move_to_function_call(Zipper.t(), atom, non_neg_integer()) ::
+          {:ok, Zipper.t()} | :error
+  def move_to_function_call(zipper, name, arity, predicate \\ fn _ -> true end)
+
+  def move_to_function_call(zipper, name, [arity | arities], predicate) do
+    case move_to_function_call(zipper, name, arity, predicate) do
+      :error ->
+        move_to_function_call(zipper, name, arities, predicate)
+
+      {:ok, zipper} ->
+        {:ok, zipper}
+    end
+  end
+
+  def move_to_function_call(_, _, [], _) do
+    :error
+  end
+
+  def move_to_function_call(%Zipper{} = zipper, name, arity, predicate) do
+    if function_call?(zipper, name, arity) && predicate.(zipper) do
+      {:ok, zipper}
+    else
+      Common.move_next(zipper, fn zipper ->
+        function_call?(zipper, name, arity) && predicate.(zipper)
+      end)
+    end
+  end
+
   @doc "Returns `true` if the node is a function call of the given name and arity"
   @spec function_call?(Zipper.t(), atom, non_neg_integer()) :: boolean()
   def function_call?(%Zipper{} = zipper, name, arity) do

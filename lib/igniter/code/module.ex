@@ -24,9 +24,16 @@ defmodule Igniter.Code.Module do
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
   def module_exists?(igniter, module_name) do
-    case find_and_update_module(igniter, module_name, &{:ok, &1}) do
-      {:ok, igniter} -> {true, igniter}
-      _ -> {false, igniter}
+    case find_module(igniter, module_name) do
+      {:ok, {igniter, _, _}} -> {true, igniter}
+      {:error, igniter} -> {false, igniter}
+    end
+  end
+
+  def find_and_update_module!(igniter, module_name, updater) do
+    case find_and_update_module(igniter, module_name, updater) do
+      {:ok, igniter} -> igniter
+      {:error, _igniter} -> raise "Could not find module #{inspect(module_name)}"
     end
   end
 
@@ -35,7 +42,7 @@ defmodule Igniter.Code.Module do
           {:ok, Igniter.t()} | {:error, Igniter.t()}
   def find_and_update_module(igniter, module_name, updater) do
     case find_module(igniter, module_name) do
-      {igniter, source, zipper} ->
+      {:ok, {igniter, source, zipper}} ->
         case Common.move_to_do_block(zipper) do
           {:ok, zipper} ->
             case updater.(zipper) do
@@ -59,7 +66,7 @@ defmodule Igniter.Code.Module do
             {:error, igniter}
         end
 
-      nil ->
+      {:error, igniter} ->
         {:error, igniter}
     end
   end
@@ -70,34 +77,21 @@ defmodule Igniter.Code.Module do
   In general, you should not use the returned source and zipper to update the module, instead, use this to interrogate
   the contents or source in some way, and then call `find_and_update_module/3` with a function to perform an update.
   """
-  @spec find_module(Igniter.t(), module()) :: {Igniter.t(), Rewrite.Source.t(), Zipper.t()} | nil
+  @spec find_module(Igniter.t(), module()) ::
+          {:ok, {Igniter.t(), Rewrite.Source.t(), Zipper.t()}} | {:error, Igniter.t()}
   def find_module(igniter, module_name) do
     igniter = Igniter.include_all_elixir_files(igniter)
 
     igniter
     |> Map.get(:rewrite)
-    |> Enum.find_value(fn source ->
+    |> Enum.find_value({:error, igniter}, fn source ->
       source
       |> Rewrite.Source.get(:quoted)
       |> Zipper.zip()
-      |> Igniter.Code.Common.move_to_zipper(fn zipper ->
-        with true <- Igniter.Code.Function.function_call?(zipper, :defmodule, 2),
-             {:ok, inner_zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
-             inner_zipper <- Igniter.Code.Common.expand_aliases(inner_zipper),
-             true <-
-               Igniter.Code.Common.nodes_equal?(
-                 inner_zipper,
-                 module_name
-               ) do
-          {:ok, inner_zipper}
-        else
-          _ ->
-            nil
-        end
-      end)
+      |> move_to_defmodule(module_name)
       |> case do
         {:ok, zipper} ->
-          {igniter, source, zipper}
+          {:ok, {igniter, source, zipper}}
 
         _ ->
           nil
@@ -300,6 +294,25 @@ defmodule Igniter.Code.Module do
     Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :defmodule, 2)
   end
 
+  @doc "Moves the zipper to a specific defmodule call"
+  @spec move_to_defmodule(Zipper.t(), module()) :: {:ok, Zipper.t()} | :error
+  def move_to_defmodule(zipper, module) do
+    Igniter.Code.Function.move_to_function_call(
+      zipper,
+      :defmodule,
+      2,
+      fn zipper ->
+        case Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
+          {:ok, zipper} ->
+            Igniter.Code.Common.nodes_equal?(zipper, module)
+
+          _ ->
+            false
+        end
+      end
+    )
+  end
+
   # sobelow_skip ["DOS.StringToAtom"]
   @doc "Moves the zipper to the body of a module that `use`s the provided module (or one of the provided modules)."
   @spec move_to_module_using(Zipper.t(), module | list(module)) :: {:ok, Zipper.t()} | :error
@@ -320,28 +333,26 @@ defmodule Igniter.Code.Module do
 
   # sobelow_skip ["DOS.StringToAtom"]
   def move_to_module_using(zipper, module) do
-    split_module =
-      module
-      |> Module.split()
-      |> Enum.map(&String.to_atom/1)
-
-    with {:ok, zipper} <- Common.move_to_pattern(zipper, {:defmodule, _, [_, _]}),
-         subtree <- Zipper.subtree(zipper),
-         subtree <- subtree |> Zipper.down() |> Zipper.rightmost(),
-         subtree <- remove_module_definitions(subtree),
-         {:ok, _found} <-
-           Common.move_to(subtree, fn
-             {:use, _, [^module | _]} ->
-               true
-
-             {:use, _, [{:__aliases__, _, ^split_module} | _]} ->
-               true
-           end) do
-      Common.move_to_do_block(zipper)
+    with {:ok, mod_zipper} <- move_to_defmodule(zipper),
+         {:ok, _} <- move_to_using(zipper, module) do
+      {:ok, mod_zipper}
     else
       _ ->
         :error
     end
+  end
+
+  def move_to_using(zipper, using) do
+    Igniter.Code.Function.move_to_function_call_in_current_scope(
+      zipper,
+      :use,
+      [1, 2],
+      fn zipper ->
+        with {:ok, actual_using} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
+          Igniter.Code.Common.nodes_equal?(actual_using, using)
+        end
+      end
+    )
   end
 
   @doc "Moves the zipper to the `use` statement for a provided module."
@@ -387,15 +398,5 @@ defmodule Igniter.Code.Module do
       {:ok, zipper} ->
         Common.move_to_do_block(zipper)
     end
-  end
-
-  defp remove_module_definitions(zipper) do
-    Zipper.traverse(zipper, fn
-      {:defmodule, _, _} ->
-        Zipper.remove(zipper)
-
-      other ->
-        other
-    end)
   end
 end

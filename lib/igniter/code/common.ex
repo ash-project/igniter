@@ -507,6 +507,28 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Moves nextwards (depth-first), until the provided predicate returns `true`.
+
+  Returns `:error` if the end is reached without finding a match.
+  """
+  @spec move_next(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
+  def move_next(%Zipper{} = zipper, pred) do
+    cond do
+      pred.(zipper) ->
+        {:ok, zipper}
+
+      true ->
+        case Zipper.next(zipper) do
+          nil ->
+            :error
+
+          zipper ->
+            move_next(zipper, pred)
+        end
+    end
+  end
+
+  @doc """
   Matches and moves to the location of a `__cursor__` in provided source code.
 
   Use `__cursor__()` to match a cursor in the provided source code. Use `__` to skip any code at a point.

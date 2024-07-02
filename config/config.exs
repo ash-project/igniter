@@ -15,3 +15,7 @@ if Mix.env() == :dev do
     ],
     version_tag_prefix: "v"
 end
+
+if Mix.env() == :test do
+  config :igniter, :testing?, true
+end

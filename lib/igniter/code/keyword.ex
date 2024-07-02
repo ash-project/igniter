@@ -83,7 +83,9 @@ defmodule Igniter.Code.Keyword do
   def put_in_keyword(zipper, path, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
-    do_put_in_keyword(zipper, path, value, updater)
+    Igniter.Code.Common.within(zipper, fn zipper ->
+      do_put_in_keyword(zipper, path, value, updater)
+    end)
   end
 
   defp do_put_in_keyword(zipper, [key], value, updater) do

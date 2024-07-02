@@ -452,14 +452,20 @@ defmodule Igniter do
   end
 
   @doc "This function stores in the igniter if its been run before, so it is only run once, which is expensive."
-  def include_all_elixir_files(igniter) do
-    if igniter.assigns[:private][:included_all_elixir_files?] do
+  if Application.compile_env(:igniter, :testing?, false) do
+    def include_all_elixir_files(igniter) do
       igniter
-    else
-      igniter
-      |> include_glob("lib/**/*.ex")
-      |> include_glob("test/**/*.ex")
-      |> assign_private(:included_all_elixir_files?, true)
+    end
+  else
+    def include_all_elixir_files(igniter) do
+      if igniter.assigns[:private][:included_all_elixir_files?] do
+        igniter
+      else
+        igniter
+        |> include_glob("lib/**/*.ex")
+        |> include_glob("test/**/*.ex")
+        |> assign_private(:included_all_elixir_files?, true)
+      end
     end
   end
 
