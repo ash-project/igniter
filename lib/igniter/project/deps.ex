@@ -96,8 +96,9 @@ defmodule Igniter.Project.Deps do
                      false
                  end
                end
-             end) do
-        Igniter.Code.List.remove_index(zipper, current_declaration_index)
+             end),
+           {:ok, zipper} <- Igniter.Code.List.remove_index(zipper, current_declaration_index) do
+        {:ok, zipper}
       else
         _ ->
           {:warning,

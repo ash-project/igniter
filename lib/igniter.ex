@@ -565,7 +565,7 @@ defmodule Igniter do
                 :dry_run_with_changes
               else
                 unless opts[:quiet_on_no_changes?] || "--yes" in argv do
-                  Mix.shell().info("\n#{title}: No proposed changes!\n")
+                  Mix.shell().info("\n#{title}: No proposed content changes!\n")
                 end
 
                 :dry_run_with_no_changes
@@ -586,7 +586,7 @@ defmodule Igniter do
             end
 
             unless Enum.empty?(igniter.moves) do
-              Mix.shell().info("The following fils will be moved:")
+              Mix.shell().info("The following files will be moved:")
 
               Enum.each(igniter.moves, fn {from, to} ->
                 Mix.shell().info(
@@ -610,15 +610,19 @@ defmodule Igniter do
               """)
             end
 
-            if "--dry-run" in argv || result_of_dry_run == :dry_run_with_no_changes do
+            if "--dry-run" in argv ||
+                 (result_of_dry_run == :dry_run_with_no_changes && Enum.empty?(igniter.tasks) &&
+                    Enum.empty?(igniter.moves)) do
               result_of_dry_run
             else
               if "--yes" in argv ||
                    Mix.shell().yes?(opts[:confirmation_message] || "Proceed with changes?") do
                 sources
                 |> Enum.any?(fn source ->
-                  Rewrite.Source.updated?(source)
+                  Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
                 end)
+                |> Kernel.||(!Enum.empty?(igniter.tasks))
+                |> Kernel.||(!Enum.empty?(igniter.tasks))
                 |> if do
                   igniter.rewrite
                   |> Rewrite.write_all()

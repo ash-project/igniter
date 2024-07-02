@@ -38,6 +38,7 @@ defmodule Igniter.MixProject do
       extras: [
         {"README.md", title: "Home"},
         "documentation/writing-generators.md",
+        "documentation/configuring-igniter.md",
         "CHANGELOG.md"
       ],
       before_closing_head_tag: fn type ->

@@ -22,6 +22,11 @@ defmodule Igniter.Util.Install do
         Enum.map(List.wrap(install), &to_string/1)
       end
 
+    if Enum.any?(install_list, &(&1 == "igniter")) do
+      raise ArgumentError,
+            "cannot install the igniter package with `mix igniter.install`. Please use `mix igniter.setup` instead."
+    end
+
     Application.ensure_all_started(:req)
 
     task_installs =

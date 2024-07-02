@@ -1,11 +1,11 @@
 defmodule Igniter.Project.IgniterConfig do
   @configs [
-    leaf_module_location: [
-      type: {:in, [:outside_folder, :inside_folder]},
-      default: :outside_folder,
+    module_location: [
+      type: {:in, [:outside_matching_folder, :inside_matching_folder]},
+      default: :outside_matching_folder,
       doc: """
-      - `:outside_folder`, modules will be placed in a folder exactly matching their path.
-      - `:inside_folder`, modules who's name matches an existing folder will be placed inside that folder,
+      - `:outside_matching_folder`, modules will be placed in a folder exactly matching their path.
+      - `:inside_matching_folder`, modules who's name matches an existing folder will be placed inside that folder,
          or moved there if the folder is created.
       """
     ]

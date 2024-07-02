@@ -7,7 +7,7 @@ defmodule Igniter.Code.ModuleTest do
     %{rewrite: rewrite} =
       Igniter.new()
       |> Igniter.assign(:igniter_exs,
-        leaf_module_location: :inside_folder
+        module_location: :inside_matching_folder
       )
       |> Igniter.include_or_create_elixir_file("lib/foo/bar.ex", "defmodule Foo.Bar do\nend")
       |> Igniter.include_or_create_elixir_file(
@@ -89,7 +89,7 @@ defmodule Igniter.Code.ModuleTest do
     %{rewrite: rewrite} =
       Igniter.new()
       |> Igniter.assign(:igniter_exs,
-        leaf_module_location: :inside_folder
+        module_location: :inside_matching_folder
       )
       |> Igniter.create_new_elixir_file("lib/foo/bar/something.ex", """
       defmodule Foo.Bar.Something do

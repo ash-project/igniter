@@ -124,40 +124,36 @@ defmodule Igniter.Code.Module do
   end
 
   @doc false
-  def move_modules(igniter) do
-    if Igniter.Project.IgniterConfig.get(igniter, :leaf_module_location) == :inside_folder do
-      igniter = Igniter.include_glob(igniter, "lib/**/*.ex")
+  def move_modules(igniter, opts \\ []) do
+    module_location_config = Igniter.Project.IgniterConfig.get(igniter, :module_location)
+    igniter = Igniter.include_glob(igniter, "lib/**/*.ex")
 
-      igniter.rewrite
-      |> Enum.filter(&(Path.extname(&1.path) == ".ex"))
-      |> Enum.reduce(igniter, fn source, igniter ->
-        zipper =
-          source
-          |> Rewrite.Source.get(:quoted)
-          |> Zipper.zip()
+    igniter.rewrite
+    |> Enum.filter(&(Path.extname(&1.path) == ".ex"))
+    |> Enum.reduce(igniter, fn source, igniter ->
+      zipper =
+        source
+        |> Rewrite.Source.get(:quoted)
+        |> Zipper.zip()
 
-        with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
-             {:defmodule, _, [module | _]} <-
-               zipper
-               |> Igniter.Code.Common.expand_aliases()
-               |> Zipper.subtree()
-               |> Zipper.node(),
-             module when not is_nil(module) <- to_module_name(module),
-             true <-
-               module_matches_path?(module, source.path),
-             new_path when not is_nil(new_path) <- should_move_file_to(igniter.rewrite, source) do
-          Igniter.move_file(igniter, source.path, new_path, error_if_exists?: false)
-        else
-          _ ->
-            igniter
-        end
-      end)
-    else
-      igniter
-    end
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+           {:defmodule, _, [module | _]} <-
+             zipper
+             |> Igniter.Code.Common.expand_aliases()
+             |> Zipper.subtree()
+             |> Zipper.node(),
+           module when not is_nil(module) <- to_module_name(module),
+           new_path when not is_nil(new_path) <-
+             should_move_file_to(igniter.rewrite, source, module, module_location_config, opts) do
+        Igniter.move_file(igniter, source.path, new_path, error_if_exists?: false)
+      else
+        _ ->
+          igniter
+      end
+    end)
   end
 
-  defp should_move_file_to(rewrite, source) do
+  defp should_move_file_to(rewrite, source, module, module_location_config, opts) do
     all_paths = Rewrite.paths(rewrite)
 
     paths_created =
@@ -170,25 +166,41 @@ defmodule Igniter.Code.Module do
     last = source.path |> Path.split() |> List.last() |> Path.rootname()
 
     path_it_might_live_in =
-      source.path
-      |> Path.split()
-      |> Enum.reverse()
-      |> Enum.drop(1)
-      |> Enum.reverse()
-      |> Enum.concat([last])
+      case module_location_config do
+        :inside_matching_folder ->
+          source.path
+          |> Path.split()
+          |> Enum.reverse()
+          |> Enum.drop(1)
+          |> Enum.reverse()
+          |> Enum.concat([last])
+
+        :outside_matching_folder ->
+          module
+          |> proper_location()
+          |> Path.split()
+          |> Enum.reverse()
+          |> Enum.drop(1)
+          |> Enum.reverse()
+      end
 
     if Rewrite.Source.from?(source, :string) do
-      Enum.any?(all_paths, fn path ->
-        List.starts_with?(Path.split(path), path_it_might_live_in)
-      end)
+      if opts[:move_all?] ||
+           (module_location_config == :inside_matching_folder &&
+              Enum.any?(all_paths, fn path ->
+                List.starts_with?(Path.split(path), path_it_might_live_in)
+              end)) do
+        path_it_might_live_in
+      end
     else
-      # only move a file if we just created its new home
-      if File.dir?(Path.join(path_it_might_live_in)) do
-        false
-      else
-        Enum.any?(paths_created, fn path ->
-          List.starts_with?(Path.split(path), path_it_might_live_in)
-        end)
+      # only move a file if we just created its new home, or if `move_all?` is set
+      if opts[:move_all?] ||
+           (!File.dir?(Path.join(path_it_might_live_in)) &&
+              module_location_config == :inside_matching_folder &&
+              Enum.any?(paths_created, fn path ->
+                List.starts_with?(Path.split(path), path_it_might_live_in)
+              end)) do
+        path_it_might_live_in
       end
     end
     |> if do
@@ -201,22 +213,6 @@ defmodule Igniter.Code.Module do
   defp to_module_name({:__aliases__, _, parts}), do: Module.concat(parts)
   defp to_module_name(value) when is_atom(value) and not is_nil(value), do: value
   defp to_module_name(_), do: nil
-
-  defp module_matches_path?(module, path) do
-    split = Module.split(module)
-
-    rootname = Path.split(path) |> List.last() |> Path.rootname()
-
-    split_from_path =
-      path
-      |> Path.dirname()
-      |> Path.join(rootname)
-      |> Path.split()
-      |> Enum.drop(1)
-      |> Enum.map(&Macro.camelize/1)
-
-    split_from_path == split
-  end
 
   defp do_proper_location(module_name, kind) do
     path =
