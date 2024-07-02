@@ -5,6 +5,25 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.5](https://github.com/ash-project/igniter/compare/v0.2.4...v0.2.5) (2024-07-02)
+
+
+
+
+### Improvements:
+
+* `move_modules` -> `move_files`
+
+* move some files around and update config names
+
+* use `%Info{}` structs to compose and plan nested installers
+
+* add Igniter.apply_and_fetch_dependencies/1 and Igniter.has_changes?/1 (#28)
+
+* rename option_schema/2 -> info/2
+
+* only create default configs if an env-specific config is created
+
 ## [v0.2.4](https://github.com/ash-project/igniter/compare/v0.2.3...v0.2.4) (2024-06-28)
 
 
