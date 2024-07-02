@@ -8,7 +8,7 @@ Use `mix igniter.setup` to create a `.igniter.exs` file in your project root. Th
 
 See the documentation in `Igniter.Project.IgniterConfig` for available configuration.
 
-## Moving modules
+## Moving files
 
 One available configuration is `module_location`. This configuration dictates where modules are placed when there is a folder that exactly matches their module name. There are two available strategies for this, and with igniter not only can you change your mind, but you can actually _move back and forth_ between each strategy. To move any modules to their rightful place, use `mix igniter.move_files`.
 
