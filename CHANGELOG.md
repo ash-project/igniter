@@ -5,6 +5,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.6](https://github.com/ash-project/igniter/compare/v0.2.5...v0.2.6) (2024-07-02)
+
+
+
+
+### Improvements:
+
+* properly find nested modules again
+
+* make igniter tests much faster by not searching our own project
+
+* add `include_all_elixir_files/1`
+
+* add `module_exists?/2`
+
+* add `find_and_update_module/3`
+
+* only require rejecting mix deps.get one time & remember that choice
+
+* simpler messages signaling a mix deps.get
+
 ## [v0.2.5](https://github.com/ash-project/igniter/compare/v0.2.4...v0.2.5) (2024-07-02)
 
 
