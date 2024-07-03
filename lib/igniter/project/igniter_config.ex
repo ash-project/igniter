@@ -8,6 +8,17 @@ defmodule Igniter.Project.IgniterConfig do
       - `:inside_matching_folder`, modules who's name matches an existing folder will be placed inside that folder,
          or moved there if the folder is created.
       """
+    ],
+    source_folders: [
+      type: {:list, :string},
+      default: ["lib", "test/support"],
+      doc: "A list of folders to manage elixir files in."
+    ],
+    dont_move_files: [
+      type: {:list, :any},
+      doc:
+        "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved.",
+      default: []
     ]
   ]
 
@@ -54,16 +65,21 @@ defmodule Igniter.Project.IgniterConfig do
                 unquote(config[:default])
               end
 
+            set_result =
+              Igniter.Code.Common.within(zipper, fn zipper ->
+                Igniter.Code.Keyword.set_keyword_key(
+                  zipper,
+                  name,
+                  default,
+                  fn zipper ->
+                    {:ok, zipper}
+                  end
+                )
+              end)
+
             # when we have a way to comment ahead of a keyword item
             # we should comment the docs
-            case Igniter.Code.Keyword.set_keyword_key(
-                   zipper,
-                   name,
-                   default,
-                   fn zipper ->
-                     {:ok, zipper}
-                   end
-                 ) do
+            case set_result do
               {:ok, zipper} ->
                 {:cont, {:ok, zipper}}
 

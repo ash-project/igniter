@@ -257,7 +257,6 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  # sobelow_skip ["DOS.StringToAtom"]
   defp use_alias(env, parts) do
     env.aliases
     |> Enum.filter(fn {_as, fqn} ->
@@ -701,35 +700,38 @@ defmodule Igniter.Code.Common do
     equal_modules?(l, r)
   end
 
-  @spec expand_aliases(Zipper.t()) :: Zipper.t()
-  def expand_aliases(zipper) do
-    Zipper.traverse(zipper, fn x ->
-      x
-      |> Zipper.subtree()
-      |> Zipper.node()
-      |> case do
-        {:__aliases__, _, parts} ->
-          case current_env(zipper) do
-            {:ok, env} ->
-              case Macro.Env.expand_alias(env, [], parts) do
-                {:alias, value} ->
-                  Zipper.replace(x, {:__aliases__, [], Module.split(value)})
+  @spec expand_alias(Zipper.t()) :: Zipper.t()
+  def expand_alias(zipper) do
+    zipper
+    |> Zipper.subtree()
+    |> Zipper.node()
+    |> case do
+      {:__aliases__, _, parts} ->
+        case current_env(zipper) do
+          {:ok, env} ->
+            case Macro.Env.expand_alias(env, [], parts) do
+              {:alias, value} ->
+                Zipper.replace(zipper, {:__aliases__, [], Module.split(value)})
 
-                _ ->
-                  x
-              end
+              _ ->
+                zipper
+            end
 
-            _ ->
-              x
-          end
+          _ ->
+            zipper
+        end
 
-        _ ->
-          x
-      end
-    end)
+      _ ->
+        zipper
+    end
   rescue
     _ ->
       zipper
+  end
+
+  @spec expand_aliases(Zipper.t()) :: Zipper.t()
+  def expand_aliases(zipper) do
+    Zipper.traverse(zipper, &expand_alias/1)
   end
 
   # aliases will confuse this, but that is a later problem :)

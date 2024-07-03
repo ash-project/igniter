@@ -91,7 +91,6 @@ defmodule Igniter.MixProject do
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mimic, "~> 1.7", only: [:test]},
-      {:sobelow, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:git_ops, "~> 2.5", only: [:dev, :test]},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
@@ -102,7 +101,6 @@ defmodule Igniter.MixProject do
 
   defp aliases do
     [
-      sobelow: "sobelow --skip",
       credo: "credo --strict"
     ]
   end

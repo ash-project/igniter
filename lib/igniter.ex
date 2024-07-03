@@ -86,26 +86,32 @@ defmodule Igniter do
   @doc "Includes all files matching the given glob, expecting them all (for now) to be elixir files."
   @spec include_glob(t, Path.t() | GlobEx.t()) :: t()
   def include_glob(igniter, glob) do
-    glob
-    |> case do
-      %GlobEx{} = glob -> glob
-      string -> GlobEx.compile!(Path.expand(string))
-    end
-    |> GlobEx.ls()
-    |> Enum.filter(fn path ->
-      if Path.extname(path) in [".ex", ".exs"] do
-        true
-      else
-        raise ArgumentError,
-              "Cannot include #{inspect(path)} because it is not an Elixir file. This can be supported in the future, but the work hasn't been done yet."
+    paths =
+      glob
+      |> case do
+        %GlobEx{} = glob -> glob
+        string -> GlobEx.compile!(Path.expand(string))
       end
-    end)
-    |> Enum.map(&Path.relative_to_cwd/1)
-    |> then(fn paths ->
-      Enum.reduce(paths, igniter, fn path, igniter ->
-        Igniter.include_existing_elixir_file(igniter, path, format?: false)
+      |> GlobEx.ls()
+      |> Stream.filter(fn path ->
+        if Path.extname(path) in [".ex", ".exs"] do
+          true
+        else
+          raise ArgumentError,
+                "Cannot include #{inspect(path)} because it is not an Elixir file. This can be supported in the future, but the work hasn't been done yet."
+        end
       end)
-      |> format(paths)
+      |> Stream.map(&Path.relative_to_cwd/1)
+      |> Enum.reject(fn path ->
+        Rewrite.has_source?(igniter.rewrite, path)
+      end)
+
+    paths
+    |> Task.async_stream(fn path ->
+      read_ex_source!(path)
+    end)
+    |> Enum.reduce(igniter, fn {:ok, source}, igniter ->
+      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
     end)
   end
 
@@ -385,12 +391,12 @@ defmodule Igniter do
 
   * `:error_on_abort?` - If `true`, raises an error if the user aborts the operation. Returns the original igniter if not.
   """
-  # sobelow_skip ["RCE.CodeModule"]
   def apply_and_fetch_dependencies(igniter, opts \\ []) do
     if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
          has_changes?(igniter, ["mix.exs"]) do
-      case Igniter.do_or_dry_run(igniter, ["--dry-run"],
+      case Igniter.do_or_dry_run(igniter,
              title: "Fetch Required Dependencies",
+             dry_run: true,
              paths: ["mix.exs"]
            ) do
         :issues ->
@@ -408,7 +414,7 @@ defmodule Igniter do
             Mix.shell().yes?(message)
 
           if proceed? do
-            :changes_made = Igniter.do_or_dry_run(igniter, ["--yes"], title: "Applying changes")
+            :changes_made = Igniter.do_or_dry_run(igniter, yes: true, title: "Applying changes")
 
             Mix.shell().info("running mix deps.get")
 
@@ -462,8 +468,7 @@ defmodule Igniter do
         igniter
       else
         igniter
-        |> include_glob("lib/**/*.ex")
-        |> include_glob("test/**/*.ex")
+        |> include_glob("{lib,test}/**/*.{ex,exs}")
         |> assign_private(:included_all_elixir_files?, true)
       end
     end
@@ -495,194 +500,178 @@ defmodule Igniter do
 
   @doc """
   Executes or dry-runs a given Igniter.
-
-  This takes `argv` to parameterize it as it is generally invoked from a mix task.
   """
-  def do_or_dry_run(igniter, argv, opts \\ []) do
+  def do_or_dry_run(igniter, opts \\ []) do
     igniter = prepare_for_write(igniter, opts)
+
     title = opts[:title] || "Igniter"
 
-    sources =
-      igniter.rewrite
-      |> Rewrite.sources()
+    halt_if_fails_check!(igniter, title, opts)
 
-    issues =
-      Enum.flat_map(sources, fn source ->
-        changed_issues =
-          if Rewrite.Source.file_changed?(source) do
-            ["File has been changed since it was originally read."]
+    case igniter do
+      %{issues: []} ->
+        result_of_dry_run =
+          if has_changes?(igniter) do
+            if opts[:dry_run] || !opts[:yes] do
+              Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
+
+              display_diff(Rewrite.sources(igniter.rewrite))
+            end
+
+            :dry_run_with_changes
           else
-            []
+            unless opts[:quiet_on_no_changes?] || opts[:yes] do
+              Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
+            end
+
+            :dry_run_with_no_changes
           end
 
-        issues = Enum.uniq(changed_issues ++ Rewrite.Source.issues(source))
+        display_warnings(igniter, title)
 
-        case issues do
-          [] -> []
-          issues -> [{source, issues}]
-        end
-      end)
+        display_moves(igniter)
 
-    case issues do
-      [_ | _] ->
-        explain_issues(issues)
+        display_tasks(igniter, result_of_dry_run, opts)
 
-        :issues
-
-      [] ->
-        case igniter do
-          %{issues: []} ->
-            result_of_dry_run =
-              if has_changes?(igniter) do
-                if "--dry-run" in argv || "--yes" not in argv do
-                  Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
-
-                  Enum.each(sources, fn source ->
-                    if Rewrite.Source.from?(source, :string) do
-                      content_lines =
-                        source
-                        |> Rewrite.Source.get(:content)
-                        |> String.split("\n")
-                        |> Enum.with_index()
-
-                      space_padding =
-                        content_lines
-                        |> Enum.map(&elem(&1, 1))
-                        |> Enum.max()
-                        |> to_string()
-                        |> String.length()
-
-                      diffish_looking_text =
-                        Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-                          line_number = line_number_minus_one + 1
-
-                          "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
-                        end)
-
-                      if String.trim(diffish_looking_text) != "" do
-                        Mix.shell().info("""
-                        Create: #{Rewrite.Source.get(source, :path)}
-
-                        #{diffish_looking_text}
-                        """)
-                      end
-                    else
-                      diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
-
-                      if String.trim(diff) != "" do
-                        Mix.shell().info("""
-                        Update: #{Rewrite.Source.get(source, :path)}
-
-                        #{diff}
-                        """)
-                      end
-                    end
-                  end)
-                end
-
-                :dry_run_with_changes
-              else
-                unless opts[:quiet_on_no_changes?] || "--yes" in argv do
-                  Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
-                end
-
-                :dry_run_with_no_changes
-              end
-
-            if igniter.warnings != [] do
-              Mix.shell().info("\n#{title} - #{IO.ANSI.yellow()}Notices:#{IO.ANSI.reset()}\n")
-
-              igniter.warnings
-              |> Enum.map_join("\n --- \n", fn error ->
-                if is_binary(error) do
-                  "* #{IO.ANSI.yellow()}#{error}#{IO.ANSI.reset()}"
-                else
-                  "* #{IO.ANSI.yellow()}#{Exception.format(:error, error)}#{IO.ANSI.reset()}"
-                end
-              end)
-              |> Mix.shell().info()
-            end
-
-            unless Enum.empty?(igniter.moves) do
-              Mix.shell().info("The following files will be moved:")
-
-              Enum.each(igniter.moves, fn {from, to} ->
-                Mix.shell().info(
-                  "#{IO.ANSI.red()}#{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
-                )
-              end)
-            end
-
-            if igniter.tasks != [] && "--yes" not in argv do
-              message =
-                if result_of_dry_run == :dry_run_with_no_changes do
-                  "The following tasks will be run"
-                else
-                  "The following tasks will be run after the above changes:"
-                end
-
-              Mix.shell().info("""
-              #{message}
-
-              #{Enum.map_join(igniter.tasks, "\n", fn {task, args} -> "* #{IO.ANSI.red()}#{task}#{IO.ANSI.yellow()} #{Enum.join(args, " ")}#{IO.ANSI.reset()}" end)}
-              """)
-            end
-
-            if "--dry-run" in argv ||
-                 (result_of_dry_run == :dry_run_with_no_changes && Enum.empty?(igniter.tasks) &&
-                    Enum.empty?(igniter.moves)) do
-              result_of_dry_run
-            else
-              if "--yes" in argv ||
-                   Mix.shell().yes?(opts[:confirmation_message] || "Proceed with changes?") do
-                sources
-                |> Enum.any?(fn source ->
-                  Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
-                end)
-                |> Kernel.||(!Enum.empty?(igniter.tasks))
-                |> Kernel.||(!Enum.empty?(igniter.tasks))
-                |> if do
-                  igniter.rewrite
-                  |> Rewrite.write_all()
-                  |> case do
-                    {:ok, _result} ->
-                      unless Enum.empty?(igniter.tasks) do
-                        Mix.shell().cmd("mix deps.get")
-                      end
-
-                      igniter.moves
-                      |> Enum.each(fn {from, to} ->
-                        File.rename!(from, to)
-                      end)
-
-                      igniter.tasks
-                      |> Enum.each(fn {task, args} ->
-                        Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
-                      end)
-
-                      :changes_made
-
-                    {:error, error, rewrite} ->
-                      igniter
-                      |> Map.put(:rewrite, rewrite)
-                      |> Igniter.add_issue(error)
-                      |> igniter_issues()
-
-                      :issues
+        if opts[:dry_run] ||
+             (result_of_dry_run == :dry_run_with_no_changes && Enum.empty?(igniter.tasks) &&
+                Enum.empty?(igniter.moves)) do
+          result_of_dry_run
+        else
+          if opts[:yes] ||
+               Mix.shell().yes?(opts[:confirmation_message] || "Proceed with changes?") do
+            igniter.rewrite
+            |> Enum.any?(fn source ->
+              Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
+            end)
+            |> Kernel.||(!Enum.empty?(igniter.tasks))
+            |> Kernel.||(!Enum.empty?(igniter.moves))
+            |> if do
+              igniter.rewrite
+              |> Rewrite.write_all()
+              |> case do
+                {:ok, _result} ->
+                  unless Enum.empty?(igniter.tasks) do
+                    Mix.shell().cmd("mix deps.get")
                   end
-                else
-                  :no_changes
-                end
-              else
-                :changes_aborted
-              end
-            end
 
-          igniter ->
-            igniter_issues(igniter)
-            :issues
+                  igniter.moves
+                  |> Enum.each(fn {from, to} ->
+                    File.mkdir_p!(Path.dirname(to))
+                    File.rename!(from, to)
+                  end)
+
+                  igniter.tasks
+                  |> Enum.each(fn {task, args} ->
+                    Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
+                  end)
+
+                  :changes_made
+
+                {:error, error, rewrite} ->
+                  igniter
+                  |> Map.put(:rewrite, rewrite)
+                  |> Igniter.add_issue(error)
+                  |> igniter_issues()
+
+                  :issues
+              end
+            else
+              :no_changes
+            end
+          else
+            :changes_aborted
+          end
         end
+
+      igniter ->
+        igniter_issues(igniter)
+        :issues
     end
+  end
+
+  defp halt_if_fails_check!(igniter, title, opts) do
+    cond do
+      !opts[:check] ->
+        :ok
+
+      !Enum.empty?(igniter.warnings) ->
+        Mix.shell().error("Warnings would have been emitted and the --check flag was specified.")
+        display_warnings(igniter, title)
+
+        System.halt(2)
+
+      !Enum.empty?(igniter.issues) ->
+        Mix.shell().error("Errors would have been emitted and the --check flag was specified.")
+        igniter_issues(igniter)
+
+        System.halt(3)
+
+      !Enum.empty?(igniter.tasks) ->
+        Mix.shell().error("Tasks would have been run and the --check flag was specified.")
+        display_tasks(igniter, :dry_run_with_no_changes, [])
+
+        System.halt(3)
+
+      !Enum.empty?(igniter.moves) ->
+        Mix.shell().error("Files would have been moved and the --check flag was specified.")
+        display_moves(igniter)
+
+        System.halt(3)
+
+      Igniter.has_changes?(igniter) ->
+        Mix.shell().error(
+          "Changes have been made to the project and the --check flag was specified."
+        )
+
+        display_diff(igniter.rewrite.sources)
+
+        System.halt(1)
+    end
+  end
+
+  defp display_diff(sources) do
+    Enum.each(sources, fn source ->
+      if Rewrite.Source.from?(source, :string) do
+        content_lines =
+          source
+          |> Rewrite.Source.get(:content)
+          |> String.split("\n")
+          |> Enum.with_index()
+
+        space_padding =
+          content_lines
+          |> Enum.map(&elem(&1, 1))
+          |> Enum.max()
+          |> to_string()
+          |> String.length()
+
+        diffish_looking_text =
+          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+            line_number = line_number_minus_one + 1
+
+            "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
+          end)
+
+        if String.trim(diffish_looking_text) != "" do
+          Mix.shell().info("""
+          Create: #{Rewrite.Source.get(source, :path)}
+
+          #{diffish_looking_text}
+          """)
+        end
+      else
+        diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
+
+        if String.trim(diff) != "" do
+          Mix.shell().info("""
+          Update: #{Rewrite.Source.get(source, :path)}
+
+          #{diff}
+          """)
+        end
+      end
+    end)
   end
 
   defp igniter_issues(igniter) do
@@ -697,24 +686,6 @@ defmodule Igniter do
       end
     end)
     |> Mix.shell().info()
-  end
-
-  defp explain_issues(issues) do
-    Mix.shell().info("Igniter: Issues found in proposed changes:\n")
-
-    Enum.each(issues, fn {source, issues} ->
-      Mix.shell().info("Issues with #{Rewrite.Source.get(source, :path)}")
-
-      issues
-      |> Enum.map_join("\n", fn error ->
-        if is_binary(error) do
-          "* #{error}"
-        else
-          "* #{Exception.format(:error, error)}"
-        end
-      end)
-      |> Mix.shell().error()
-    end)
   end
 
   defp format(igniter, adding_paths \\ nil) do
@@ -835,7 +806,6 @@ defmodule Igniter do
     end
   end
 
-  # sobelow_skip ["RCE.CodeModule"]
   defp find_formatter_exs_file_options(path, formatter_exs_files, ext) do
     case Map.fetch(formatter_exs_files, path) do
       {:ok, source} ->
@@ -906,7 +876,6 @@ defmodule Igniter do
     nil
   end
 
-  # sobelow_skip ["RCE.CodeModule"]
   defp eval_file_with_keyword_list(path) do
     {opts, _} = Code.eval_file(path)
 
@@ -991,9 +960,31 @@ defmodule Igniter do
         igniter
       end
 
+    source_issues =
+      Enum.flat_map(igniter.rewrite, fn source ->
+        changed_issues =
+          if Rewrite.Source.file_changed?(source) do
+            ["File has been changed since it was originally read."]
+          else
+            []
+          end
+
+        issues = Enum.uniq(changed_issues ++ Rewrite.Source.issues(source))
+
+        case issues do
+          [] ->
+            []
+
+          issues ->
+            Enum.map(issues, fn issue ->
+              "#{source.path}: #{issue}"
+            end)
+        end
+      end)
+
     %{
       igniter
-      | issues: Enum.uniq(igniter.issues),
+      | issues: Enum.uniq(igniter.issues ++ source_issues),
         warnings: Enum.uniq(igniter.warnings),
         tasks: Enum.uniq(igniter.tasks)
     }
@@ -1015,7 +1006,6 @@ defmodule Igniter do
     end)
   end
 
-  # sobelow_skip ["RCE.CodeModule"]
   defp parse_igniter_config(igniter) do
     case Rewrite.source(igniter.rewrite, ".igniter.exs") do
       {:error, _} ->
@@ -1031,5 +1021,50 @@ defmodule Igniter do
     diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
 
     String.trim(diff) != ""
+  end
+
+  defp display_warnings(%{warnings: []}, _title), do: :ok
+
+  defp display_warnings(%{warnings: warnings}, title) do
+    Mix.shell().info("\n#{title} - #{IO.ANSI.yellow()}Notices:#{IO.ANSI.reset()}\n")
+
+    warnings
+    |> Enum.map_join("\n --- \n", fn error ->
+      if is_binary(error) do
+        "* #{IO.ANSI.yellow()}#{error}#{IO.ANSI.reset()}"
+      else
+        "* #{IO.ANSI.yellow()}#{Exception.format(:error, error)}#{IO.ANSI.reset()}"
+      end
+    end)
+    |> Mix.shell().info()
+  end
+
+  defp display_moves(%{moves: moves}) when moves == %{}, do: :ok
+
+  defp display_moves(%{moves: moves}) do
+    Mix.shell().info("The following files will be moved:")
+
+    Enum.each(moves, fn {from, to} ->
+      Mix.shell().info(
+        "#{IO.ANSI.red()}#{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
+      )
+    end)
+  end
+
+  defp display_tasks(igniter, result_of_dry_run, opts) do
+    if igniter.tasks != [] && !opts[:yes] do
+      message =
+        if result_of_dry_run == :dry_run_with_no_changes do
+          "The following tasks will be run"
+        else
+          "The following tasks will be run after the above changes:"
+        end
+
+      Mix.shell().info("""
+      #{message}
+
+      #{Enum.map_join(igniter.tasks, "\n", fn {task, args} -> "* #{IO.ANSI.red()}#{task}#{IO.ANSI.yellow()} #{Enum.join(args, " ")}#{IO.ANSI.reset()}" end)}
+      """)
+    end
   end
 end

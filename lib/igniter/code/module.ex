@@ -113,9 +113,9 @@ defmodule Igniter.Code.Module do
     iex> Igniter.Code.Module.proper_location(MyApp.Hello)
     "lib/my_app/hello.ex"
   """
-  @spec proper_location(module()) :: Path.t()
-  def proper_location(module_name) do
-    do_proper_location(module_name, :lib)
+  @spec proper_location(module(), source_folder :: String.t()) :: Path.t()
+  def proper_location(module_name, source_folder \\ "lib") do
+    do_proper_location(module_name, {:source_folder, source_folder})
   end
 
   @doc """
@@ -146,16 +146,24 @@ defmodule Igniter.Code.Module do
   """
   @spec proper_test_support_location(module()) :: Path.t()
   def proper_test_support_location(module_name) do
-    do_proper_location(module_name, :test_support)
+    do_proper_location(module_name, {:source_folder, "test/support"})
   end
 
   @doc false
   def move_files(igniter, opts \\ []) do
     module_location_config = Igniter.Project.IgniterConfig.get(igniter, :module_location)
-    igniter = Igniter.include_all_elixir_files(igniter)
+    dont_move_files = Igniter.Project.IgniterConfig.get(igniter, :dont_move_files)
+
+    igniter =
+      if opts[:move_all?] do
+        Igniter.include_all_elixir_files(igniter)
+      else
+        igniter
+      end
 
     igniter.rewrite
-    |> Enum.filter(&(Path.extname(&1.path) == ".ex"))
+    |> Stream.filter(&(Path.extname(&1.path) in [".ex", ".exs"]))
+    |> Stream.reject(&non_movable_file?(&1.path, dont_move_files))
     |> Enum.reduce(igniter, fn source, igniter ->
       zipper =
         source
@@ -163,14 +171,15 @@ defmodule Igniter.Code.Module do
         |> Zipper.zip()
 
       with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
-           {:defmodule, _, [module | _]} <-
+           {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
+           module <-
              zipper
-             |> Igniter.Code.Common.expand_aliases()
+             |> Igniter.Code.Common.expand_alias()
              |> Zipper.subtree()
              |> Zipper.node(),
            module when not is_nil(module) <- to_module_name(module),
            new_path when not is_nil(new_path) <-
-             should_move_file_to(igniter.rewrite, source, module, module_location_config, opts) do
+             should_move_file_to(igniter, source, module, module_location_config, opts) do
         Igniter.move_file(igniter, source.path, new_path, error_if_exists?: false)
       else
         _ ->
@@ -179,60 +188,101 @@ defmodule Igniter.Code.Module do
     end)
   end
 
-  defp should_move_file_to(rewrite, source, module, module_location_config, opts) do
-    all_paths = Rewrite.paths(rewrite)
+  defp non_movable_file?(path, dont_move_files) do
+    Enum.any?(dont_move_files, fn
+      exclusion_pattern when is_binary(exclusion_pattern) ->
+        path == exclusion_pattern
 
+      exclusion_pattern when is_struct(exclusion_pattern, Regex) ->
+        Regex.match?(exclusion_pattern, path)
+    end)
+  end
+
+  defp should_move_file_to(igniter, source, module, module_location_config, opts) do
     paths_created =
-      rewrite
+      igniter.rewrite
       |> Enum.filter(fn source ->
         Rewrite.Source.from?(source, :string)
       end)
       |> Enum.map(& &1.path)
 
-    last = source.path |> Path.split() |> List.last() |> Path.rootname()
+    split_path =
+      source.path
+      |> Path.relative_to_cwd()
+      |> Path.split()
 
-    path_it_might_live_in =
-      case module_location_config do
-        :inside_matching_folder ->
-          source.path
-          |> Path.split()
-          |> Enum.reverse()
-          |> Enum.drop(1)
-          |> Enum.reverse()
-          |> Enum.concat([last])
+    igniter
+    |> Igniter.Project.IgniterConfig.get(:source_folders)
+    |> Enum.filter(fn source_folder ->
+      List.starts_with?(split_path, Path.split(source_folder))
+    end)
+    |> Enum.max_by(
+      fn source_folder ->
+        source_folder
+        |> Path.split()
+        |> Enum.zip(split_path)
+        |> Enum.take_while(fn {l, r} -> l == r end)
+        |> Enum.count()
+      end,
+      fn -> nil end
+    )
+    |> case do
+      nil ->
+        if Enum.at(split_path, 0) == "test" &&
+             String.ends_with?(source.path, "_test.exs") do
+          {:ok, proper_test_location(module)}
+        else
+          :error
+        end
 
-        :outside_matching_folder ->
-          module
-          |> proper_location()
-          |> Path.split()
-          |> Enum.reverse()
-          |> Enum.drop(1)
-          |> Enum.reverse()
-      end
-
-    if Rewrite.Source.from?(source, :string) do
-      if opts[:move_all?] ||
-           (module_location_config == :inside_matching_folder &&
-              Enum.any?(all_paths, fn path ->
-                List.starts_with?(Path.split(path), path_it_might_live_in)
-              end)) do
-        path_it_might_live_in
-      end
-    else
-      # only move a file if we just created its new home, or if `move_all?` is set
-      if opts[:move_all?] ||
-           (!File.dir?(Path.join(path_it_might_live_in)) &&
-              module_location_config == :inside_matching_folder &&
-              Enum.any?(paths_created, fn path ->
-                List.starts_with?(Path.split(path), path_it_might_live_in)
-              end)) do
-        path_it_might_live_in
-      end
+      source_folder ->
+        {:ok, proper_location(module, source_folder)}
     end
-    |> if do
-      Path.join(path_it_might_live_in ++ [last <> ".ex"])
-    else
-      nil
+    |> case do
+      :error ->
+        nil
+
+      {:ok, proper_location} ->
+        case module_location_config do
+          :inside_matching_folder ->
+            {[filename, folder], rest} =
+              proper_location
+              |> Path.split()
+              |> Enum.reverse()
+              |> Enum.split(2)
+
+            inside_matching_folder =
+              [filename, Path.rootname(filename), folder]
+              |> Enum.concat(rest)
+              |> Enum.reverse()
+              |> Path.join()
+
+            inside_matching_folder_dirname = Path.dirname(inside_matching_folder)
+
+            just_created_folder? =
+              Enum.any?(paths_created, fn path ->
+                List.starts_with?(Path.split(path), Path.split(inside_matching_folder_dirname))
+              end)
+
+            should_use_inside_matching_folder? =
+              if opts[:move_all?] do
+                File.dir?(inside_matching_folder_dirname) || just_created_folder?
+              else
+                source.path == proper_location(module) &&
+                  !File.dir?(inside_matching_folder_dirname) && just_created_folder?
+              end
+
+            if should_use_inside_matching_folder? do
+              inside_matching_folder
+            else
+              proper_location
+            end
+
+          :outside_matching_folder ->
+            if opts[:move_all?] || Rewrite.Source.from?(source, :string) do
+              proper_location
+            end
+        end
     end
   end
 
@@ -251,9 +301,6 @@ defmodule Igniter.Code.Module do
     leading = :lists.droplast(path)
 
     case kind do
-      :lib ->
-        Path.join(["lib" | leading] ++ ["#{last}.ex"])
-
       :test ->
         if String.ends_with?(last, "_test") do
           Path.join(["test" | leading] ++ ["#{last}.exs"])
@@ -261,9 +308,17 @@ defmodule Igniter.Code.Module do
           Path.join(["test" | leading] ++ ["#{last}_test.exs"])
         end
 
-      :test_support ->
-        [_prefix | leading_rest] = leading
-        Path.join(["test/support" | leading_rest] ++ ["#{last}.ex"])
+      {:source_folder, "test/support"} ->
+        case leading do
+          [] ->
+            Path.join(["test/support", "#{last}.ex"])
+
+          [_prefix | leading_rest] ->
+            Path.join(["test/support" | leading_rest] ++ ["#{last}.ex"])
+        end
+
+      {:source_folder, source_folder} ->
+        Path.join([source_folder | leading] ++ ["#{last}.ex"])
     end
   end
 
@@ -313,7 +368,6 @@ defmodule Igniter.Code.Module do
     )
   end
 
-  # sobelow_skip ["DOS.StringToAtom"]
   @doc "Moves the zipper to the body of a module that `use`s the provided module (or one of the provided modules)."
   @spec move_to_module_using(Zipper.t(), module | list(module)) :: {:ok, Zipper.t()} | :error
   def move_to_module_using(zipper, [module]) do
@@ -331,7 +385,6 @@ defmodule Igniter.Code.Module do
     end
   end
 
-  # sobelow_skip ["DOS.StringToAtom"]
   def move_to_module_using(zipper, module) do
     with {:ok, mod_zipper} <- move_to_defmodule(zipper),
          {:ok, mod_zipper} <- Igniter.Code.Common.move_to_do_block(mod_zipper),

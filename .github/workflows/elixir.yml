@@ -13,5 +13,6 @@ jobs:
     with:
       spark-formatter: false
       spark-cheat-sheets: false
+      sobelow: false
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

@@ -25,6 +25,19 @@ defmodule Igniter.Mix.Task do
     Your task should *always* use `switches` and not `strict` to validate provided options!
     """
 
+    @global_options [
+      switches: [
+        dry_run: :boolean,
+        yes: :boolean,
+        check: :boolean
+      ],
+      aliases: [
+        d: :dry_run,
+        y: :yes,
+        c: :check
+      ]
+    ]
+
     defstruct schema: [],
               aliases: [],
               composes: [],
@@ -40,6 +53,8 @@ defmodule Igniter.Mix.Task do
             adds_deps: [{atom(), String.t()}],
             extra_args?: boolean()
           }
+
+    def global_options, do: @global_options
   end
 
   @doc """
@@ -72,12 +87,21 @@ defmodule Igniter.Mix.Task do
 
         Application.ensure_all_started([:rewrite])
 
-        schema = info(argv, nil)
-        Igniter.Util.Info.validate!(argv, schema, Mix.Task.task_name(__MODULE__))
+        global_options = Info.global_options()
+
+        info =
+          argv
+          |> info(nil)
+          |> Kernel.||(%Info{})
+          |> Map.update!(:schema, &Keyword.merge(&1, global_options[:switches]))
+          |> Map.update!(:aliases, &Keyword.merge(&1, global_options[:aliases]))
+
+        {opts, _} =
+          Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
 
         Igniter.new()
         |> igniter(argv)
-        |> Igniter.do_or_dry_run(argv)
+        |> Igniter.do_or_dry_run(opts)
       end
 
       @impl Igniter.Mix.Task

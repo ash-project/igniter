@@ -1,19 +1,6 @@
 defmodule Igniter.Util.Install do
   @moduledoc false
-  @info [
-    switches: [
-      example: :boolean,
-      dry_run: :boolean,
-      yes: :boolean
-    ],
-    aliases: [
-      d: :dry_run,
-      e: :example,
-      y: :yes
-    ]
-  ]
 
-  # sobelow_skip ["DOS.StringToAtom", "RCE.CodeModule"]
   def install(install, argv, igniter \\ Igniter.new()) do
     install_list =
       if is_binary(install) do
@@ -41,13 +28,18 @@ defmodule Igniter.Util.Install do
         end
       end)
 
-    {igniter, desired_tasks} =
+    global_options =
+      Igniter.Mix.Task.Info.global_options()
+      |> Keyword.update!(:switches, &Keyword.put(&1, :example, :boolean))
+      |> Keyword.update!(:aliases, &Keyword.put(&1, :e, :example))
+
+    {igniter, desired_tasks, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
         igniter,
         argv,
         %Igniter.Mix.Task.Info{
-          schema: @info[:switches],
-          aliases: @info[:aliases],
+          schema: global_options[:switches],
+          aliases: global_options[:aliases],
           installs: task_installs
         },
         "igniter.install"
@@ -77,9 +69,7 @@ defmodule Igniter.Util.Install do
     |> Enum.reduce(igniter, fn task, igniter ->
       Igniter.compose_task(igniter, task, argv)
     end)
-    |> Igniter.do_or_dry_run(argv,
-      title: title
-    )
+    |> Igniter.do_or_dry_run(Keyword.put(options, :title, title))
 
     :ok
   end

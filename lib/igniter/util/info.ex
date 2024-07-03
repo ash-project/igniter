@@ -17,10 +17,8 @@ defmodule Igniter.Util.Info do
 
     case schema.installs do
       [] ->
-        validate!(argv, schema, task_name)
-
         {Igniter.apply_and_fetch_dependencies(igniter),
-         Enum.map(Enum.uniq(acc), &"#{&1}.install")}
+         Enum.map(Enum.uniq(acc), &"#{&1}.install"), validate!(argv, schema, task_name)}
 
       installs ->
         schema = %{schema | adds_deps: [], installs: []}
@@ -49,7 +47,7 @@ defmodule Igniter.Util.Info do
   end
 
   def validate!(argv, schema, task_name)
-  def validate!(_argv, nil, _task_name), do: :ok
+  def validate!(_argv, nil, _task_name), do: {[], []}
 
   def validate!(argv, schema, task_name) do
     merged_schema = recursively_compose_schema(schema, argv, task_name)
