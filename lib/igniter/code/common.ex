@@ -147,7 +147,7 @@ defmodule Igniter.Code.Common do
     current_code = Zipper.root(current_code)
 
     case current_code do
-      {:__block__, meta, stuff} when length(stuff) > 1 or length(stuff) == 0 ->
+      {:__block__, meta, stuff} when length(stuff) > 1 or stuff == [] ->
         new_stuff =
           if placement == :after do
             stuff ++ [new_code]
@@ -512,18 +512,16 @@ defmodule Igniter.Code.Common do
   """
   @spec move_next(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
   def move_next(%Zipper{} = zipper, pred) do
-    cond do
-      pred.(zipper) ->
-        {:ok, zipper}
+    if pred.(zipper) do
+      {:ok, zipper}
+    else
+      case Zipper.next(zipper) do
+        nil ->
+          :error
 
-      true ->
-        case Zipper.next(zipper) do
-          nil ->
-            :error
-
-          zipper ->
-            move_next(zipper, pred)
-        end
+        zipper ->
+          move_next(zipper, pred)
+      end
     end
   end
 
