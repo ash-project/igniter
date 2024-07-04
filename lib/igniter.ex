@@ -414,7 +414,12 @@ defmodule Igniter do
             Mix.shell().yes?(message)
 
           if proceed? do
-            :changes_made = Igniter.do_or_dry_run(igniter, yes: true, title: "Applying changes")
+            :changes_made =
+              Igniter.do_or_dry_run(igniter,
+                yes: true,
+                title: "Applying changes",
+                paths: ["mix.exs"]
+              )
 
             Mix.shell().info("running mix deps.get")
 
