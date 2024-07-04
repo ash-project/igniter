@@ -55,6 +55,10 @@ defmodule Igniter.Util.Install do
       end)
       |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
       |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
+      |> Enum.sort_by(
+        &Enum.find_index(desired_tasks, fn e -> e == Mix.Task.task_name(&1) end),
+        &<=/2
+      )
 
     title =
       case desired_tasks do
