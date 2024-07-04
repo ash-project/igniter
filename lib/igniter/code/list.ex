@@ -50,7 +50,7 @@ defmodule Igniter.Code.List do
           append_to_list(zipper, quoted)
 
         _ ->
-          zipper
+          {:ok, zipper}
       end
     else
       :error
