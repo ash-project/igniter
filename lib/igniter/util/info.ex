@@ -41,8 +41,8 @@ defmodule Igniter.Util.Info do
   end
 
   defp add_deps(igniter, add_deps) do
-    Enum.reduce(add_deps, igniter, fn {dep, requirement}, igniter ->
-      Igniter.Project.Deps.add_dependency(igniter, dep, requirement)
+    Enum.reduce(add_deps, igniter, fn dependency, igniter ->
+      Igniter.Project.Deps.add_dep(igniter, dependency)
     end)
   end
 

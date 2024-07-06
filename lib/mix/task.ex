@@ -65,6 +65,8 @@ defmodule Igniter.Mix.Task do
   ## Important Limitations
 
   * Each task still must parse its own argv in `igniter/2` and *must* ignore any unknown options.
+    To accomplish this, use the automatically imported `options!(argv)` macro, which uses the `info/2`
+    callback to validate args and return options
   * You cannot use `composes` to list tasks unless they are in your library or in direct dependencies of your library.
     To validate their options, you must include their options in your own option schema.
   """
@@ -76,6 +78,7 @@ defmodule Igniter.Mix.Task do
     quote do
       use Mix.Task
       @behaviour Igniter.Mix.Task
+      import Igniter.Mix.Task, only: [options!: 1]
 
       @impl Mix.Task
       def run(argv) do
@@ -122,6 +125,17 @@ defmodule Igniter.Mix.Task do
       end
 
       defoverridable supports_umbrella?: 0, info: 2
+    end
+  end
+
+  @spec options!(argv :: term()) :: term() | no_return
+  defmacro options!(argv) do
+    quote do
+      argv = unquote(argv)
+      info = info(argv, Mix.Task.task_name(__MODULE__))
+      {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
+
+      parsed
     end
   end
 end

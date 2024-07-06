@@ -12,6 +12,24 @@ defmodule Igniter.Project.Deps do
   - `:yes?` - Automatically answer yes to any prompts.
   - `:error?` - Returns an error instead of a notice on failure.
   """
+  def add_dep(igniter, dep, opts \\ []) do
+    case dep do
+      {name, version} ->
+        add_dependency(igniter, name, version, opts)
+
+      {name, version, version_opts} ->
+        if Keyword.keyword?(version) do
+          add_dependency(igniter, name, version ++ version_opts, opts)
+        else
+          add_dependency(igniter, name, version, Keyword.put(opts, :dep_opts, version_opts))
+        end
+
+      other ->
+        raise ArgumentError, "Invalid dependency: #{inspect(other)}"
+    end
+  end
+
+  @deprecated "Use `add_dep/2` or `add_dep/3` instead."
   def add_dependency(igniter, name, version, opts \\ []) do
     if name in List.wrap(igniter.assigns[:manually_installed]) do
       igniter
@@ -123,8 +141,14 @@ defmodule Igniter.Project.Deps do
            {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
            true <- Common.node_matches_pattern?(zipper, value when is_list(value)) do
         quoted =
-          quote do
-            {unquote(name), unquote(version)}
+          if opts[:dep_opts] do
+            quote do
+              {unquote(name), unquote(version), unquote(opts[:dep_opts])}
+            end
+          else
+            quote do
+              {unquote(name), unquote(version)}
+            end
           end
 
         Igniter.Code.List.prepend_to_list(zipper, quoted)
