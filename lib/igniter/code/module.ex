@@ -386,10 +386,7 @@ defmodule Igniter.Code.Module do
   @doc "The module name prefix based on the mix project's module name"
   @spec module_name_prefix() :: module()
   def module_name_prefix do
-    Mix.Project.get!()
-    |> Module.split()
-    |> :lists.droplast()
-    |> Module.concat()
+    Mix.Project.get!() |> Module.split() |> List.first() |> String.to_atom()
   end
 
   @doc "Moves the zipper to a defmodule call"
