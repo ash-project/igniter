@@ -4,8 +4,29 @@ defmodule Igniter.Code.Module do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  @doc "Finds a module and updates its contents wherever it is. If it does not exist, it is created with the provided contents."
-  def find_and_update_or_create_module(igniter, module_name, contents, updater, path \\ nil) do
+  require Logger
+
+  @doc """
+  Finds a module and updates its contents wherever it is.
+
+  If the module does not yet exist, it is created with the provided contents. In that case,
+  the path is determined with `Igniter.Code.Module.proper_location/2`, but may optionally be overwritten with options below.
+
+  # Options
+
+  - `:path` - Path where to create the module, relative to the project root. Default: `nil` (uses `:kind` to determine the path).
+  - `:kind` - Type of module being created. Possible values: `:lib`, `:test`, `:test_support` (default: `:lib`). Ignored if `:path` is set.
+  """
+  def find_and_update_or_create_module(igniter, module_name, contents, updater, opts \\ [])
+
+  def find_and_update_or_create_module(
+        igniter,
+        module_name,
+        contents,
+        updater,
+        opts
+      )
+      when is_list(opts) do
     case find_and_update_module(igniter, module_name, updater) do
       {:ok, igniter} ->
         igniter
@@ -18,8 +39,33 @@ defmodule Igniter.Code.Module do
           end
           """
 
-        Igniter.create_new_elixir_file(igniter, path || proper_location(module_name), contents)
+        location =
+          case Keyword.get(opts, :path, nil) do
+            nil ->
+              case Keyword.get(opts, :kind, :lib) do
+                :lib -> proper_location(module_name)
+                :test -> proper_test_location(module_name)
+                :test_support -> proper_test_support_location(module_name)
+              end
+
+            path ->
+              path
+          end
+
+        Igniter.create_new_elixir_file(igniter, location, contents)
     end
+  end
+
+  def find_and_update_or_create_module(
+        igniter,
+        module_name,
+        contents,
+        updater,
+        path
+      )
+      when is_binary(path) do
+    Logger.warning("You should use `opts` instead of `path` and pass `path` as a keyword.")
+    find_and_update_or_create_module(igniter, module_name, contents, updater, path: path)
   end
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
