@@ -56,7 +56,7 @@ defmodule Igniter.Project.Config do
     updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     igniter
-    |> ensure_default_configs_exist(file_name)
+    |> ensure_default_configs_exist(file_path)
     |> Igniter.include_or_create_elixir_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
       case Zipper.find(zipper, fn
