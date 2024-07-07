@@ -10,6 +10,7 @@ defmodule Igniter.Project.Deps do
   # Options
 
   - `:yes?` - Automatically answer yes to any prompts.
+  - `:append?` - Append to the dependency list instead of prepending.
   - `:error?` - Returns an error instead of a notice on failure.
   """
   def add_dep(igniter, dep, opts \\ []) do
@@ -146,7 +147,11 @@ defmodule Igniter.Project.Deps do
             end
           end
 
-        Igniter.Code.List.prepend_to_list(zipper, quoted)
+        if Keyword.get(opts, :append?, false) do
+          Igniter.Code.List.append_to_list(zipper, quoted)
+        else
+          Igniter.Code.List.prepend_to_list(zipper, quoted)
+        end
       else
         _ ->
           if opts[:error?] do
