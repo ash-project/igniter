@@ -115,6 +115,8 @@ defmodule Igniter.Mix.Task do
         require Logger
 
         if source && source != "igniter.install" do
+          raise "what"
+
           Logger.warning("""
           The task #{Mix.Task.task_name(__MODULE__)} is being composed by #{source}, but it does not declare an option schema.
           Therefore, all options will be allowed. Tasks that may be composed should define `info/2`.

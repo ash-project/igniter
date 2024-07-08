@@ -93,14 +93,16 @@ defmodule Igniter.Util.Info do
                 parent,
                 composing_task_name
               ),
-            composes: List.wrap(composing_schema.composes) ++ rest,
+            composes: rest,
             extra_args?: schema.extra_args? || composing_schema.extra_args?,
             installs: Keyword.merge(composing_schema.installs, schema.installs),
             adds_deps: Keyword.merge(composing_schema.adds_deps, schema.adds_deps)
         },
         argv,
-        composing_task_name
+        parent
       )
+      |> Map.put(:composes, List.wrap(composing_schema.composes))
+      |> recursively_compose_schema(argv, composing_task_name)
     else
       _ ->
         recursively_compose_schema(
