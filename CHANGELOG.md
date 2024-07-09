@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.9](https://github.com/ash-project/igniter/compare/v0.2.8...v0.2.9) (2024-07-09)
+
+
+
+
+### Bug Fixes:
+
+* simplify how we get tasks to run
+
+* don't try to format after editing `mix.exs`
+
 ## [v0.2.8](https://github.com/ash-project/igniter/compare/v0.2.7...v0.2.8) (2024-07-09)
 
 
