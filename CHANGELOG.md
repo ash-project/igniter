@@ -5,6 +5,39 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.7](https://github.com/ash-project/igniter/compare/v0.2.6...v0.2.7) (2024-07-09)
+
+
+
+
+### Bug Fixes:
+
+* remove shortnames for global options, to reduce conflicts
+
+* remove erroneous warning while composing tasks
+
+* pass file_path to `ensure_default_configs_exist` (#36)
+
+* preserve original ordering in Util.Install (#33)
+
+* include only "mix.exs" in the actual run in apply_and_fetch_dependencies (#32)
+
+* always return {:ok, zipper} in append_new_to_list/2 (#31)
+
+### Improvements:
+
+* support an optional append? flag for add_dep/3 (#34)
+
+* add `add_dep/2-3`, that accepts a full dep specification
+
+* deprecate `add_dependency/3-4`
+
+* make module moving much smarter
+
+* add configurations for not moving certain modules
+
+* make `source_folders` configurable
+
 ## [v0.2.6](https://github.com/ash-project/igniter/compare/v0.2.5...v0.2.6) (2024-07-02)
 
 
