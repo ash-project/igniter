@@ -106,7 +106,7 @@
         {Credo.Check.Readability.RedundantBlankLines, []},
         {Credo.Check.Readability.Semicolons, []},
         {Credo.Check.Readability.SpaceAfterCommas, []},
-        {Credo.Check.Readability.StringSigils, []},
+        {Credo.Check.Readability.StringSigils, false},
         {Credo.Check.Readability.TrailingBlankLine, []},
         {Credo.Check.Readability.TrailingWhiteSpace, false},
         {Credo.Check.Readability.UnnecessaryAliasExpansion, []},

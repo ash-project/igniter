@@ -37,17 +37,18 @@ defmodule Igniter.Util.Install do
 
     {igniter, desired_tasks, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
-        igniter,
+        igniter || Igniter.new(),
         argv,
         %Igniter.Mix.Task.Info{
           schema: global_options[:switches],
           aliases: [],
           installs: task_installs
         },
-        "igniter.install"
+        "igniter.install",
+        yes: "--yes" in argv
       )
 
-    igniter = Igniter.apply_and_fetch_dependencies(igniter)
+    igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
 
     igniter_tasks =
       Mix.Task.load_all()

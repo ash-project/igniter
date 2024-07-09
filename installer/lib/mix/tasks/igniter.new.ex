@@ -71,28 +71,68 @@ defmodule Mix.Tasks.Igniter.New do
     else
       # the spaces are required here to avoid the need for a format
       new_contents =
-        String.replace(
-          contents,
-          "defp deps do\n    [\n",
-          "defp deps do\n    [\n      {:igniter, #{version_requirement}},\n"
-        )
+        contents
+        |> add_igniter_dep(version_requirement)
+        |> dont_consolidate_protocols_in_dev()
+        |> Code.format_string!()
 
       File.write!("mix.exs", new_contents)
+
+      Mix.Task.run("format")
+      Mix.Task.reenable("format")
     end
 
     unless Enum.empty?(install) do
-      Mix.shell().cmd("mix deps.get")
-      Mix.shell().cmd("mix compile")
+      case Mix.shell().cmd("mix deps.get") do
+        0 ->
+          Mix.Project.clear_deps_cache()
+          Mix.Project.pop()
+          Mix.Dep.clear_cached()
+
+          "mix.exs"
+          |> File.read!()
+          |> Code.eval_string([], file: Path.expand("mix.exs"))
+
+          Mix.Task.reenable("deps.compile")
+          Mix.Task.run("deps.compile", ["--ignore-module-conflict"])
+
+          Mix.Task.reenable("compile")
+          Mix.Task.run("compile", ["--ignore-module-conflict"])
+
+        exit_code ->
+          Mix.shell().info("""
+          mix deps.get returned exited with code: `#{exit_code}`
+          """)
+      end
 
       example =
         if options[:example] do
           "--example"
         end
 
-      Mix.shell().cmd("mix igniter.install #{Enum.join(install, ",")} --yes #{example}")
+      Mix.Task.run(
+        "igniter.install",
+        Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
+      )
     end
 
     :ok
+  end
+
+  defp add_igniter_dep(contents, version_requirement) do
+    String.replace(
+      contents,
+      "defp deps do\n    [\n",
+      "defp deps do\n    [\n      {:igniter, #{version_requirement}},\n"
+    )
+  end
+
+  defp dont_consolidate_protocols_in_dev(contents) do
+    String.replace(
+      contents,
+      "elixir: \"~> 1.17\",\n",
+      "elixir: \"~> 1.17\",\n      consolidate_protocols: Mix.env() != :dev,\n"
+    )
   end
 
   defp version_requirement do

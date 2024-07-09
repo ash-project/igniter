@@ -390,15 +390,20 @@ defmodule Igniter do
   ## Options
 
   * `:error_on_abort?` - If `true`, raises an error if the user aborts the operation. Returns the original igniter if not.
+  * `:yes` - If `true`, automatically applies the changes without prompting the user.
   """
   def apply_and_fetch_dependencies(igniter, opts \\ []) do
     if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
          has_changes?(igniter, ["mix.exs"]) do
-      case Igniter.do_or_dry_run(igniter,
-             title: "Fetch Required Dependencies",
-             dry_run: true,
-             paths: ["mix.exs"]
-           ) do
+      write_result =
+        Igniter.do_or_dry_run(igniter,
+          title: "Fetch Required Dependencies",
+          yes: opts[:yes],
+          dry_run: !opts[:yes],
+          paths: ["mix.exs"]
+        )
+
+      case write_result do
         :issues ->
           raise "Exiting due to issues found while previewing changes."
 
@@ -411,15 +416,17 @@ defmodule Igniter do
             end
 
           proceed? =
-            Mix.shell().yes?(message)
+            opts[:yes] ||
+              Mix.shell().yes?(message)
 
           if proceed? do
-            :changes_made =
+            unless opts[:yes] do
               Igniter.do_or_dry_run(igniter,
                 yes: true,
                 title: "Applying changes",
                 paths: ["mix.exs"]
               )
+            end
 
             Mix.shell().info("running mix deps.get")
 
@@ -427,18 +434,16 @@ defmodule Igniter do
               0 ->
                 Mix.Project.clear_deps_cache()
                 Mix.Project.pop()
+                Mix.Dep.clear_cached()
 
                 "mix.exs"
                 |> File.read!()
                 |> Code.eval_string([], file: Path.expand("mix.exs"))
 
-                Mix.Dep.clear_cached()
-                Mix.Project.clear_deps_cache()
-
-                Mix.Task.run("deps.compile")
+                Igniter.Util.DepsCompile.run()
 
                 Mix.Task.reenable("compile")
-                Mix.Task.run("compile")
+                Mix.Task.run("compile", ["--ignore-module-conflict"])
 
               exit_code ->
                 Mix.shell().info("""
@@ -520,7 +525,7 @@ defmodule Igniter do
             if opts[:dry_run] || !opts[:yes] do
               Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
-              display_diff(Rewrite.sources(igniter.rewrite))
+              display_diff(Rewrite.sources(igniter.rewrite), opts)
             end
 
             :dry_run_with_changes
@@ -629,54 +634,56 @@ defmodule Igniter do
           "Changes have been made to the project and the --check flag was specified."
         )
 
-        display_diff(igniter.rewrite.sources)
+        display_diff(igniter.rewrite.sources, opts)
 
         System.halt(1)
     end
   end
 
-  defp display_diff(sources) do
-    Enum.each(sources, fn source ->
-      if Rewrite.Source.from?(source, :string) do
-        content_lines =
-          source
-          |> Rewrite.Source.get(:content)
-          |> String.split("\n")
-          |> Enum.with_index()
+  defp display_diff(sources, opts) do
+    unless opts[:yes] do
+      Enum.each(sources, fn source ->
+        if Rewrite.Source.from?(source, :string) do
+          content_lines =
+            source
+            |> Rewrite.Source.get(:content)
+            |> String.split("\n")
+            |> Enum.with_index()
 
-        space_padding =
-          content_lines
-          |> Enum.map(&elem(&1, 1))
-          |> Enum.max()
-          |> to_string()
-          |> String.length()
+          space_padding =
+            content_lines
+            |> Enum.map(&elem(&1, 1))
+            |> Enum.max()
+            |> to_string()
+            |> String.length()
 
-        diffish_looking_text =
-          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-            line_number = line_number_minus_one + 1
+          diffish_looking_text =
+            Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+              line_number = line_number_minus_one + 1
 
-            "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
-          end)
+              "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
+            end)
 
-        if String.trim(diffish_looking_text) != "" do
-          Mix.shell().info("""
-          Create: #{Rewrite.Source.get(source, :path)}
+          if String.trim(diffish_looking_text) != "" do
+            Mix.shell().info("""
+            Create: #{Rewrite.Source.get(source, :path)}
 
-          #{diffish_looking_text}
-          """)
+            #{diffish_looking_text}
+            """)
+          end
+        else
+          diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
+
+          if String.trim(diff) != "" do
+            Mix.shell().info("""
+            Update: #{Rewrite.Source.get(source, :path)}
+
+            #{diff}
+            """)
+          end
         end
-      else
-        diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
-
-        if String.trim(diff) != "" do
-          Mix.shell().info("""
-          Update: #{Rewrite.Source.get(source, :path)}
-
-          #{diff}
-          """)
-        end
-      end
-    end)
+      end)
+    end
   end
 
   defp igniter_issues(igniter) do

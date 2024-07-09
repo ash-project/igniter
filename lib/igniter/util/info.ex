@@ -9,15 +9,20 @@ defmodule Igniter.Util.Info do
         argv,
         schema,
         task_name,
+        opts,
         acc \\ []
       ) do
     schema = recursively_compose_schema(schema, argv, task_name)
 
-    igniter = add_deps(igniter, List.wrap(schema.adds_deps) ++ List.wrap(schema.installs))
+    igniter =
+      add_deps(
+        igniter || Igniter.new(),
+        List.wrap(schema.adds_deps) ++ List.wrap(schema.installs)
+      )
 
     case schema.installs do
       [] ->
-        {Igniter.apply_and_fetch_dependencies(igniter),
+        {Igniter.apply_and_fetch_dependencies(igniter, opts),
          Enum.map(Enum.uniq(acc), &"#{&1}.install"), validate!(argv, schema, task_name)}
 
       installs ->
@@ -25,7 +30,7 @@ defmodule Igniter.Util.Info do
         installs = Keyword.keys(installs)
 
         igniter
-        |> Igniter.apply_and_fetch_dependencies()
+        |> Igniter.apply_and_fetch_dependencies(opts)
         |> compose_install_and_validate!(
           argv,
           %{
@@ -35,6 +40,7 @@ defmodule Igniter.Util.Info do
               adds_deps: []
           },
           task_name,
+          opts,
           acc ++ installs
         )
     end
