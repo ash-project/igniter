@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.8](https://github.com/ash-project/igniter/compare/v0.2.7...v0.2.8) (2024-07-09)
+
+
+
+
+### Bug Fixes:
+
+* fix deps compilation issues by vendoring `deps.compile`
+
+* honor `--yes` flag when installing deps always
+
+### Improvements:
+
+* small tweaks to output
+
 ## [v0.2.7](https://github.com/ash-project/igniter/compare/v0.2.6...v0.2.7) (2024-07-09)
 
 
