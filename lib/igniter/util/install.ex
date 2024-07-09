@@ -29,9 +29,11 @@ defmodule Igniter.Util.Install do
       end)
 
     global_options =
-      Igniter.Mix.Task.Info.global_options()
-      |> Keyword.update!(:switches, &Keyword.put(&1, :example, :boolean))
-      |> Keyword.update!(:aliases, &Keyword.put(&1, :e, :example))
+      Keyword.update!(
+        Igniter.Mix.Task.Info.global_options(),
+        :switches,
+        &Keyword.put(&1, :example, :boolean)
+      )
 
     {igniter, desired_tasks, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
@@ -39,7 +41,7 @@ defmodule Igniter.Util.Install do
         argv,
         %Igniter.Mix.Task.Info{
           schema: global_options[:switches],
-          aliases: global_options[:aliases],
+          aliases: [],
           installs: task_installs
         },
         "igniter.install"

@@ -19,9 +19,9 @@ defmodule Mix.Tasks.Igniter.Install do
 
   ## Switches
 
-  * `--dry-run` - `d` - Run the task without making any changes.
-  * `--yes` - `y` - Automatically answer yes to any prompts.
-  * `--example` - `e` - Request that installed packages include initial example code.
+  * `--dry-run` - Run the task without making any changes.
+  * `--yes` - Automatically answer yes to any prompts.
+  * `--example` - Request that installed packages include initial example code.
   """
   use Mix.Task
 

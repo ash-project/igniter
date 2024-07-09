@@ -31,11 +31,8 @@ defmodule Igniter.Mix.Task do
         yes: :boolean,
         check: :boolean
       ],
-      aliases: [
-        d: :dry_run,
-        y: :yes,
-        c: :check
-      ]
+      # no aliases for global options!
+      aliases: []
     ]
 
     defstruct schema: [],
@@ -97,7 +94,6 @@ defmodule Igniter.Mix.Task do
           |> info(nil)
           |> Kernel.||(%Info{})
           |> Map.update!(:schema, &Keyword.merge(&1, global_options[:switches]))
-          |> Map.update!(:aliases, &Keyword.merge(&1, global_options[:aliases]))
 
         {opts, _} =
           Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
