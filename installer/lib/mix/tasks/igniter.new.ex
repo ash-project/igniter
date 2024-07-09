@@ -25,10 +25,8 @@ defmodule Mix.Tasks.Igniter.New do
 
     install_with = options[:with] || "new"
 
-    unless install_with in ["phx.new", "new"] do
-      if String.match?(install_with, ~r/\s/) do
-        raise ArgumentError, "The --with option must not contain any spaces, got: #{install_with}"
-      end
+    if String.match?(install_with, ~r/\s/) do
+      raise ArgumentError, "The --with option must not contain any spaces, got: #{install_with}"
     end
 
     install =
@@ -77,9 +75,6 @@ defmodule Mix.Tasks.Igniter.New do
         |> Code.format_string!()
 
       File.write!("mix.exs", new_contents)
-
-      Mix.Task.run("format")
-      Mix.Task.reenable("format")
     end
 
     unless Enum.empty?(install) do
@@ -130,8 +125,8 @@ defmodule Mix.Tasks.Igniter.New do
   defp dont_consolidate_protocols_in_dev(contents) do
     String.replace(
       contents,
-      "elixir: \"~> 1.17\",\n",
-      "elixir: \"~> 1.17\",\n      consolidate_protocols: Mix.env() != :dev,\n"
+      "start_permanent: Mix.env() == :prod,\n",
+      "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
     )
   end
 

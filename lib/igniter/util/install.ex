@@ -51,17 +51,9 @@ defmodule Igniter.Util.Install do
     igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
 
     igniter_tasks =
-      Mix.Task.load_all()
-      |> Stream.map(fn item ->
-        Code.ensure_compiled!(item)
-        item
-      end)
-      |> Stream.filter(&implements_behaviour?(&1, Igniter.Mix.Task))
-      |> Enum.filter(&(Mix.Task.task_name(&1) in desired_tasks))
-      |> Enum.sort_by(
-        &Enum.find_index(desired_tasks, fn e -> e == Mix.Task.task_name(&1) end),
-        &<=/2
-      )
+      desired_tasks
+      |> Enum.map(&Mix.Task.get/1)
+      |> Enum.filter(& &1)
 
     title =
       case desired_tasks do
@@ -80,40 +72,6 @@ defmodule Igniter.Util.Install do
 
     :ok
   end
-
-  def implements_behaviour?(module, behaviour) do
-    :attributes
-    |> module.module_info()
-    |> Enum.any?(fn
-      {:behaviour, ^behaviour} ->
-        true
-
-      # optimizations, probably extremely minor but this is in a tight loop in some places
-      {:behaviour, [^behaviour | _]} ->
-        true
-
-      {:behaviour, [_, ^behaviour | _]} ->
-        true
-
-      {:behaviour, [_, _, ^behaviour | _]} ->
-        true
-
-      # never seen a module with three behaviours in real life, let alone four.
-      {:behaviour, behaviours} when is_list(behaviours) ->
-        module in behaviours
-
-      _ ->
-        false
-    end)
-  rescue
-    _ ->
-      false
-  end
-
-  # defp local_dep?(install) do
-  #   config = Mix.Project.config()[:deps][install]
-  #   Keyword.keyword?(config) && config[:path]
-  # end
 
   defp determine_dep_type_and_version(requirement) do
     case String.split(requirement, "@", trim: true, parts: 2) do
