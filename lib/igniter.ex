@@ -994,6 +994,14 @@ defmodule Igniter do
         end
       end)
 
+    needs_test_support? =
+      Enum.any?(igniter.rewrite, fn source ->
+        Path.extname(source.path) == ".ex" &&
+          source.path
+          |> Path.split()
+          |> List.starts_with?(["test", "support"])
+      end)
+
     %{
       igniter
       | issues: Enum.uniq(igniter.issues ++ source_issues),
@@ -1002,6 +1010,13 @@ defmodule Igniter do
     }
     |> Igniter.Code.Module.move_files()
     |> remove_unchanged_files()
+    |> then(fn igniter ->
+      if needs_test_support? do
+        Igniter.Project.Test.ensure_test_support(igniter)
+      else
+        igniter
+      end
+    end)
   end
 
   defp remove_unchanged_files(igniter) do
