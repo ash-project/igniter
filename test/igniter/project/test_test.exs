@@ -8,6 +8,24 @@ defmodule Igniter.Project.TestTest do
       assert %{rewrite: rewrite} =
                Igniter.new()
                |> Igniter.include_existing_elixir_file("mix.exs")
+               |> Map.update!(:rewrite, fn rewrite ->
+                 source = Rewrite.source!(rewrite, "mix.exs")
+
+                 source =
+                   Source.update(source, :content, """
+                    defmodule Igniter.MixProject do
+                      use Mix.Project
+
+                      def project do
+                        [
+                          app: :igniter
+                        ]
+                      end
+                    end
+                   """)
+
+                 Rewrite.update!(rewrite, source)
+               end)
                |> Igniter.Project.Test.ensure_test_support()
 
       contents =
@@ -20,7 +38,7 @@ defmodule Igniter.Project.TestTest do
       assert String.contains?(
                contents,
                """
-               defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]
+               defp elixirc_paths(:test), do: elixirc_paths(:dev) ++ [\"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]
                """
                |> String.trim()
              )

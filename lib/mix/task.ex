@@ -69,7 +69,6 @@ defmodule Igniter.Mix.Task do
   """
   @callback info(argv :: list(String.t()), source :: nil | String.t()) ::
               Info.t()
-              | nil
 
   defmacro __using__(_opts) do
     quote do
@@ -92,7 +91,6 @@ defmodule Igniter.Mix.Task do
         info =
           argv
           |> info(nil)
-          |> Kernel.||(%Info{})
           |> Map.update!(:schema, &Keyword.merge(&1, global_options[:switches]))
 
         {opts, _} =
@@ -117,7 +115,7 @@ defmodule Igniter.Mix.Task do
           """)
         end
 
-        nil
+        %Info{extra_args?: true}
       end
 
       defoverridable supports_umbrella?: 0, info: 2
