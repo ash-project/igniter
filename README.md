@@ -26,7 +26,7 @@ Right now, all files that are touched are formatted in their entirety. This may 
 Igniter can be added to an existing elixir project by adding it to your dependencies:
 
 ```elixir
-{:igniter, "~> 0.1", only: [:dev]}
+{:igniter, "~> 0.1"}
 ```
 
 You can also generate new projects with igniter preinstalled, and run installers in the same command.
