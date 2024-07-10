@@ -22,13 +22,11 @@ defmodule Igniter.Project.Test do
                    Igniter.Code.Common.add_code(
                      zipper,
                      "defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]"
-                   ),
-                 zipper <-
-                   Igniter.Code.Common.add_code(
-                     zipper,
-                     "defp elixirc_paths(_), do: [\"lib\"]"
                    ) do
-              zipper
+              Igniter.Code.Common.add_code(
+                zipper,
+                "defp elixirc_paths(_), do: [\"lib\"]"
+              )
             end
         end
       end
