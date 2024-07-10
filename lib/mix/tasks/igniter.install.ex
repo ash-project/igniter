@@ -28,6 +28,7 @@ defmodule Mix.Tasks.Igniter.Install do
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
+    Mix.Task.run("compile")
     {packages, argv} = Enum.split_while(argv, fn arg -> !String.starts_with?(arg, "-") end)
 
     if Enum.empty?(packages) do

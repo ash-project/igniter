@@ -88,11 +88,7 @@ defmodule Mix.Tasks.Igniter.New do
           |> File.read!()
           |> Code.eval_string([], file: Path.expand("mix.exs"))
 
-          Mix.Task.reenable("deps.compile")
-          Mix.Task.run("deps.compile", ["--ignore-module-conflict"])
-
-          Mix.Task.reenable("compile")
-          Mix.Task.run("compile", ["--ignore-module-conflict"])
+          Igniter.Util.DepsCompile.run()
 
         exit_code ->
           Mix.shell().info("""

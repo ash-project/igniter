@@ -13,12 +13,21 @@ defmodule Igniter.MixProject do
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       description: @description,
       aliases: aliases(),
       package: package(),
       docs: docs(),
       deps: deps()
     ]
+  end
+
+  defp elixirc_paths(:test) do
+    elixirc_paths(:dev) ++ ["test/support"]
+  end
+
+  defp elixirc_paths(_env) do
+    ["lib", "installer/lib/private"]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -63,7 +72,7 @@ defmodule Igniter.MixProject do
     [
       name: :igniter,
       licenses: ["MIT"],
-      files: ~w(lib .formatter.exs mix.exs README* LICENSE*
+      files: ~w(lib installer/lib/private .formatter.exs mix.exs README* LICENSE*
       CHANGELOG*),
       links: %{
         GitHub: "https://github.com/ash-project/igniter",

@@ -442,9 +442,6 @@ defmodule Igniter do
 
                 Igniter.Util.DepsCompile.run()
 
-                Mix.Task.reenable("compile")
-                Mix.Task.run("compile", ["--ignore-module-conflict"])
-
               exit_code ->
                 Mix.shell().info("""
                 mix deps.get returned exited with code: `#{exit_code}`

@@ -21,7 +21,7 @@ defmodule Igniter.Project.Test do
                  zipper <-
                    Igniter.Code.Common.add_code(
                      zipper,
-                     "defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]"
+                     "defp elixirc_paths(:test), do: elixirc_paths(:dev) ++ [\"test/support\"]"
                    ) do
               {:ok,
                Igniter.Code.Common.add_code(
