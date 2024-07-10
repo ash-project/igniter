@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.11](https://github.com/ash-project/igniter/compare/v0.2.10...v0.2.11) (2024-07-10)
+
+
+
+
+### Bug Fixes:
+
+* prevent crash on specific cases with `igniter.new`
+
+### Improvements:
+
+* more consistent initial impl of `elixirc_paths`
+
+* support :kind in find_and_update_or_create_module/5 (#38)
+
 ## [v0.2.10](https://github.com/ash-project/igniter/compare/v0.2.9...v0.2.10) (2024-07-10)
 
 

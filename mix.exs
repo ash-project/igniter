@@ -1,7 +1,7 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.2.10"
+  @version "0.2.11"
 
   @description """
   A code generation and project patching framework
