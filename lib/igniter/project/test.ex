@@ -8,7 +8,7 @@ defmodule Igniter.Project.Test do
              Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1) do
         case Igniter.Code.Keyword.get_key(zipper, :elixirc_paths) do
           {:ok, zipper} ->
-            Sourceror.Zipper.top(zipper)
+            {:ok, Sourceror.Zipper.top(zipper)}
 
           _ ->
             with {:ok, zipper} <-
@@ -23,10 +23,11 @@ defmodule Igniter.Project.Test do
                      zipper,
                      "defp elixirc_paths(:test), do: [\"lib\", \"test/support\"]"
                    ) do
-              Igniter.Code.Common.add_code(
-                zipper,
-                "defp elixirc_paths(_), do: [\"lib\"]"
-              )
+              {:ok,
+               Igniter.Code.Common.add_code(
+                 zipper,
+                 "defp elixirc_paths(_), do: [\"lib\"]"
+               )}
             end
         end
       end

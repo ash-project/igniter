@@ -42,11 +42,7 @@ defmodule Igniter.Code.Module do
         location =
           case Keyword.get(opts, :path, nil) do
             nil ->
-              case Keyword.get(opts, :kind, :lib) do
-                :lib -> proper_location(module_name)
-                :test -> proper_test_location(module_name)
-                :test_support -> proper_test_support_location(module_name)
-              end
+              proper_location(module_name)
 
             path ->
               path
