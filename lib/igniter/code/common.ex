@@ -61,8 +61,7 @@ defmodule Igniter.Code.Common do
       ast =
         unquote(zipper)
         |> Igniter.Code.Common.maybe_move_to_single_child_block()
-        |> Zipper.subtree()
-        |> Zipper.root()
+        |> Zipper.node()
 
       match?(unquote(pattern), ast)
     end
@@ -133,20 +132,14 @@ defmodule Igniter.Code.Common do
   end
 
   defp do_add_code(zipper, new_code, placement, expand_env? \\ true) do
-    current_code =
-      zipper
-      |> Zipper.subtree()
-
     new_code =
       if expand_env? do
-        use_aliases(new_code, current_code)
+        use_aliases(new_code, zipper)
       else
         new_code
       end
 
-    current_code = Zipper.root(current_code)
-
-    case current_code do
+    case zipper.node do
       {:__block__, meta, stuff} when length(stuff) > 1 or stuff == [] ->
         new_stuff =
           if placement == :after do
@@ -169,10 +162,7 @@ defmodule Igniter.Code.Common do
             end
 
           upwards ->
-            upwards
-            |> Zipper.subtree()
-            |> Zipper.root()
-            |> case do
+            case upwards.node do
               {:__block__, meta, stuff} ->
                 new_stuff =
                   if placement == :after do
@@ -205,12 +195,7 @@ defmodule Igniter.Code.Common do
   end
 
   def replace_code(zipper, code) do
-    current_code =
-      zipper
-      |> Zipper.subtree()
-
-    code = use_aliases(code, current_code)
-
+    code = use_aliases(code, zipper)
     Zipper.replace(zipper, code)
   end
 
@@ -333,10 +318,7 @@ defmodule Igniter.Code.Common do
   def maybe_move_to_single_child_block(nil), do: nil
 
   def maybe_move_to_single_child_block(zipper) do
-    zipper
-    |> Zipper.subtree()
-    |> Zipper.root()
-    |> case do
+    case zipper.node do
       {:__block__, _, [_]} ->
         zipper
         |> Zipper.down()
@@ -360,10 +342,7 @@ defmodule Igniter.Code.Common do
   def maybe_move_to_block(nil), do: nil
 
   def maybe_move_to_block(zipper) do
-    zipper
-    |> Zipper.subtree()
-    |> Zipper.root()
-    |> case do
+    case zipper.node do
       {:__block__, _, _} ->
         zipper
         |> Zipper.down()
@@ -550,7 +529,6 @@ defmodule Igniter.Code.Common do
 
   zipper
   |> Igniter.Code.Common.move_to_cursor(pattern)
-  |> Zipper.subtree()
   |> Zipper.node()
   # => 10
   ```
@@ -569,7 +547,7 @@ defmodule Igniter.Code.Common do
 
   defp do_move_to_cursor(%Zipper{} = zipper, %Zipper{} = pattern_zipper) do
     cond do
-      cursor?(pattern_zipper |> Zipper.subtree() |> Zipper.node()) ->
+      pattern_zipper |> Zipper.node() |> cursor?() ->
         {:ok, zipper}
 
       match_type = zippers_match(zipper, pattern_zipper) ->
@@ -593,17 +571,7 @@ defmodule Igniter.Code.Common do
   defp cursor?(_other), do: false
 
   defp zippers_match(zipper, pattern_zipper) do
-    zipper_node =
-      zipper
-      |> Zipper.subtree()
-      |> Zipper.node()
-
-    pattern_node =
-      pattern_zipper
-      |> Zipper.subtree()
-      |> Zipper.node()
-
-    case {zipper_node, pattern_node} do
+    case {zipper.node, pattern_zipper.node} do
       {_, {:__, _, _}} ->
         :skip
 
@@ -673,8 +641,7 @@ defmodule Igniter.Code.Common do
   @spec nodes_equal?(Zipper.t() | Macro.t(), Macro.t()) :: boolean
   def nodes_equal?(%Zipper{} = left, right) do
     with zipper when not is_nil(zipper) <- Zipper.up(left),
-         {:defmodule, _, [{:__aliases__, _, parts}, _]} <-
-           zipper |> Zipper.subtree() |> Zipper.node(),
+         {:defmodule, _, [{:__aliases__, _, parts}, _]} <- Zipper.node(zipper),
          {:ok, env} <- current_env(zipper),
          true <- nodes_equal?({:__aliases__, [], [Module.concat([env.module | parts])]}, right) do
       true
@@ -682,7 +649,6 @@ defmodule Igniter.Code.Common do
       _ ->
         left
         |> expand_aliases()
-        |> Zipper.subtree()
         |> Zipper.node()
         |> nodes_equal?(right)
     end
@@ -700,10 +666,7 @@ defmodule Igniter.Code.Common do
 
   @spec expand_alias(Zipper.t()) :: Zipper.t()
   def expand_alias(zipper) do
-    zipper
-    |> Zipper.subtree()
-    |> Zipper.node()
-    |> case do
+    case zipper.node do
       {:__aliases__, _, parts} ->
         case current_env(zipper) do
           {:ok, env} ->
