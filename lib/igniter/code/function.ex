@@ -13,12 +13,7 @@ defmodule Igniter.Code.Function do
         unquote(zipper),
         unquote(index),
         fn zipper ->
-          code_at_node =
-            zipper
-            |> Sourceror.Zipper.subtree()
-            |> Sourceror.Zipper.root()
-
-          match?(unquote(pattern), code_at_node)
+          match?(unquote(pattern), zipper.node)
         end
       )
     end
@@ -87,8 +82,7 @@ defmodule Igniter.Code.Function do
   def function_call?(%Zipper{} = zipper, name, arity) do
     zipper
     |> Common.maybe_move_to_single_child_block()
-    |> Zipper.subtree()
-    |> Zipper.root()
+    |> Zipper.node()
     |> case do
       {^name, _, args} ->
         Enum.count(args) == arity
@@ -112,8 +106,7 @@ defmodule Igniter.Code.Function do
   def function_call?(%Zipper{} = zipper, name) do
     zipper
     |> Common.maybe_move_to_single_child_block()
-    |> Zipper.subtree()
-    |> Zipper.root()
+    |> Zipper.node()
     |> case do
       {^name, _, _} ->
         true
@@ -137,8 +130,7 @@ defmodule Igniter.Code.Function do
   def function_call?(%Zipper{} = zipper) do
     zipper
     |> Common.maybe_move_to_single_child_block()
-    |> Zipper.subtree()
-    |> Zipper.root()
+    |> Zipper.node()
     |> case do
       {:|>, _, [{name, _, context} | _rest]} when is_atom(context) and is_atom(name) ->
         true
@@ -391,10 +383,7 @@ defmodule Igniter.Code.Function do
   end
 
   defp pipeline?(zipper) do
-    zipper
-    |> Zipper.subtree()
-    |> Zipper.root()
-    |> case do
+    case zipper.node do
       {:|>, _, _} -> true
       _ -> false
     end

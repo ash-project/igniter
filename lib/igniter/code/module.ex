@@ -156,17 +156,13 @@ defmodule Igniter.Code.Module do
         |> Rewrite.Source.get(:quoted)
         |> Zipper.zip()
         |> Zipper.traverse([], fn zipper, acc ->
-          zipper
-          |> Zipper.subtree()
-          |> Zipper.node()
-          |> case do
+          case zipper.node do
             {:defmodule, _, [_, _]} ->
               {:ok, mod_zipper} = Igniter.Code.Function.move_to_nth_argument(zipper, 0)
 
               module_name =
                 mod_zipper
                 |> Igniter.Code.Common.expand_alias()
-                |> Zipper.subtree()
                 |> Zipper.node()
                 |> Igniter.Code.Module.to_module_name()
 
@@ -265,7 +261,6 @@ defmodule Igniter.Code.Module do
            module <-
              zipper
              |> Igniter.Code.Common.expand_alias()
-             |> Zipper.subtree()
              |> Zipper.node(),
            module when not is_nil(module) <- to_module_name(module),
            new_path when not is_nil(new_path) <-

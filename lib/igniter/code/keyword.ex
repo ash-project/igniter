@@ -117,10 +117,7 @@ defmodule Igniter.Code.Keyword do
           value = Common.use_aliases(value, zipper)
 
           to_append =
-            zipper
-            |> Zipper.subtree()
-            |> Zipper.node()
-            |> case do
+            case zipper.node do
               [{{:__block__, meta, _}, _} | _] ->
                 if meta[:format] do
                   {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [value]}}
@@ -172,10 +169,7 @@ defmodule Igniter.Code.Keyword do
            end) do
         :error ->
           to_append =
-            zipper
-            |> Zipper.subtree()
-            |> Zipper.node()
-            |> case do
+            case zipper.node do
               [{{:__block__, meta, _}, {:__block__, _, _}} | _] ->
                 value =
                   value
