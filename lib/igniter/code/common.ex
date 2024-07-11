@@ -154,37 +154,27 @@ defmodule Igniter.Code.Common do
         zipper
         |> highest_adjacent_block()
         |> case do
-          nil ->
+          %Zipper{node: {:__block__, meta, stuff}} = upwards ->
+            new_stuff =
+              if placement == :after do
+                List.wrap(stuff) ++ [new_code]
+              else
+                case List.wrap(stuff) do
+                  [first | rest] ->
+                    [first, new_code | rest]
+
+                  _ ->
+                    [new_code | stuff]
+                end
+              end
+
+            Zipper.replace(upwards, {:__block__, meta, new_stuff})
+
+          _ ->
             if placement == :after do
               Zipper.replace(zipper, {:__block__, [], [code, new_code]})
             else
               Zipper.replace(zipper, {:__block__, [], [new_code, code]})
-            end
-
-          upwards ->
-            case upwards.node do
-              {:__block__, meta, stuff} ->
-                new_stuff =
-                  if placement == :after do
-                    List.wrap(stuff) ++ [new_code]
-                  else
-                    case List.wrap(stuff) do
-                      [first | rest] ->
-                        [first, new_code | rest]
-
-                      _ ->
-                        [new_code | stuff]
-                    end
-                  end
-
-                Zipper.replace(upwards, {:__block__, meta, new_stuff})
-
-              _ ->
-                if placement == :after do
-                  Zipper.replace(zipper, {:__block__, [], [code, new_code]})
-                else
-                  Zipper.replace(zipper, {:__block__, [], [new_code, code]})
-                end
             end
         end
     end
