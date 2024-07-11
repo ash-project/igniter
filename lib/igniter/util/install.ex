@@ -77,14 +77,24 @@ defmodule Igniter.Util.Install do
     case String.split(requirement, "@", trim: true, parts: 2) do
       [package] ->
         if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
-          case Req.get!("https://hex.pm/api/packages/#{package}").body do
-            %{
-              "releases" => [
-                %{"version" => version}
-                | _
-              ]
-            } ->
-              {package, Igniter.Util.Version.version_string_to_general_requirement!(version)}
+          :inets.start()
+          :ssl.start()
+          url = ~c"https://hex.pm/api/packages/#{package}"
+
+          case :httpc.request(:get, {url, [{~c"User-Agent", ~c"igniter-installer"}]}, [], []) do
+            {:ok, {{_version, _, _reasonPhrase}, _headers, body}} ->
+              case Jason.decode(body) do
+                {:ok, %{
+                  "releases" => [
+                    %{"version" => version}
+                    | _
+                  ]
+                }} ->
+                  {package, Igniter.Util.Version.version_string_to_general_requirement!(version)}
+
+                _ ->
+                  :error
+              end
 
             _ ->
               :error

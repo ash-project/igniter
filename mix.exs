@@ -33,7 +33,7 @@ defmodule Igniter.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :public_key, :ssl]
     ]
   end
 
@@ -87,10 +87,10 @@ defmodule Igniter.MixProject do
   defp deps do
     [
       {:rewrite, "~> 0.9"},
-      {:req, "~> 0.4"},
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
+      {:jason, "~> 1.4"},
       # can't use spark because spark depends on this
       {:nimble_options, "~> 1.0"},
       # Dev/Test dependencies
