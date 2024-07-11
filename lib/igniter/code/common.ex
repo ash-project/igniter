@@ -201,22 +201,11 @@ defmodule Igniter.Code.Common do
 
   defp highest_adjacent_block(zipper) do
     case Zipper.up(zipper) do
-      nil ->
+      %Zipper{node: {:__block__, _, _}} = upwards ->
+        highest_adjacent_block(upwards) || upwards
+
+      _ ->
         nil
-
-      upwards ->
-        upwards
-        |> Zipper.node()
-        |> case do
-          {:__block__, _, _} ->
-            case highest_adjacent_block(upwards) do
-              nil -> upwards
-              zipper -> zipper
-            end
-
-          _ ->
-            nil
-        end
     end
   end
 
