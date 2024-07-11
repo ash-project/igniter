@@ -209,6 +209,10 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @doc """
+  Replaces full module names in `new_code` with any aliases for that
+  module found in the `current_code` environment.
+  """
   def use_aliases(new_code, current_code) do
     case current_env(current_code) do
       {:ok, env} ->
