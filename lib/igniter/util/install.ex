@@ -82,14 +82,15 @@ defmodule Igniter.Util.Install do
           url = ~c"https://hex.pm/api/packages/#{package}"
 
           case :httpc.request(:get, {url, [{~c"User-Agent", ~c"igniter-installer"}]}, [], []) do
-            {:ok, {{_version, _, _reasonPhrase}, _headers, body}} ->
+            {:ok, {{_version, _, _reason_phrase}, _headers, body}} ->
               case Jason.decode(body) do
-                {:ok, %{
-                  "releases" => [
-                    %{"version" => version}
-                    | _
-                  ]
-                }} ->
+                {:ok,
+                 %{
+                   "releases" => [
+                     %{"version" => version}
+                     | _
+                   ]
+                 }} ->
                   {package, Igniter.Util.Version.version_string_to_general_requirement!(version)}
 
                 _ ->
