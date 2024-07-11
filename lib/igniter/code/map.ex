@@ -136,10 +136,7 @@ defmodule Igniter.Code.Map do
   end
 
   defp map_keys_format(zipper) do
-    zipper
-    |> Zipper.subtree()
-    |> Zipper.node()
-    |> case do
+    case zipper.node do
       value when is_list(value) ->
         Enum.all?(value, fn
           {:__block__, meta, _} ->

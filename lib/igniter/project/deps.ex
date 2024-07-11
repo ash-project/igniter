@@ -89,7 +89,6 @@ defmodule Igniter.Project.Deps do
              end
            end) do
       current_declaration
-      |> Zipper.subtree()
       |> Zipper.node()
       |> Sourceror.to_string()
     else
