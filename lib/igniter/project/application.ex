@@ -65,7 +65,7 @@ defmodule Igniter.Project.Application do
 
     Igniter.update_elixir_file(igniter, path, fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Application),
-           {:ok, zipper} <- Igniter.Code.Module.move_to_def(zipper, :start, 2),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
            {:ok, zipper} <-
              Igniter.Code.Function.move_to_function_call_in_current_scope(
                zipper,
@@ -121,7 +121,7 @@ defmodule Igniter.Project.Application do
     Igniter.update_elixir_file(igniter, "mix.exs", fn zipper ->
       case Igniter.Code.Module.move_to_module_using(zipper, Mix.Project) do
         {:ok, zipper} ->
-          case Igniter.Code.Module.move_to_def(zipper, :application, 0) do
+          case Igniter.Code.Function.move_to_def(zipper, :application, 0) do
             {:ok, zipper} ->
               zipper
               |> Zipper.rightmost()

@@ -3,6 +3,7 @@ defmodule Igniter.Code.Function do
   Utilities for working with functions.
   """
 
+  require Igniter.Code.Common
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
@@ -16,6 +17,55 @@ defmodule Igniter.Code.Function do
           match?(unquote(pattern), zipper.node)
         end
       )
+    end
+  end
+
+  @spec move_to_defp(Zipper.t(), fun :: atom, arity :: integer | list(integer)) ::
+          {:ok, Zipper.t()} | :error
+  def move_to_defp(zipper, fun, arity) do
+    do_move_to_def(zipper, fun, arity, :defp)
+  end
+
+  @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer)) ::
+          {:ok, Zipper.t()} | :error
+  def move_to_def(zipper, fun, arity) do
+    do_move_to_def(zipper, fun, arity, :def)
+  end
+
+  defp do_move_to_def(zipper, fun, [arity], kind) do
+    do_move_to_def(zipper, fun, arity, kind)
+  end
+
+  defp do_move_to_def(zipper, fun, [arity | rest], kind) do
+    case do_move_to_def(zipper, fun, arity, kind) do
+      {:ok, zipper} -> {:ok, zipper}
+      :error -> do_move_to_def(zipper, fun, rest, kind)
+    end
+  end
+
+  defp do_move_to_def(zipper, fun, arity, kind) do
+    case Common.move_to_pattern(
+           zipper,
+           {^kind, _, [{^fun, _, args}, _]} when length(args) == arity
+         ) do
+      :error ->
+        if arity == 0 do
+          case Common.move_to_pattern(
+                 zipper,
+                 {^kind, _, [{^fun, _, context}, _]} when is_atom(context)
+               ) do
+            :error ->
+              :error
+
+            {:ok, zipper} ->
+              Common.move_to_do_block(zipper)
+          end
+        else
+          :error
+        end
+
+      {:ok, zipper} ->
+        Common.move_to_do_block(zipper)
     end
   end
 

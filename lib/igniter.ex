@@ -89,7 +89,7 @@ defmodule Igniter do
     paths =
       glob
       |> case do
-        %GlobEx{} = glob -> glob
+        %{__struct__: GlobEx} = glob -> glob
         string -> GlobEx.compile!(Path.expand(string))
       end
       |> GlobEx.ls()
@@ -128,7 +128,7 @@ defmodule Igniter do
   def update_glob(igniter, glob, func) do
     glob =
       case glob do
-        %GlobEx{} = glob -> glob
+        %{__struct__: GlobEx} = glob -> glob
         string -> GlobEx.compile!(Path.expand(string))
       end
 
@@ -395,19 +395,57 @@ defmodule Igniter do
   def apply_and_fetch_dependencies(igniter, opts \\ []) do
     if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
          has_changes?(igniter, ["mix.exs"]) do
-      write_result =
-        Igniter.do_or_dry_run(igniter,
-          title: "Fetch Required Dependencies",
-          yes: opts[:yes],
-          dry_run: !opts[:yes],
-          paths: ["mix.exs"]
-        )
+      source = Rewrite.source!(igniter.rewrite, "mix.exs")
 
-      case write_result do
-        :issues ->
-          raise "Exiting due to issues found while previewing changes."
+      original_quoted = Rewrite.Source.get(source, :quoted, 1)
+      original_zipper = Zipper.zip(original_quoted)
+      quoted = Rewrite.Source.get(source, :quoted)
+      zipper = Zipper.zip(quoted)
 
+      with {:ok, original_zipper} <-
+             Igniter.Code.Function.move_to_defp(original_zipper, :deps, 0),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
+        quoted_with_only_deps_change =
+          original_zipper
+          |> Igniter.Code.Common.replace_code(zipper.node)
+          |> Zipper.topmost()
+          |> Zipper.node()
+
+        source = Rewrite.Source.update(source, :quoted, quoted_with_only_deps_change)
+        rewrite = Rewrite.update!(igniter.rewrite, source)
+        display_diff([source], opts)
+
+        message =
+          if opts[:error_on_abort?] do
+            "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
+          else
+            "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
+          end
+
+        if Mix.shell().yes?(message) do
+          rewrite =
+            case Rewrite.write(rewrite, "mix.exs", :force) do
+              {:ok, rewrite} -> rewrite
+              {:error, error} -> raise error
+            end
+
+          Igniter.Util.Install.get_deps!()
+
+          source = Rewrite.source!(rewrite, "mix.exs")
+          source = Rewrite.Source.update(source, :quoted, quoted)
+
+          %{igniter | rewrite: Rewrite.update!(rewrite, source)}
+        else
+          if opts[:error_on_abort?] do
+            raise "Aborted by the user."
+          else
+            assign_private(igniter, :refused_fetch_dependencies?, true)
+          end
+        end
+      else
         _ ->
+          display_diff([source], opts)
+
           message =
             if opts[:error_on_abort?] do
               "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
@@ -415,42 +453,16 @@ defmodule Igniter do
               "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
             end
 
-          proceed? =
-            opts[:yes] ||
-              Mix.shell().yes?(message)
+          if Mix.shell().yes?(message) do
+            rewrite =
+              case Rewrite.write(igniter.rewrite, "mix.exs", :force) do
+                {:ok, rewrite} -> rewrite
+                {:error, error} -> raise error
+              end
 
-          if proceed? do
-            unless opts[:yes] do
-              Igniter.do_or_dry_run(igniter,
-                yes: true,
-                title: "Applying changes",
-                paths: ["mix.exs"]
-              )
-            end
+            Igniter.Util.Install.get_deps!()
 
-            Mix.shell().info("running mix deps.get")
-
-            case Mix.shell().cmd("mix deps.get") do
-              0 ->
-                Mix.Project.clear_deps_cache()
-                Mix.Project.pop()
-                Mix.Dep.clear_cached()
-
-                "mix.exs"
-                |> File.read!()
-                |> Code.eval_string([], file: Path.expand("mix.exs"))
-
-                Igniter.Util.DepsCompile.run()
-
-              exit_code ->
-                Mix.shell().info("""
-                mix deps.get returned exited with code: `#{exit_code}`
-                """)
-            end
-
-            Map.update!(igniter, :rewrite, fn rewrite ->
-              Rewrite.drop(rewrite, ["mix.exs"])
-            end)
+            %{igniter | rewrite: rewrite}
           else
             if opts[:error_on_abort?] do
               raise "Aborted by the user."
@@ -509,7 +521,7 @@ defmodule Igniter do
   Executes or dry-runs a given Igniter.
   """
   def do_or_dry_run(igniter, opts \\ []) do
-    igniter = prepare_for_write(igniter, opts)
+    igniter = prepare_for_write(igniter)
 
     title = opts[:title] || "Igniter"
 
@@ -960,15 +972,7 @@ defmodule Igniter do
   end
 
   @doc false
-  def prepare_for_write(igniter, opts \\ []) do
-    igniter =
-      if opts[:paths] do
-        all_paths = Rewrite.paths(igniter.rewrite)
-        %{igniter | rewrite: Rewrite.drop(igniter.rewrite, all_paths -- opts[:paths])}
-      else
-        igniter
-      end
-
+  def prepare_for_write(igniter) do
     source_issues =
       Enum.flat_map(igniter.rewrite, fn source ->
         changed_issues =

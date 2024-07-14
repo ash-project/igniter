@@ -506,37 +506,13 @@ defmodule Igniter.Code.Module do
     end)
   end
 
+  @deprecated "Use `Igniter.Code.Function.move_to_defp/3` instead"
   def move_to_defp(zipper, fun, arity) do
-    do_move_to_def(zipper, fun, arity, :defp)
+    Igniter.Code.Function.move_to_defp(zipper, fun, arity)
   end
 
+  @deprecated "Use `Igniter.Code.Function.move_to_def/3` instead"
   def move_to_def(zipper, fun, arity) do
-    do_move_to_def(zipper, fun, arity, :def)
-  end
-
-  defp do_move_to_def(zipper, fun, arity, kind) do
-    case Common.move_to_pattern(
-           zipper,
-           {^kind, _, [{^fun, _, args}, _]} when length(args) == arity
-         ) do
-      :error ->
-        if arity == 0 do
-          case Common.move_to_pattern(
-                 zipper,
-                 {^kind, _, [{^fun, _, context}, _]} when is_atom(context)
-               ) do
-            :error ->
-              :error
-
-            {:ok, zipper} ->
-              Common.move_to_do_block(zipper)
-          end
-        else
-          :error
-        end
-
-      {:ok, zipper} ->
-        Common.move_to_do_block(zipper)
-    end
+    Igniter.Code.Function.move_to_def(zipper, fun, arity)
   end
 end

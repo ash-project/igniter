@@ -159,4 +159,26 @@ defmodule Igniter.Util.Install do
         end
     end
   end
+
+  def get_deps! do
+    Mix.shell().info("running mix deps.get")
+
+    case Mix.shell().cmd("mix deps.get") do
+      0 ->
+        Mix.Project.clear_deps_cache()
+        Mix.Project.pop()
+        Mix.Dep.clear_cached()
+
+        "mix.exs"
+        |> File.read!()
+        |> Code.eval_string([], file: Path.expand("mix.exs"))
+
+        Igniter.Util.DepsCompile.run()
+
+      exit_code ->
+        Mix.shell().info("""
+        mix deps.get returned exited with code: `#{exit_code}`
+        """)
+    end
+  end
 end

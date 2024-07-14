@@ -74,7 +74,7 @@ defmodule Igniter.Project.Deps do
       |> Zipper.zip()
 
     with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
-         {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
+         {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
          true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
          {:ok, current_declaration} <-
            Igniter.Code.List.move_to_list_item(zipper, fn item ->
@@ -101,7 +101,7 @@ defmodule Igniter.Project.Deps do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
-           {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
            true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
            current_declaration_index when not is_nil(current_declaration_index) <-
              Igniter.Code.List.find_list_item_index(zipper, fn item ->
@@ -133,7 +133,7 @@ defmodule Igniter.Project.Deps do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
-           {:ok, zipper} <- Igniter.Code.Module.move_to_defp(zipper, :deps, 0),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
            true <- Common.node_matches_pattern?(zipper, value when is_list(value)) do
         quoted =
           if opts[:dep_opts] do
