@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.0](https://github.com/ash-project/igniter/compare/v0.2.13...v0.3.0) (2024-07-15)
+
+
+
+
+### Improvements:
+
+* Add `Igniter.Libs.Phoenix` for working with Phoenix
+
+* deprecate duplicate `Igniter.Code.Module.move_to_use` function
+
+* `Igniter.Project.Config.configures?/4` that takes a config file
+
+* Add `Igniter.Util.Warning` for formatting code in warnings
+
 ## [v0.2.13](https://github.com/ash-project/igniter/compare/v0.2.12...v0.2.13) (2024-07-15)
 
 
