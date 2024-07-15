@@ -25,7 +25,7 @@ defmodule Igniter.Code.FunctionTest do
                """
                |> Sourceror.parse_string!()
                |> Sourceror.Zipper.zip()
-               |> Igniter.Code.Module.move_to_def(:thing, 0)
+               |> Igniter.Code.Function.move_to_def(:thing, 0)
 
       assert {:ok, zipper} =
                Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :=, 2)
