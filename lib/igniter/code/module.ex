@@ -474,7 +474,7 @@ defmodule Igniter.Code.Module do
   def move_to_module_using(zipper, module) do
     with {:ok, mod_zipper} <- move_to_defmodule(zipper),
          {:ok, mod_zipper} <- Igniter.Code.Common.move_to_do_block(mod_zipper),
-         {:ok, _} <- move_to_using(mod_zipper, module) do
+         {:ok, _} <- move_to_use(mod_zipper, module) do
       {:ok, mod_zipper}
     else
       _ ->
@@ -482,20 +482,19 @@ defmodule Igniter.Code.Module do
     end
   end
 
-  def move_to_using(zipper, using) do
-    Igniter.Code.Function.move_to_function_call_in_current_scope(
-      zipper,
-      :use,
-      [1, 2],
-      fn zipper ->
-        with {:ok, actual_using} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
-          Igniter.Code.Common.nodes_equal?(actual_using, using)
-        end
-      end
-    )
-  end
+  @deprecated "Use `move_to_use/2` instead."
+  def move_to_using(zipper, module), do: move_to_use(zipper, module)
 
   @doc "Moves the zipper to the `use` statement for a provided module."
+  def move_to_use(zipper, [module]), do: move_to_use(zipper, module)
+
+  def move_to_use(zipper, [module | rest]) do
+    case move_to_use(zipper, module) do
+      {:ok, zipper} -> {:ok, zipper}
+      _ -> move_to_use(zipper, rest)
+    end
+  end
+
   def move_to_use(zipper, module) do
     Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :use, [1, 2], fn call ->
       Igniter.Code.Function.argument_matches_predicate?(

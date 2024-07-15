@@ -70,7 +70,11 @@ defmodule Igniter.Code.Function do
   end
 
   @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current scope"
-  @spec move_to_function_call_in_current_scope(Zipper.t(), atom, non_neg_integer()) ::
+  @spec move_to_function_call_in_current_scope(
+          Zipper.t(),
+          atom,
+          non_neg_integer() | list(non_neg_integer())
+        ) ::
           {:ok, Zipper.t()} | :error
   def move_to_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end)
 

@@ -225,8 +225,27 @@ defmodule Igniter.Project.Config do
     end
   end
 
-  @doc "Returns `true` if the given configuration path is set somewhere after the provided zipper."
-  @spec configures?(Zipper.t(), list(atom), atom()) :: boolean()
+  @doc "Returns `true` if the given configuration path is set somewhere after the provided zipper, or in the given configuration file."
+  @spec configures?(Igniter.t(), file :: String.t(), list(atom), atom()) :: boolean()
+  def configures?(igniter, file, path, app_name) do
+    file_path = Path.join("config", file)
+
+    igniter =
+      Igniter.include_existing_elixir_file(igniter, file_path, required?: false)
+
+    case Rewrite.source(igniter.rewrite, file_path) do
+      {:ok, source} ->
+        source
+        |> Rewrite.Source.get(:quoted)
+        |> Zipper.zip()
+        |> configures?(path, app_name)
+
+      _ ->
+        false
+    end
+  end
+
+  @spec configures?(zipper :: Zipper.t(), list(atom), atom()) :: boolean()
   def configures?(zipper, config_path, app_name) do
     if Enum.count(config_path) == 1 do
       config_item = Enum.at(config_path, 0)
