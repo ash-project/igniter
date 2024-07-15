@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.13](https://github.com/ash-project/igniter/compare/v0.2.12...v0.2.13) (2024-07-15)
+
+
+
+
+### Bug Fixes:
+
+* remove redundant case clause in `Igniter.Code.Common`
+
+### Improvements:
+
+* make `apply_and_fetch_dependencies` only change `deps/0`
+
+* remove a bunch of dependencies by using :inets & :httpc
+
 ## [v0.2.12](https://github.com/ash-project/igniter/compare/v0.2.11...v0.2.12) (2024-07-10)
 
 
