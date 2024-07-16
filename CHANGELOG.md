@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.1](https://github.com/ash-project/igniter/compare/v0.3.0...v0.3.1) (2024-07-16)
+
+
+
+
+### Bug Fixes:
+
+* when adding code to surrounding block, don't go up multiple blocks
+
 ## [v0.3.0](https://github.com/ash-project/igniter/compare/v0.2.13...v0.3.0) (2024-07-15)
 
 
