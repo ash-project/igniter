@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.2](https://github.com/ash-project/igniter/compare/v0.3.1...v0.3.2) (2024-07-16)
+
+
+
+
+### Bug Fixes:
+
+* don't compile igniter dep again when compiling deps
+
 ## [v0.3.1](https://github.com/ash-project/igniter/compare/v0.3.0...v0.3.1) (2024-07-16)
 
 
