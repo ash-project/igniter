@@ -35,12 +35,7 @@ defmodule Igniter.Libs.Phoenix do
       Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
         case move_to_scope_location(zipper) do
           {:ok, zipper, append_or_prepend} ->
-            Igniter.Util.Debug.puts_code_at_node(zipper)
-            IO.inspect(append_or_prepend)
-
-            {:ok,
-             Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)
-             |> Igniter.Util.Debug.puts_code_at_node()}
+            {:ok, Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)}
 
           :error ->
             {:warning,
@@ -151,9 +146,8 @@ defmodule Igniter.Libs.Phoenix do
                  1,
                  &Igniter.Code.Common.nodes_equal?(&1, :router)
                )
-           end),
-         :error <- Igniter.Code.Module.move_to_use(zipper, Phoenix.Router) do
-      :error
+           end) do
+      Igniter.Code.Module.move_to_use(zipper, Phoenix.Router)
     end
   end
 
@@ -178,9 +172,8 @@ defmodule Igniter.Libs.Phoenix do
 
   defp move_to_scope_location(zipper) do
     with :error <-
-           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4])
-           |> IO.inspect(label: "A"),
-         {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} |> IO.inspect(label: "B") do
+           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4]),
+         {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} do
       case move_to_router_use(zipper) do
         {:ok, zipper} -> {:ok, zipper, :after}
         :error -> :error
@@ -210,7 +203,7 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  defp router_using() do
+  defp router_using do
     Module.concat([to_string(Igniter.Code.Module.module_name_prefix()) <> "Web"])
   end
 end
