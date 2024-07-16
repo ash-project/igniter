@@ -35,7 +35,12 @@ defmodule Igniter.Libs.Phoenix do
       Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
         case move_to_scope_location(zipper) do
           {:ok, zipper, append_or_prepend} ->
-            {:ok, Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)}
+            Igniter.Util.Debug.puts_code_at_node(zipper)
+            IO.inspect(append_or_prepend)
+
+            {:ok,
+             Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)
+             |> Igniter.Util.Debug.puts_code_at_node()}
 
           :error ->
             {:warning,
@@ -129,29 +134,27 @@ defmodule Igniter.Libs.Phoenix do
 
   def list_routers(igniter) do
     Igniter.Code.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
-      router_name =
-        Module.concat([to_string(Igniter.Code.Module.module_name_prefix()) <> "Web"])
+      move_to_router_use(zipper) != :error
+    end)
+  end
 
-      with :error <-
-             Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
+  defp move_to_router_use(zipper) do
+    with :error <-
+           Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
+             Igniter.Code.Function.argument_matches_predicate?(
+               zipper,
+               0,
+               &Igniter.Code.Common.nodes_equal?(&1, router_using())
+             ) &&
                Igniter.Code.Function.argument_matches_predicate?(
                  zipper,
-                 0,
-                 &Igniter.Code.Common.nodes_equal?(&1, router_name)
-               ) &&
-                 Igniter.Code.Function.argument_matches_predicate?(
-                   zipper,
-                   1,
-                   &Igniter.Code.Common.nodes_equal?(&1, :router)
-                 )
-             end),
-           :error <- Igniter.Code.Module.move_to_use(zipper, Phoenix.Router) do
-        false
-      else
-        _ ->
-          true
-      end
-    end)
+                 1,
+                 &Igniter.Code.Common.nodes_equal?(&1, :router)
+               )
+           end),
+         :error <- Igniter.Code.Module.move_to_use(zipper, Phoenix.Router) do
+      :error
+    end
   end
 
   defp move_to_pipeline_location(zipper) do
@@ -160,13 +163,13 @@ defmodule Igniter.Libs.Phoenix do
             Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :pipeline, 2)},
          :error <-
            Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4]) do
-      case Igniter.Code.Module.move_to_use(zipper, Phoenix.Router) do
+      case move_to_router_use(zipper) do
         {:ok, zipper} -> {:ok, zipper, :after}
         :error -> :error
       end
     else
       {:pipeline, {:ok, zipper}} ->
-        {:ok, zipper, :after}
+        {:ok, zipper, :before}
 
       {:ok, zipper} ->
         {:ok, zipper, :before}
@@ -175,9 +178,10 @@ defmodule Igniter.Libs.Phoenix do
 
   defp move_to_scope_location(zipper) do
     with :error <-
-           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4]),
-         {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} do
-      case Igniter.Code.Module.move_to_use(zipper, Phoenix.Router) do
+           Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4])
+           |> IO.inspect(label: "A"),
+         {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} |> IO.inspect(label: "B") do
+      case move_to_router_use(zipper) do
         {:ok, zipper} -> {:ok, zipper, :after}
         :error -> :error
       end
@@ -204,5 +208,9 @@ defmodule Igniter.Libs.Phoenix do
       :error ->
         :error
     end
+  end
+
+  defp router_using() do
+    Module.concat([to_string(Igniter.Code.Module.module_name_prefix()) <> "Web"])
   end
 end

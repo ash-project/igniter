@@ -413,34 +413,39 @@ defmodule Igniter do
 
         source = Rewrite.Source.update(source, :quoted, quoted_with_only_deps_change)
         rewrite = Rewrite.update!(igniter.rewrite, source)
-        display_diff([source], opts)
 
-        message =
-          if opts[:error_on_abort?] do
-            "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-          else
-            "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-          end
+        if changed?(source) do
+          display_diff([source], opts)
 
-        if Mix.shell().yes?(message) do
-          rewrite =
-            case Rewrite.write(rewrite, "mix.exs", :force) do
-              {:ok, rewrite} -> rewrite
-              {:error, error} -> raise error
+          message =
+            if opts[:error_on_abort?] do
+              "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
+            else
+              "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
             end
 
-          Igniter.Util.Install.get_deps!()
+          if opts[:yes] || Mix.shell().yes?(message) do
+            rewrite =
+              case Rewrite.write(rewrite, "mix.exs", :force) do
+                {:ok, rewrite} -> rewrite
+                {:error, error} -> raise error
+              end
 
-          source = Rewrite.source!(rewrite, "mix.exs")
-          source = Rewrite.Source.update(source, :quoted, quoted)
+            Igniter.Util.Install.get_deps!()
 
-          %{igniter | rewrite: Rewrite.update!(rewrite, source)}
-        else
-          if opts[:error_on_abort?] do
-            raise "Aborted by the user."
+            source = Rewrite.source!(rewrite, "mix.exs")
+            source = Rewrite.Source.update(source, :quoted, quoted)
+
+            %{igniter | rewrite: Rewrite.update!(rewrite, source)}
           else
-            assign_private(igniter, :refused_fetch_dependencies?, true)
+            if opts[:error_on_abort?] do
+              raise "Aborted by the user."
+            else
+              assign_private(igniter, :refused_fetch_dependencies?, true)
+            end
           end
+        else
+          igniter
         end
       else
         _ ->

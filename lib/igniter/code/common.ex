@@ -152,21 +152,20 @@ defmodule Igniter.Code.Common do
 
       code ->
         zipper
-        |> highest_adjacent_block()
+        |> Zipper.up()
         |> case do
           %Zipper{node: {:__block__, meta, stuff}} = upwards ->
-            new_stuff =
-              if placement == :after do
-                List.wrap(stuff) ++ [new_code]
-              else
-                case List.wrap(stuff) do
-                  [first | rest] ->
-                    [first, new_code | rest]
+            index = Enum.find_index(stuff, &(&1 == code))
 
-                  _ ->
-                    [new_code | stuff]
-                end
+            new_index =
+              if placement == :after do
+                index + 1
+              else
+                index
               end
+
+            new_stuff =
+              List.insert_at(stuff, new_index, new_code)
 
             Zipper.replace(upwards, {:__block__, meta, new_stuff})
 
@@ -187,16 +186,6 @@ defmodule Igniter.Code.Common do
   def replace_code(zipper, code) do
     code = use_aliases(code, zipper)
     Zipper.replace(zipper, code)
-  end
-
-  defp highest_adjacent_block(zipper) do
-    case Zipper.up(zipper) do
-      %Zipper{node: {:__block__, _, _}} = upwards ->
-        highest_adjacent_block(upwards) || upwards
-
-      _ ->
-        nil
-    end
   end
 
   @doc """
