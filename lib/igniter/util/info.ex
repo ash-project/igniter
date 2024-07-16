@@ -16,8 +16,9 @@ defmodule Igniter.Util.Info do
 
     igniter =
       add_deps(
-        igniter || Igniter.new(),
-        List.wrap(schema.adds_deps) ++ List.wrap(schema.installs)
+        igniter,
+        List.wrap(schema.adds_deps) ++ List.wrap(schema.installs),
+        opts
       )
 
     case schema.installs do
@@ -46,9 +47,9 @@ defmodule Igniter.Util.Info do
     end
   end
 
-  defp add_deps(igniter, add_deps) do
+  defp add_deps(igniter, add_deps, opts) do
     Enum.reduce(add_deps, igniter, fn dependency, igniter ->
-      Igniter.Project.Deps.add_dep(igniter, dependency)
+      Igniter.Project.Deps.add_dep(igniter, dependency, opts)
     end)
   end
 
