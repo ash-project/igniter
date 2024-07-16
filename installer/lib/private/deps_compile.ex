@@ -54,6 +54,7 @@ defmodule Igniter.Util.DepsCompile do
 
     compiled =
       deps
+      |> Enum.reject(&(&1.app == :igniter))
       |> Enum.map(fn %Mix.Dep{app: app, status: status, opts: opts, scm: scm} = dep ->
         check_unavailable!(app, scm, status)
         maybe_clean(dep, options)
