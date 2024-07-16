@@ -15,7 +15,6 @@ defmodule Igniter.Code.Module do
   # Options
 
   - `:path` - Path where to create the module, relative to the project root. Default: `nil` (uses `:kind` to determine the path).
-  - `:kind` - Type of module being created. Possible values: `:lib`, `:test`, `:test_support` (default: `:lib`). Ignored if `:path` is set.
   """
   def find_and_update_or_create_module(igniter, module_name, contents, updater, opts \\ [])
 
