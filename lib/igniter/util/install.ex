@@ -12,7 +12,7 @@ defmodule Igniter.Util.Install do
   def install(deps, argv, igniter, opts) when is_binary(deps) do
     deps = String.split(deps, ",")
 
-    install(deps, argv, igniter)
+    install(deps, argv, igniter, opts)
   end
 
   def install([head | _] = deps, argv, igniter, opts) when is_binary(head) do
@@ -27,7 +27,7 @@ defmodule Igniter.Util.Install do
         end
       end)
 
-    install(deps, argv, igniter)
+    install(deps, argv, igniter, opts)
   end
 
   def install([head | _] = deps, argv, igniter, opts) when is_tuple(head) do
