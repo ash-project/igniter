@@ -1,32 +1,48 @@
 defmodule Igniter.Util.Install do
-  @moduledoc false
+  @moduledoc """
+  Tools for installing packages and running their associated
+  installers, if present.
 
-  def install(install, argv, igniter \\ Igniter.new()) do
-    install_list =
-      if is_binary(install) do
-        String.split(install, ",")
-      else
-        Enum.map(List.wrap(install), &to_string/1)
-      end
+  [!NOTE]
+  The functions in this module are not composable, and are primarily meant to
+  be used internally and to support building custom tooling on top of Igniter,
+  such as [Fireside](https://github.com/ibarakaiev/fireside).
+  """
 
-    if Enum.any?(install_list, &(&1 == "igniter")) do
+  @doc """
+  Installs the provided list of dependencies. `deps` can be either:
+  - a string like `"ash,ash_postgres"`
+  - a list of strings like `["ash", "ash_postgres", ...]`
+  - a list of tuples like `[{:ash, "~> 3.0"}, {:ash_postgres, "~> 2.0"}]`
+  """
+  def install(deps, argv, igniter \\ Igniter.new(), opts \\ [])
+
+  def install(deps, argv, igniter, opts) when is_binary(deps) do
+    deps = String.split(deps, ",")
+
+    install(deps, argv, igniter, opts)
+  end
+
+  def install([head | _] = deps, argv, igniter, opts) when is_binary(head) do
+    deps =
+      Enum.map(deps, fn dep ->
+        case determine_dep_type_and_version(dep) do
+          {install, requirement} ->
+            {install, requirement}
+
+          :error ->
+            raise "Could not determine source for requested package #{dep}"
+        end
+      end)
+
+    install(deps, argv, igniter, opts)
+  end
+
+  def install([head | _] = deps, argv, igniter, opts) when is_tuple(head) do
+    if Enum.any?(deps, &(elem(&1, 0) == :igniter)) do
       raise ArgumentError,
             "cannot install the igniter package with `mix igniter.install`. Please use `mix igniter.setup` instead."
     end
-
-    Application.ensure_all_started(:req)
-
-    task_installs =
-      install_list
-      |> Enum.map(fn install ->
-        case determine_dep_type_and_version(install) do
-          {install, requirement} ->
-            {String.to_atom(install), requirement}
-
-          :error ->
-            raise "Could not determine source for requested package #{install}"
-        end
-      end)
 
     global_options =
       Keyword.update!(
@@ -37,15 +53,16 @@ defmodule Igniter.Util.Install do
 
     {igniter, desired_tasks, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
-        igniter || Igniter.new(),
+        igniter,
         argv,
         %Igniter.Mix.Task.Info{
           schema: global_options[:switches],
           aliases: [],
-          installs: task_installs
+          installs: deps
         },
         "igniter.install",
-        yes: "--yes" in argv
+        yes: "--yes" in argv,
+        append?: Keyword.get(opts, :append?, false)
       )
 
     igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
@@ -91,7 +108,8 @@ defmodule Igniter.Util.Install do
                      | _
                    ]
                  }} ->
-                  {package, Igniter.Util.Version.version_string_to_general_requirement!(version)}
+                  {String.to_atom(package),
+                   Igniter.Util.Version.version_string_to_general_requirement!(version)}
 
                 _ ->
                   :error
@@ -155,7 +173,7 @@ defmodule Igniter.Util.Install do
             :error
 
           requirement ->
-            {package, requirement}
+            {String.to_atom(package), requirement}
         end
     end
   end
