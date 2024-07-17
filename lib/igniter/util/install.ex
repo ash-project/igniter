@@ -1,6 +1,12 @@
 defmodule Igniter.Util.Install do
   @moduledoc """
-  Tools for installing packages and running their associated Igniter installers, if present.
+  Tools for installing packages and running their associated
+  installers, if present.
+
+  [!NOTE]
+  The functions in this module are not composable, and are primarily meant to
+  be used internally and to support building custom tooling on top of Igniter,
+  such as [Fireside](https://github.com/ibarakaiev/fireside).
   """
 
   @doc """
