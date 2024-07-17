@@ -67,23 +67,39 @@ defmodule Igniter.Util.Install do
 
     igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
 
-    igniter_tasks =
-      desired_tasks
-      |> Enum.map(&Mix.Task.get/1)
-      |> Enum.filter(& &1)
+    {available_tasks, available_task_sources} =
+      Enum.zip(desired_tasks, Enum.map(desired_tasks, &Mix.Task.get/1))
+      |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
+      |> Enum.unzip()
 
-    title =
-      case desired_tasks do
-        [task] ->
-          "Final result of installer: `#{task}`"
+    case available_tasks do
+      [] ->
+        :ok
 
-        tasks ->
-          "Final result of installers: #{Enum.map_join(tasks, ", ", &"`#{&1}`")}"
-      end
+      [task] ->
+        run_installers(
+          igniter,
+          available_task_sources,
+          "The following installer was found and executed: `#{task}`",
+          argv,
+          options
+        )
 
-    igniter_tasks
-    |> Enum.reduce(igniter, fn task, igniter ->
-      Igniter.compose_task(igniter, task, argv)
+      tasks ->
+        run_installers(
+          igniter,
+          available_task_sources,
+          "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{&1}`")}",
+          argv,
+          options
+        )
+    end
+  end
+
+  defp run_installers(igniter, igniter_task_sources, title, argv, options) do
+    igniter_task_sources
+    |> Enum.reduce(igniter, fn igniter_task_source, igniter ->
+      Igniter.compose_task(igniter, igniter_task_source, argv)
     end)
     |> Igniter.do_or_dry_run(Keyword.put(options, :title, title))
 
