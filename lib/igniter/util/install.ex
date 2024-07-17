@@ -1,5 +1,7 @@
 defmodule Igniter.Util.Install do
-  @moduledoc false
+  @moduledoc """
+  Tools for installing packages and running their associated Igniter installers, if present.
+  """
 
   @doc """
   Installs the provided list of dependencies. `deps` can be either:
