@@ -453,7 +453,7 @@ defmodule Igniter.Code.Function do
         end
       end
     else
-      raise "The passed Zipper is not a function."
+      false
     end
   end
 
