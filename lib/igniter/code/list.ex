@@ -134,7 +134,7 @@ defmodule Igniter.Code.List do
   end
 
   @doc "Finds the index of the first list item that satisfies `pred`"
-  @spec find_list_item_index(Zipper.t(), (Macro.t() -> boolean())) :: integer() | nil
+  @spec find_list_item_index(Zipper.t(), (Zipper.t() -> boolean())) :: integer() | nil
   def find_list_item_index(zipper, pred) do
     # go into first list item
     zipper
@@ -150,7 +150,7 @@ defmodule Igniter.Code.List do
   end
 
   @doc "Moves to the list item matching the given predicate"
-  @spec move_to_list_item(Zipper.t(), (Macro.t() -> boolean())) :: {:ok, Zipper.t()} | :error
+  @spec move_to_list_item(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
   def move_to_list_item(zipper, pred) do
     # go into first list item
     zipper
