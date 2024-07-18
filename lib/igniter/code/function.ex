@@ -7,7 +7,11 @@ defmodule Igniter.Code.Function do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  @doc "Returns `true` if the argument at the provided index exists and matches the provided pattern"
+  @doc """
+  Returns `true` if the argument at the provided index exists and matches the provided pattern
+
+  Note: to check for argument equality, use `argument_equals?/3` instead.
+  """
   defmacro argument_matches_pattern?(zipper, index, pattern) do
     quote do
       Igniter.Code.Function.argument_matches_predicate?(
@@ -364,6 +368,23 @@ defmodule Igniter.Code.Function do
       end
     else
       :error
+    end
+  end
+
+  @doc """
+  Checks if the provided function call (in a Zipper) has an argument that equals
+  `term` at `index`.
+  """
+  @spec argument_equals?(Zipper.t(), integer(), any()) :: boolean()
+  def argument_equals?(zipper, index, term) do
+    if function_call?(zipper) do
+      Igniter.Code.Function.argument_matches_predicate?(
+        zipper,
+        index,
+        &Igniter.Code.Common.nodes_equal?(&1, term)
+      )
+    else
+      false
     end
   end
 
