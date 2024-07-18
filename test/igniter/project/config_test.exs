@@ -83,7 +83,7 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
-    test "it choosees the thre 3 arg version when first item in path is not pretty" do
+    test "it chooses the 3 arg version when first item in path is not pretty" do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
@@ -99,7 +99,7 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
-    test "it choosees the thre 3 arg version when first item in path is not pretty, and merges that way" do
+    test "it chooses the 3 arg version when first item in path is not pretty, and merges that way" do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.create_new_elixir_file("config/fake.exs", """
@@ -278,6 +278,83 @@ defmodule Igniter.Project.ConfigTest do
 
              A failure message!
              """
+    end
+  end
+
+  test "configures_root_key?/3" do
+    igniter =
+      Igniter.new()
+      |> Igniter.create_new_elixir_file("config/fake.exs", """
+      import Config
+
+      config :foo, key1: "key1"
+      config Test, key2: "key2"
+      """)
+
+    assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", :foo) == true
+    assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", :fooo) == false
+    assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", Test) == true
+    assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", Testt) == false
+  end
+
+  describe "configures_key?/3" do
+    setup do
+      %{
+        igniter:
+          Igniter.new()
+          |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
+          config :foo, key1: [key2: "key2"]
+          config :bar, Test, key3: "key3"
+          config :xyz, Test, key4: [key5: "key5"]
+          """)
+      }
+    end
+
+    test "works when the last argument is a single atom and config/2 is used", %{igniter: igniter} do
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :foo, :key1) == true
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :foo, :key2) == false
+    end
+
+    test "works when the last argument is a single atom and config/3 is used", %{igniter: igniter} do
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, Test) == true
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, Testt) == false
+    end
+
+    test "works when the last argument is a path in a keyword list and config/2 is used", %{
+      igniter: igniter
+    } do
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :foo, [:key1, :key2]) ==
+               true
+
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :foo, [:key1, :key3]) ==
+               false
+    end
+
+    test "works when the last argument is a path in a keyword list and config/3 is used", %{
+      igniter: igniter
+    } do
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, [Test, :key3]) ==
+               true
+
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, [Test, :key4]) ==
+               false
+
+      # deeply nested
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :xyz, [
+               Test,
+               :key4,
+               :key5
+             ]) ==
+               true
+
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :xyz, [
+               Test,
+               :key4,
+               :key6
+             ]) ==
+               false
     end
   end
 end
