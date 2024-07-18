@@ -384,7 +384,7 @@ defmodule Igniter.Code.Function do
         &Igniter.Code.Common.nodes_equal?(&1, term)
       )
     else
-      raise "The provided zipper is not a function call."
+      false
     end
   end
 
