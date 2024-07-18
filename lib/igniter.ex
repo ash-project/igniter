@@ -492,7 +492,7 @@ defmodule Igniter do
         igniter
       else
         igniter
-        |> include_glob("{lib,test}/**/*.{ex,exs}")
+        |> include_glob("{lib,test,config}/**/*.{ex,exs}")
         |> assign_private(:included_all_elixir_files?, true)
       end
     end
