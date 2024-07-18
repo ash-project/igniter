@@ -371,12 +371,21 @@ defmodule Igniter.Code.Function do
     end
   end
 
+  @doc """
+  Checks if the provided function call (in a Zipper) has an argument that equals
+  `term` at `index`.
+  """
+  @spec argument_equals?(Zipper.t(), integer(), any()) :: boolean()
   def argument_equals?(zipper, index, term) do
-    Igniter.Code.Function.argument_matches_predicate?(
-      zipper,
-      index,
-      &Igniter.Code.Common.nodes_equal?(&1, term)
-    )
+    if function_call?(zipper) do
+      Igniter.Code.Function.argument_matches_predicate?(
+        zipper,
+        index,
+        &Igniter.Code.Common.nodes_equal?(&1, term)
+      )
+    else
+      raise "The provided zipper is not a function call."
+    end
   end
 
   @doc "Returns true if the argument at the given index matches the provided predicate"
