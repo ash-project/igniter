@@ -33,4 +33,17 @@ defmodule Igniter.Code.FunctionTest do
       assert Igniter.Util.Debug.code_at_node(zipper) == "x = 5"
     end
   end
+
+  test "argument_equals?/3" do
+    zipper =
+      "config :key, Test"
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert Igniter.Code.Function.argument_equals?(zipper, 0, :key) == true
+    assert Igniter.Code.Function.argument_equals?(zipper, 0, Test) == false
+
+    assert Igniter.Code.Function.argument_equals?(zipper, 1, :key) == false
+    assert Igniter.Code.Function.argument_equals?(zipper, 1, Test) == true
+  end
 end
