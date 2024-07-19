@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.7](https://github.com/ash-project/igniter/compare/v0.3.6...v0.3.7) (2024-07-19)
+
+
+
+
+### Bug Fixes:
+
+* improve `add_code` by modifying the `supertree`
+
 ## [v0.3.6](https://github.com/ash-project/igniter/compare/v0.3.5...v0.3.6) (2024-07-19)
 
 
