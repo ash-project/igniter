@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.4](https://github.com/ash-project/igniter/compare/v0.3.3...v0.3.4) (2024-07-19)
+
+
+
+
+### Bug Fixes:
+
+* recompile `:igniter` if it has to do
+
+### Improvements:
+
+* include config in include_all_elixir_files (#55)
+
+* add Function.argument_equals?/3 (#53)
+
+* add Function.argument_equals?/3
+
 ## [v0.3.3](https://github.com/ash-project/igniter/compare/v0.3.2...v0.3.3) (2024-07-18)
 
 
