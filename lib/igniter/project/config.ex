@@ -167,15 +167,15 @@ defmodule Igniter.Project.Config do
   def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
-    Zipper.within(zipper, fn zipper ->
+    Igniter.Code.Common.within(zipper, fn zipper ->
       case try_update_three_arg(zipper, config_path, app_name, value, updater) do
         {:ok, zipper} ->
-          zipper
+          {:ok, zipper}
 
         :error ->
           case try_update_two_arg(zipper, config_path, app_name, value, updater) do
             {:ok, zipper} ->
-              zipper
+              {:ok, zipper}
 
             :error ->
               [first | rest] = config_path
@@ -206,10 +206,10 @@ defmodule Igniter.Project.Config do
                   |> Zipper.right()
                   |> case do
                     nil ->
-                      Common.add_code(zipper, config)
+                      {:ok, Common.add_code(zipper, config)}
 
                     zipper ->
-                      Common.add_code(zipper, config, :before)
+                      {:ok, Common.add_code(zipper, config, :before)}
                   end
 
                 :error ->
@@ -217,15 +217,19 @@ defmodule Igniter.Project.Config do
                   |> Zipper.right()
                   |> case do
                     nil ->
-                      Common.add_code(zipper, config)
+                      {:ok, Common.add_code(zipper, config)}
 
                     zipper ->
-                      Common.add_code(zipper, config, :before)
+                      {:ok, Common.add_code(zipper, config, :before)}
                   end
               end
           end
       end
     end)
+    |> case do
+      {:ok, zipper} -> zipper
+      :error -> zipper
+    end
   end
 
   @doc """

@@ -132,8 +132,6 @@ defmodule Igniter.Code.Common do
   end
 
   defp do_add_code(zipper, new_code, placement, expand_env? \\ true) do
-    upwards = Zipper.up(zipper)
-
     new_code =
       if expand_env? do
         use_aliases(new_code, zipper)
@@ -141,73 +139,130 @@ defmodule Igniter.Code.Common do
         new_code
       end
 
-    if upwards && extendable_block?(upwards.node) do
-      {:__block__, _, upwards_code} = upwards.node
-      index = Enum.find_index(upwards_code, &(&1 == zipper.node))
+    upwards = Zipper.up(zipper)
 
-      to_insert =
-        if extendable_block?(new_code) do
-          {:__block__, _, new_code} = new_code
-          new_code
-        else
-          [new_code]
-        end
+    super_upwards =
+      if !upwards && zipper.supertree do
+        Zipper.up(zipper.supertree)
+      end
 
-      {head, tail} =
-        if placement == :after do
-          Enum.split(upwards_code, index + 1)
-        else
-          Enum.split(upwards_code, index)
-        end
+    cond do
+      upwards && extendable_block?(upwards.node) ->
+        {:__block__, _, upwards_code} = upwards.node
+        index = Enum.find_index(upwards_code, &(&1 == zipper.node))
 
-      Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ tail})
-    else
-      if extendable_block?(zipper.node) && extendable_block?(new_code) do
-        {:__block__, _, stuff} = zipper.node
-
-        {:__block__, _, new_stuff} = new_code
-
-        new_stuff =
-          if placement == :after do
-            stuff ++ new_stuff
+        to_insert =
+          if extendable_block?(new_code) do
+            {:__block__, _, new_code} = new_code
+            new_code
           else
-            new_stuff ++ stuff
+            [new_code]
           end
 
-        Zipper.replace(zipper, {:__block__, [], new_stuff})
-      else
-        if extendable_block?(zipper.node) do
+        {head, tail} =
+          if placement == :after do
+            Enum.split(upwards_code, index + 1)
+          else
+            Enum.split(upwards_code, index)
+          end
+
+        Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ tail})
+
+      super_upwards && extendable_block?(super_upwards.node) ->
+        {:__block__, _, upwards_code} = super_upwards.node
+        index = Enum.find_index(upwards_code, &(&1 == zipper.supertree.node))
+
+        to_insert =
+          if extendable_block?(new_code) do
+            {:__block__, _, new_code} = new_code
+            new_code
+          else
+            [new_code]
+          end
+
+        {head, tail} =
+          if placement == :after do
+            Enum.split(upwards_code, index + 1)
+          else
+            Enum.split(upwards_code, index)
+          end
+
+        new_super_upwards =
+          Zipper.replace(super_upwards, {:__block__, [], head ++ to_insert ++ tail})
+
+        if placement == :after do
+          %{
+            zipper
+            | supertree: %{
+                zipper.supertree
+                | path: %{
+                    zipper.supertree.path
+                    | parent: new_super_upwards,
+                      right: to_insert ++ zipper.supertree.path.right
+                  }
+              }
+          }
+        else
+          %{
+            zipper
+            | supertree: %{
+                zipper.supertree
+                | path: %{
+                    zipper.supertree.path
+                    | parent: new_super_upwards,
+                      left: zipper.supertree.path.right ++ to_insert
+                  }
+              }
+          }
+        end
+
+      true ->
+        if extendable_block?(zipper.node) && extendable_block?(new_code) do
           {:__block__, _, stuff} = zipper.node
+
+          {:__block__, _, new_stuff} = new_code
 
           new_stuff =
             if placement == :after do
-              stuff ++ [new_code]
+              stuff ++ new_stuff
             else
-              [new_code] ++ stuff
+              new_stuff ++ stuff
             end
 
           Zipper.replace(zipper, {:__block__, [], new_stuff})
         else
-          code =
-            if extendable_block?(new_code) do
-              {:__block__, _, new_stuff} = new_code
+          if extendable_block?(zipper.node) do
+            {:__block__, _, stuff} = zipper.node
 
+            new_stuff =
               if placement == :after do
-                [zipper.node] ++ new_stuff
+                stuff ++ [new_code]
               else
-                new_stuff ++ [zipper.node]
+                [new_code] ++ stuff
               end
-            else
-              if placement == :after do
-                [zipper.node, new_code]
-              else
-                [new_code, zipper.node]
-              end
-            end
 
-          Zipper.replace(zipper, {:__block__, [], code})
+            Zipper.replace(zipper, {:__block__, [], new_stuff})
+          else
+            code =
+              if extendable_block?(new_code) do
+                {:__block__, _, new_stuff} = new_code
+
+                if placement == :after do
+                  [zipper.node] ++ new_stuff
+                else
+                  new_stuff ++ [zipper.node]
+                end
+              else
+                if placement == :after do
+                  [zipper.node, new_code]
+                else
+                  [new_code, zipper.node]
+                end
+              end
+
+            Zipper.replace(zipper, {:__block__, [], code})
+          end
         end
-      end
     end
   end
 
@@ -602,7 +657,7 @@ defmodule Igniter.Code.Common do
         {:ok,
          zipper
          |> Zipper.top()
-         |> into(top_zipper)}
+         |> into(zipper.supertree || top_zipper)}
     end
   end
 

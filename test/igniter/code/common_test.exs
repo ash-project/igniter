@@ -1,5 +1,6 @@
 defmodule Igniter.Code.CommonTest do
   use ExUnit.Case
+  require Igniter.Code.Function
 
   describe "topmost/1" do
     test "escapes subtrees using `within`" do
@@ -118,6 +119,63 @@ defmodule Igniter.Code.CommonTest do
 
                    [Baz]
                    [Baz.Blart]
+                 end
+                 """)
+      else
+        _ ->
+          flunk("Should not reach this case")
+      end
+    end
+  end
+
+  describe "add_code" do
+    test "adding multiple blocks" do
+      zipper =
+        """
+        defmodule Foo do
+          alias Foo.Bar
+          alias Foo.Bar.Baz
+
+          if foo do
+            random = "what"
+            url = "url"
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+           {:ok, zipper} <-
+             Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :if, 2),
+           {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+           {:ok, zipper} <-
+             Igniter.Code.Function.move_to_function_call(zipper, :=, 2, fn call ->
+               Igniter.Code.Function.argument_matches_pattern?(
+                 call,
+                 0,
+                 {:url, _, ctx} when is_atom(ctx)
+               )
+             end) do
+        assert zipper
+               |> Igniter.Project.Config.modify_configuration_code(
+                 [Foo, :url],
+                 :app,
+                 {:url, [], nil}
+               )
+               |> Sourceror.Zipper.top()
+               |> Igniter.Util.Debug.code_at_node() ==
+                 String.trim_trailing("""
+                 defmodule Foo do
+                   alias Foo.Bar
+                   alias Foo.Bar.Baz
+
+                   if foo do
+                     random = "what"
+                     url = "url"
+                     config :app, Foo, url: url
+                   end
                  end
                  """)
       else
