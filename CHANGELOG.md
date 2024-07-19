@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.5](https://github.com/ash-project/igniter/compare/v0.3.4...v0.3.5) (2024-07-19)
+
+
+
+
+### Bug Fixes:
+
+* properly move to pattern matches in scope
+
+* configures?/3 -> configures_key & configures_root_key (#54)
+
+### Improvements:
+
+* add blocks together more fluidly in `add_code`
+
 ## [v0.3.4](https://github.com/ash-project/igniter/compare/v0.3.3...v0.3.4) (2024-07-19)
 
 ### Bug Fixes:
