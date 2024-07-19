@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.6](https://github.com/ash-project/igniter/compare/v0.3.5...v0.3.6) (2024-07-19)
+
+
+
+
+### Bug Fixes:
+
+* properly scope configuration modification code
+
+* properly add blocks of code together
+
 ## [v0.3.5](https://github.com/ash-project/igniter/compare/v0.3.4...v0.3.5) (2024-07-19)
 
 
