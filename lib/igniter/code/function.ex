@@ -453,7 +453,7 @@ defmodule Igniter.Code.Function do
         end
       end
     else
-      :error
+      false
     end
   end
 

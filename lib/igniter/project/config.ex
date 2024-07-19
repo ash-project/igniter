@@ -225,63 +225,162 @@ defmodule Igniter.Project.Config do
     end
   end
 
-  @doc "Returns `true` if the given configuration path is set somewhere after the provided zipper, or in the given configuration file."
-  @spec configures?(Igniter.t(), file :: String.t(), list(atom), atom()) :: boolean()
-  def configures?(igniter, file, path, app_name) do
-    file_path = Path.join("config", file)
+  @doc """
+  Checks if either `config :root_key, _` or `config :root_key, _, _` is present
+  in the provided config file.
 
-    igniter =
-      Igniter.include_existing_elixir_file(igniter, file_path, required?: false)
-
-    case Rewrite.source(igniter.rewrite, file_path) do
-      {:ok, source} ->
-        source
-        |> Rewrite.Source.get(:quoted)
-        |> Zipper.zip()
-        |> configures?(path, app_name)
-
-      _ ->
-        false
+  Note: The config file name should _not_ include the `config/` prefix.
+  """
+  @spec configures_root_key?(Igniter.t(), String.t(), atom()) :: boolean()
+  def configures_root_key?(igniter, config_file_name, root_key) do
+    case load_config_zipper(igniter, config_file_name) do
+      nil -> false
+      zipper -> configures_root_key?(zipper, root_key)
     end
   end
 
-  @spec configures?(zipper :: Zipper.t(), list(atom), atom()) :: boolean()
-  def configures?(zipper, config_path, app_name) do
-    if Enum.count(config_path) == 1 do
-      config_item = Enum.at(config_path, 0)
-
-      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+  @doc """
+  Same as `configures_root_key?/3` but accepts a Zipper instead.
+  """
+  @spec configures_root_key?(Zipper.t(), atom()) :: boolean()
+  def configures_root_key?(zipper = %Zipper{}, root_key) do
+    with :error <-
+           Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             2,
+             &Igniter.Code.Function.argument_equals?(&1, 0, root_key)
+           ),
+         :error <-
+           Igniter.Code.Function.move_to_function_call_in_current_scope(
              zipper,
              :config,
              3,
-             fn function_call ->
-               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name) &&
-                 Igniter.Code.Function.argument_matches_pattern?(function_call, 1, ^config_item)
-             end
+             &Igniter.Code.Function.argument_equals?(&1, 0, root_key)
            ) do
-        :error ->
-          false
-
-        {:ok, _zipper} ->
-          true
-      end
+      false
     else
-      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+      {:ok, _zipper} -> true
+    end
+  end
+
+  @doc """
+  If the last argument is key, checks if either `config :root_key, :key, ...`
+  or `config :root_key, key: ...` is set.
+
+  If the last argument is a keyword path, checks if
+  `config :root_key, path_head, [...]` defines `path_rest` or if
+  `config :root_key, [...]` defines `path`, where `path_head` is the first
+  element of `path` and `path_rest` are the remaining elements.
+
+  Note: `config_file_name` should _not_ include the `config/` prefix.
+  """
+  @spec configures_key?(
+          Igniter.t(),
+          String.t(),
+          atom(),
+          atom() | list(atom())
+        ) :: boolean()
+  def configures_key?(igniter, config_file_name, root_key, key_or_path) do
+    case load_config_zipper(igniter, config_file_name) do
+      nil -> false
+      zipper -> configures_key?(zipper, root_key, key_or_path)
+    end
+  end
+
+  @doc """
+  Same as `configures_key?/4` but accepts a Zipper.
+  """
+  @spec configures_key?(Zipper.t(), atom(), atom() | list(atom())) :: boolean()
+  def configures_key?(zipper, root_key, key_or_path)
+
+  def configures_key?(zipper = %Zipper{}, root_key, key) when is_atom(key) do
+    configures_key?(zipper, root_key, List.wrap(key))
+  end
+
+  def configures_key?(zipper = %Zipper{}, root_key, path) when is_list(path) do
+    with :error <-
+           Igniter.Code.Function.move_to_function_call_in_current_scope(
              zipper,
              :config,
              2,
              fn function_call ->
-               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name)
+               Igniter.Code.Function.argument_equals?(function_call, 0, root_key) and
+                 Igniter.Code.Function.argument_matches_predicate?(
+                   function_call,
+                   1,
+                   fn argument_zipper ->
+                     Igniter.Code.Keyword.keyword_has_path?(argument_zipper, path)
+                   end
+                 )
+             end
+           ),
+         :error <-
+           Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             3,
+             fn function_call ->
+               case path do
+                 [key] ->
+                   Igniter.Code.Function.argument_equals?(function_call, 0, root_key) and
+                     Igniter.Code.Function.argument_equals?(function_call, 1, key)
+
+                 [path_head | path_rest] ->
+                   Igniter.Code.Function.argument_equals?(function_call, 0, root_key) and
+                     Igniter.Code.Function.argument_equals?(function_call, 1, path_head) and
+                     Igniter.Code.Function.argument_matches_predicate?(
+                       function_call,
+                       2,
+                       fn argument_zipper ->
+                         Igniter.Code.Keyword.keyword_has_path?(argument_zipper, path_rest)
+                       end
+                     )
+               end
              end
            ) do
-        :error ->
-          :error
+      false
+    else
+      {:ok, _zipper} -> true
+    end
+  end
 
-        {:ok, zipper} ->
-          Igniter.Code.Function.argument_matches_predicate?(zipper, 1, fn zipper ->
-            Igniter.Code.Keyword.keyword_has_path?(zipper, config_path)
-          end)
-      end
+  @doc "Returns `true` if the given configuration path is set somewhere after the provided zipper, or in the given configuration file."
+  @deprecated "Use configures_root_key?/3 or configures_key?/4 instead."
+  @spec configures?(Igniter.t(), String.t(), list(atom), atom()) :: boolean()
+  def configures?(igniter, config_file_name, path, app_name) do
+    case load_config_zipper(igniter, config_file_name) do
+      nil -> false
+      zipper -> configures?(zipper, path, app_name)
+    end
+  end
+
+  @spec configures?(Zipper.t(), list(atom), atom()) :: boolean()
+  @deprecated "Use configures_root_key?/2 or configures_key?/3 instead."
+  def configures?(zipper, path, app_name) do
+    case path do
+      [] ->
+        configures_root_key?(zipper, app_name)
+
+      path ->
+        configures_key?(zipper, app_name, path)
+    end
+  end
+
+  defp load_config_zipper(igniter, config_file_name) do
+    config_file_path = Path.join("config", config_file_name)
+
+    igniter =
+      Igniter.include_existing_elixir_file(igniter, config_file_path, required?: false)
+
+    case Rewrite.source(igniter.rewrite, config_file_path) do
+      {:ok, source} ->
+        source
+        |> Rewrite.Source.get(:quoted)
+        |> Zipper.zip()
+
+      _ ->
+        nil
     end
   end
 
