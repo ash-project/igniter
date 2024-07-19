@@ -377,12 +377,21 @@ defmodule Igniter.Code.Common do
           pattern
       end
 
-    case move_right(zipper, &move_to_cursor(&1, pattern)) do
+    case move_to_cursor(zipper, pattern) do
       :error ->
-        :error
+        move_right(zipper, fn zipper ->
+          match?({:ok, _}, move_to_cursor(zipper, pattern))
+        end)
+        |> case do
+          {:ok, zipper} ->
+            move_to_cursor(zipper, pattern)
+
+          _ ->
+            :error
+        end
 
       {:ok, zipper} ->
-        move_to_cursor(zipper, pattern)
+        {:ok, zipper}
     end
   end
 
@@ -495,7 +504,7 @@ defmodule Igniter.Code.Common do
   pattern =
     \"\"\"
     if __ do
-      __cursor__
+      __cursor__()
     end
     \"\"\"
 
@@ -506,61 +515,10 @@ defmodule Igniter.Code.Common do
   ```
   """
   @spec move_to_cursor(Zipper.t(), Zipper.t() | String.t()) :: {:ok, Zipper.t()} | :error
-  def move_to_cursor(%Zipper{} = zipper, pattern) when is_binary(pattern) do
-    pattern
-    |> Sourceror.parse_string!()
-    |> Zipper.zip()
-    |> then(&do_move_to_cursor(zipper, &1))
-  end
-
-  def move_to_cursor(%Zipper{} = zipper, %Zipper{} = pattern_zipper) do
-    do_move_to_cursor(zipper, pattern_zipper)
-  end
-
-  defp do_move_to_cursor(%Zipper{} = zipper, %Zipper{} = pattern_zipper) do
-    cond do
-      pattern_zipper |> Zipper.node() |> cursor?() ->
-        {:ok, zipper}
-
-      match_type = zippers_match(zipper, pattern_zipper) ->
-        move =
-          case match_type do
-            :skip -> &Zipper.skip/1
-            :next -> &Zipper.next/1
-          end
-
-        with zipper when not is_nil(zipper) <- move.(zipper),
-             pattern_zipper when not is_nil(pattern_zipper) <- move.(pattern_zipper) do
-          do_move_to_cursor(zipper, pattern_zipper)
-        end
-
-      true ->
-        :error
-    end
-  end
-
-  defp cursor?({:__cursor__, _, []}), do: true
-  defp cursor?(_other), do: false
-
-  defp zippers_match(zipper, pattern_zipper) do
-    case {zipper.node, pattern_zipper.node} do
-      {_, {:__, _, _}} ->
-        :skip
-
-      {{call, _, _}, {call, _, _}} ->
-        :next
-
-      {{_, _}, {_, _}} ->
-        :next
-
-      {same, same} ->
-        :next
-
-      {left, right} when is_list(left) and is_list(right) ->
-        :next
-
-      _ ->
-        false
+  def move_to_cursor(zipper, pattern) do
+    case Zipper.move_to_cursor(zipper, pattern) do
+      nil -> :error
+      zipper -> {:ok, zipper}
     end
   end
 

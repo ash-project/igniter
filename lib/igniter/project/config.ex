@@ -243,7 +243,7 @@ defmodule Igniter.Project.Config do
   Same as `configures_root_key?/3` but accepts a Zipper instead.
   """
   @spec configures_root_key?(Zipper.t(), atom()) :: boolean()
-  def configures_root_key?(zipper = %Zipper{}, root_key) do
+  def configures_root_key?(%Zipper{} = zipper, root_key) do
     with :error <-
            Igniter.Code.Function.move_to_function_call_in_current_scope(
              zipper,

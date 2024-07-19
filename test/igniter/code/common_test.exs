@@ -1,7 +1,7 @@
 defmodule Igniter.Code.CommonTest do
   use ExUnit.Case
 
-  describe "all_the_way_up/1" do
+  describe "topmost/1" do
     test "escapes subtrees using `within`" do
       """
       [
@@ -28,6 +28,32 @@ defmodule Igniter.Code.CommonTest do
                  [4, 5, 6]
                ]
                """)
+    end
+  end
+
+  describe "move_to_cursor_match_in_scope/1" do
+    test "escapes subtrees using `within`" do
+      pattern = """
+      if config_env() == :prod do
+        __cursor__()
+      end
+      """
+
+      assert {:ok, zipper} =
+               """
+               foo = 10
+
+               bar = 12
+
+               if config_env() == :prod do
+                 12
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Common.move_to_cursor_match_in_scope(pattern)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == "12"
     end
   end
 
