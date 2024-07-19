@@ -1,6 +1,14 @@
 defmodule Igniter.Libs.Phoenix do
   @moduledoc "Codemods & utilities for working with Phoenix"
 
+  @doc """
+  Generates a module name that lives in the Web directory of the current app.
+  """
+  @spec web_module_name(String.t()) :: module()
+  def web_module_name(suffix) do
+    Module.concat(inspect(Igniter.Code.Module.module_name_prefix()) <> "Web", suffix)
+  end
+
   def add_scope(igniter, route, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -83,11 +91,15 @@ defmodule Igniter.Libs.Phoenix do
         end)
         |> case do
           {:ok, _} ->
-            {:warning,
-             Igniter.Util.Warning.formatted_warning(
-               "The #{name} pipeline already exists in the router. Attempting to add scope: ",
-               pipeline_code
-             )}
+            if Keyword.get(opts, :warn_on_present?, true) do
+              {:warning,
+               Igniter.Util.Warning.formatted_warning(
+                 "The #{name} pipeline already exists in the router. Attempting to add scope: ",
+                 pipeline_code
+               )}
+            else
+              {:ok, zipper}
+            end
 
           _ ->
             case move_to_pipeline_location(zipper) do

@@ -96,11 +96,11 @@ defmodule Igniter.Code.Map do
       Common.node_matches_pattern?(zipper, {:%{}, _, _}) ->
         zipper
         |> Zipper.down()
-        |> Igniter.Code.List.move_to_list_item(fn item ->
+        |> Common.move_right(fn item ->
           if Igniter.Code.Tuple.tuple?(item) do
             case Igniter.Code.Tuple.tuple_elem(item, 0) do
               {:ok, first_elem} ->
-                Common.node_matches_pattern?(first_elem, ^key)
+                Common.nodes_equal?(first_elem, key)
 
               :error ->
                 false

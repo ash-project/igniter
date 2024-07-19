@@ -276,7 +276,7 @@ defmodule Igniter.Code.Common do
   end
 
   def extendable_block?({:__block__, meta, contents}) when is_list(contents) do
-    !meta[:token] && !meta[:format]
+    !meta[:token] && !meta[:format] && !meta[:delimiter]
   end
 
   def extendable_block?(_), do: false
@@ -684,8 +684,18 @@ defmodule Igniter.Code.Common do
   def nodes_equal?(v, v), do: true
 
   def nodes_equal?(l, r) do
-    equal_modules?(l, r)
+    equal_strings?(l, r) || equal_modules?(l, r)
   end
+
+  defp equal_strings?({:__block__, _, [value]} = block, value) when is_binary(value) do
+    !extendable_block?(block)
+  end
+
+  defp equal_strings?(value, {:__block__, _, [value]} = block) when is_binary(value) do
+    !extendable_block?(block)
+  end
+
+  defp equal_strings?(_, _), do: false
 
   @spec expand_alias(Zipper.t()) :: Zipper.t()
   def expand_alias(zipper) do
