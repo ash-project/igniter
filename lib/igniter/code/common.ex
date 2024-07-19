@@ -142,10 +142,20 @@ defmodule Igniter.Code.Common do
     case zipper.node do
       {:__block__, meta, stuff} when length(stuff) > 1 or stuff == [] ->
         new_stuff =
-          if placement == :after do
-            stuff ++ [new_code]
-          else
-            [new_code | stuff]
+          case new_code do
+            {:__block__, _, new_stuff} when length(new_stuff) > 1 or new_stuff == [] ->
+              if placement == :after do
+                stuff ++ new_stuff
+              else
+                new_code ++ stuff
+              end
+
+            new_code ->
+              if placement == :after do
+                stuff ++ [new_code]
+              else
+                [new_code | stuff]
+              end
           end
 
         Zipper.replace(zipper, {:__block__, meta, new_stuff})
@@ -154,7 +164,8 @@ defmodule Igniter.Code.Common do
         zipper
         |> Zipper.up()
         |> case do
-          %Zipper{node: {:__block__, meta, stuff}} = upwards ->
+          %Zipper{node: {:__block__, meta, stuff}} = upwards
+          when length(stuff) > 1 or stuff == [] ->
             index = Enum.find_index(stuff, &(&1 == code))
 
             new_index =
@@ -165,7 +176,14 @@ defmodule Igniter.Code.Common do
               end
 
             new_stuff =
-              List.insert_at(stuff, new_index, new_code)
+              case new_code do
+                {:__block__, _, new_stuff} when length(new_stuff) > 1 or new_stuff == [] ->
+                  {lead, trail} = Enum.split(stuff, new_index)
+                  lead ++ new_stuff ++ trail
+
+                _ ->
+                  List.insert_at(stuff, new_index, new_code)
+              end
 
             Zipper.replace(upwards, {:__block__, meta, new_stuff})
 
