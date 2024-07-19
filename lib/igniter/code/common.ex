@@ -132,6 +132,8 @@ defmodule Igniter.Code.Common do
   end
 
   defp do_add_code(zipper, new_code, placement, expand_env? \\ true) do
+    upwards = Zipper.up(zipper)
+
     new_code =
       if expand_env? do
         use_aliases(new_code, zipper)
@@ -139,61 +141,73 @@ defmodule Igniter.Code.Common do
         new_code
       end
 
-    case zipper.node do
-      {:__block__, meta, stuff} when length(stuff) > 1 or stuff == [] ->
-        new_stuff =
-          case new_code do
-            {:__block__, _, new_stuff} when length(new_stuff) > 1 or new_stuff == [] ->
-              if placement == :after do
-                stuff ++ new_stuff
-              else
-                new_code ++ stuff
-              end
+    if upwards && extendable_block?(upwards.node) do
+      {:__block__, _, upwards_code} = upwards.node
+      index = Enum.find_index(upwards_code, &(&1 == zipper.node))
 
-            new_code ->
-              if placement == :after do
-                stuff ++ [new_code]
-              else
-                [new_code | stuff]
-              end
+      to_insert =
+        if extendable_block?(new_code) do
+          {:__block__, _, new_code} = new_code
+          new_code
+        else
+          [new_code]
+        end
+
+      {head, tail} =
+        if placement == :after do
+          Enum.split(upwards_code, index + 1)
+        else
+          Enum.split(upwards_code, index)
+        end
+
+      Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ tail})
+    else
+      if extendable_block?(zipper.node) && extendable_block?(new_code) do
+        {:__block__, _, stuff} = zipper.node
+
+        {:__block__, _, new_stuff} = new_code
+
+        new_stuff =
+          if placement == :after do
+            stuff ++ new_stuff
+          else
+            new_stuff ++ stuff
           end
 
-        Zipper.replace(zipper, {:__block__, meta, new_stuff})
+        Zipper.replace(zipper, {:__block__, [], new_stuff})
+      else
+        if extendable_block?(zipper.node) do
+          {:__block__, _, stuff} = zipper.node
 
-      code ->
-        zipper
-        |> Zipper.up()
-        |> case do
-          %Zipper{node: {:__block__, meta, stuff}} = upwards
-          when length(stuff) > 1 or stuff == [] ->
-            index = Enum.find_index(stuff, &(&1 == code))
-
-            new_index =
-              if placement == :after do
-                index + 1
-              else
-                index
-              end
-
-            new_stuff =
-              case new_code do
-                {:__block__, _, new_stuff} when length(new_stuff) > 1 or new_stuff == [] ->
-                  {lead, trail} = Enum.split(stuff, new_index)
-                  lead ++ new_stuff ++ trail
-
-                _ ->
-                  List.insert_at(stuff, new_index, new_code)
-              end
-
-            Zipper.replace(upwards, {:__block__, meta, new_stuff})
-
-          _ ->
+          new_stuff =
             if placement == :after do
-              Zipper.replace(zipper, {:__block__, [], [code, new_code]})
+              stuff ++ [new_code]
             else
-              Zipper.replace(zipper, {:__block__, [], [new_code, code]})
+              [new_code] ++ stuff
             end
+
+          Zipper.replace(zipper, {:__block__, [], new_stuff})
+        else
+          code =
+            if extendable_block?(new_code) do
+              {:__block__, _, new_stuff} = new_code
+
+              if placement == :after do
+                [zipper.node] ++ new_stuff
+              else
+                new_stuff ++ [zipper.node]
+              end
+            else
+              if placement == :after do
+                [zipper.node, new_code]
+              else
+                [new_code, zipper.node]
+              end
+            end
+
+          Zipper.replace(zipper, {:__block__, [], code})
         end
+      end
     end
   end
 
@@ -202,9 +216,15 @@ defmodule Igniter.Code.Common do
   end
 
   def replace_code(zipper, code) do
-    code = use_aliases(code, zipper)
+    # code = use_aliases(code, zipper)
     Zipper.replace(zipper, code)
   end
+
+  def extendable_block?({:__block__, meta, contents}) when is_list(contents) do
+    !meta[:token] && !meta[:format]
+  end
+
+  def extendable_block?(_), do: false
 
   @doc """
   Replaces full module names in `new_code` with any aliases for that

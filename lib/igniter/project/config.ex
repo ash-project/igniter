@@ -72,7 +72,7 @@ defmodule Igniter.Project.Config do
         nil ->
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
-        zipper ->
+        _ ->
           modify_configuration_code(zipper, config_path, app_name, value, updater)
       end
     end)
@@ -167,62 +167,65 @@ defmodule Igniter.Project.Config do
   def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
-    case try_update_three_arg(zipper, config_path, app_name, value, updater) do
-      {:ok, zipper} ->
-        zipper
+    Zipper.within(zipper, fn zipper ->
+      case try_update_three_arg(zipper, config_path, app_name, value, updater) do
+        {:ok, zipper} ->
+          zipper
 
-      :error ->
-        case try_update_two_arg(zipper, config_path, app_name, value, updater) do
-          {:ok, zipper} ->
-            zipper
+        :error ->
+          case try_update_two_arg(zipper, config_path, app_name, value, updater) do
+            {:ok, zipper} ->
+              zipper
 
-          :error ->
-            [first | rest] = config_path
+            :error ->
+              [first | rest] = config_path
 
-            # this indicates its a module / not a "pretty" atom
-            config =
-              if is_atom(first) && String.downcase(to_string(first)) != to_string(first) do
-                {:config, [], [app_name, first, Igniter.Code.Keyword.keywordify(rest, value)]}
-              else
-                {:config, [], [app_name, [{first, Igniter.Code.Keyword.keywordify(rest, value)}]]}
+              # this indicates its a module / not a "pretty" atom
+              config =
+                if is_atom(first) && String.downcase(to_string(first)) != to_string(first) do
+                  {:config, [], [app_name, first, Igniter.Code.Keyword.keywordify(rest, value)]}
+                else
+                  {:config, [],
+                   [app_name, [{first, Igniter.Code.Keyword.keywordify(rest, value)}]]}
+                end
+
+              case Igniter.Code.Function.move_to_function_call_in_current_scope(
+                     zipper,
+                     :import,
+                     1,
+                     fn function_call ->
+                       Igniter.Code.Function.argument_matches_predicate?(
+                         function_call,
+                         0,
+                         &Common.nodes_equal?(&1, Config)
+                       )
+                     end
+                   ) do
+                {:ok, zipper} ->
+                  zipper
+                  |> Zipper.right()
+                  |> case do
+                    nil ->
+                      Common.add_code(zipper, config)
+
+                    zipper ->
+                      Common.add_code(zipper, config, :before)
+                  end
+
+                :error ->
+                  zipper
+                  |> Zipper.right()
+                  |> case do
+                    nil ->
+                      Common.add_code(zipper, config)
+
+                    zipper ->
+                      Common.add_code(zipper, config, :before)
+                  end
               end
-
-            case Igniter.Code.Function.move_to_function_call_in_current_scope(
-                   zipper,
-                   :import,
-                   1,
-                   fn function_call ->
-                     Igniter.Code.Function.argument_matches_predicate?(
-                       function_call,
-                       0,
-                       &Common.nodes_equal?(&1, Config)
-                     )
-                   end
-                 ) do
-              {:ok, zipper} ->
-                zipper
-                |> Zipper.right()
-                |> case do
-                  nil ->
-                    Common.add_code(zipper, config)
-
-                  zipper ->
-                    Common.add_code(zipper, config, :before)
-                end
-
-              :error ->
-                zipper
-                |> Zipper.right()
-                |> case do
-                  nil ->
-                    Common.add_code(zipper, config)
-
-                  zipper ->
-                    Common.add_code(zipper, config, :before)
-                end
-            end
-        end
-    end
+          end
+      end
+    end)
   end
 
   @doc """

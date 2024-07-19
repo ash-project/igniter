@@ -19,21 +19,23 @@ defmodule Igniter.Code.List do
   @spec prepend_new_to_list(Zipper.t(), quoted :: Macro.t(), equality_pred) ::
           {:ok, Zipper.t()} | :error
   def prepend_new_to_list(zipper, quoted, equality_pred \\ &Common.nodes_equal?/2) do
-    if list?(zipper) do
-      zipper
-      |> find_list_item_index(fn value ->
-        equality_pred.(value, quoted)
-      end)
-      |> case do
-        nil ->
-          prepend_to_list(zipper, quoted)
+    Common.within(zipper, fn zipper ->
+      if list?(zipper) do
+        zipper
+        |> find_list_item_index(fn value ->
+          equality_pred.(value, quoted)
+        end)
+        |> case do
+          nil ->
+            prepend_to_list(zipper, quoted)
 
-        _ ->
-          {:ok, zipper}
+          _ ->
+            {:ok, zipper}
+        end
+      else
+        :error
       end
-    else
-      :error
-    end
+    end)
   end
 
   @doc "Appends `quoted` to the list unless it is already present, determined by `equality_pred`."
