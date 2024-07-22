@@ -149,7 +149,7 @@ defmodule Igniter.Code.Common do
     cond do
       upwards && extendable_block?(upwards.node) ->
         {:__block__, _, upwards_code} = upwards.node
-        index = Enum.find_index(upwards_code, &(&1 == zipper.node))
+        index = Enum.count(zipper.path.left || [])
 
         to_insert =
           if extendable_block?(new_code) do
@@ -170,7 +170,7 @@ defmodule Igniter.Code.Common do
 
       super_upwards && extendable_block?(super_upwards.node) ->
         {:__block__, _, upwards_code} = super_upwards.node
-        index = Enum.find_index(upwards_code, &(&1 == zipper.supertree.node))
+        index = Enum.count(zipper.supertree.path.left || [])
 
         to_insert =
           if extendable_block?(new_code) do
