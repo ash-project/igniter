@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.9](https://github.com/ash-project/igniter/compare/v0.3.8...v0.3.9) (2024-07-22)
+
+
+
+
+### Bug Fixes:
+
+* force compile dependencies.
+
+* use length of path for insertion point, instead of node equality
+
 ## [v0.3.8](https://github.com/ash-project/igniter/compare/v0.3.7...v0.3.8) (2024-07-19)
 
 
