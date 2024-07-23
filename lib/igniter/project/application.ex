@@ -16,10 +16,8 @@ defmodule Igniter.Project.Application do
   @doc "Adds a new child to the `children` list in the application file"
   @spec add_new_child(Igniter.t(), module() | {module, term()}) :: Igniter.t()
   def add_new_child(igniter, to_supervise) do
-    project = Mix.Project.get!()
-
     to_perform =
-      case project.application()[:mod] do
+      case mod_definition(igniter) do
         nil -> {:create_an_app, Igniter.Code.Module.module_name("Application")}
         {mod, _} -> {:modify, mod}
         mod -> {:modify, mod}
@@ -155,5 +153,45 @@ defmodule Igniter.Project.Application do
            """}
       end
     end)
+  end
+
+  def mod_definition(igniter) do
+    zipper =
+      igniter
+      |> Igniter.include_existing_elixir_file("mix.exs")
+      |> Map.get(:rewrite)
+      |> Rewrite.source!("mix.exs")
+      |> Rewrite.Source.get(:quoted)
+      |> Zipper.zip()
+
+    with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+         {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :application, 0) do
+      defined_mod =
+        Igniter.Code.List.move_to_list_item(zipper, fn item ->
+          if Igniter.Code.Tuple.tuple?(item) do
+            case Igniter.Code.Tuple.tuple_elem(item, 0) do
+              {:ok, first_elem} ->
+                Common.node_matches_pattern?(first_elem, :mod)
+
+              :error ->
+                false
+            end
+          end
+        end)
+
+      case defined_mod do
+        {:ok, definition} ->
+          {{_key, mod}, _} =
+            definition
+            |> Zipper.node()
+            |> Sourceror.to_string()
+            |> Code.eval_string()
+
+          mod
+
+        _ ->
+          nil
+      end
+    end
   end
 end
