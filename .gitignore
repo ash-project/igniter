@@ -43,6 +43,8 @@ igniter-*.tar
 # If the VM crashes, it generates a dump, let's ignore it too.
 installer/erl_crash.dump
 
+/test_project
+
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 

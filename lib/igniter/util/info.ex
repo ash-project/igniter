@@ -14,21 +14,21 @@ defmodule Igniter.Util.Info do
       ) do
     schema = recursively_compose_schema(schema, argv, task_name)
 
-    igniter =
-      add_deps(
-        igniter,
-        List.wrap(schema.adds_deps) ++ List.wrap(schema.installs),
-        opts
-      )
-
     case schema.installs do
       [] ->
-        {Igniter.apply_and_fetch_dependencies(igniter, opts),
-         Enum.map(Enum.uniq(acc), &"#{&1}.install"), validate!(argv, schema, task_name)}
+        igniter =
+          igniter
+          |> add_deps(
+            List.wrap(schema.adds_deps) ++ List.wrap(schema.installs),
+            opts
+          )
+          |> Igniter.apply_and_fetch_dependencies(opts)
+
+        {igniter, Enum.map(Enum.uniq(acc), &"#{&1}.install"), validate!(argv, schema, task_name)}
 
       installs ->
-        schema = %{schema | adds_deps: [], installs: []}
-        installs = Keyword.keys(installs)
+        schema = %{schema |  installs: []}
+        install_names = Keyword.keys(installs)
 
         igniter
         |> Igniter.apply_and_fetch_dependencies(opts)
@@ -36,20 +36,24 @@ defmodule Igniter.Util.Info do
           argv,
           %{
             schema
-            | composes: Enum.map(installs, &"#{&1}.install"),
+            | composes: Enum.map(install_names, &"#{&1}.install"),
               installs: [],
-              adds_deps: []
+              adds_deps: schema.adds_deps ++ installs
           },
           task_name,
           opts,
-          acc ++ installs
+          acc ++ install_names
         )
     end
   end
 
   defp add_deps(igniter, add_deps, opts) do
     Enum.reduce(add_deps, igniter, fn dependency, igniter ->
-      Igniter.Project.Deps.add_dep(igniter, dependency, opts)
+      Igniter.Project.Deps.add_dep(
+        igniter,
+        dependency,
+        Keyword.put(opts, :notify_on_present?, true)
+      )
     end)
   end
 

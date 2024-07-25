@@ -32,35 +32,37 @@ defmodule Igniter.Project.Deps do
 
   @deprecated "Use `add_dep/2` or `add_dep/3` instead."
   def add_dependency(igniter, name, version, opts \\ []) do
-    if name in List.wrap(igniter.assigns[:manually_installed]) do
-      igniter
-    else
-      case get_dependency_declaration(igniter, name) do
-        nil ->
-          do_add_dependency(igniter, name, version, opts)
+    case get_dependency_declaration(igniter, name) do
+      nil ->
+        do_add_dependency(igniter, name, version, opts)
 
-        current ->
-          desired = "`{#{inspect(name)}, #{inspect(version)}}`"
-          current = "`#{current}`"
+      current ->
+        desired = Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
+        current = Code.eval_string(current) |> elem(0)
 
-          if desired == current do
-            igniter
-          else
-            if opts[:yes?] ||
-                 Mix.shell().yes?("""
-                 Dependency #{name} is already in mix.exs. Should we replace it?
-
-                 Desired: #{desired}
-                 Found: #{current}
-                 """) do
-              igniter
-              |> remove_dependency(name)
-              |> do_add_dependency(name, version, opts)
-            else
-              igniter
-            end
+        if desired == current do
+          if opts[:notify_on_present?] do
+            Mix.shell().info(
+              "Dependency #{name} is already in mix.exs with the desired version. Skipping."
+            )
           end
-      end
+
+          igniter
+        else
+          if opts[:yes?] ||
+               Mix.shell().yes?("""
+               Dependency #{name} is already in mix.exs. Should we replace it?
+
+               Desired: `#{inspect desired}`
+               Found: `#{inspect current}`
+               """) do
+            igniter
+            |> remove_dependency(name)
+            |> do_add_dependency(name, version, opts)
+          else
+            igniter
+          end
+        end
     end
   end
 
