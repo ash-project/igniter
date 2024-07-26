@@ -53,8 +53,8 @@ defmodule Igniter.Project.Deps do
                Mix.shell().yes?("""
                Dependency #{name} is already in mix.exs. Should we replace it?
 
-               Desired: `#{inspect desired}`
-               Found: `#{inspect current}`
+               Desired: `#{inspect(desired)}`
+               Found: `#{inspect(current)}`
                """) do
             igniter
             |> remove_dependency(name)

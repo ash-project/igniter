@@ -30,7 +30,11 @@ defmodule Igniter.Mix.Tasks.InstallTest do
     test "rerunning the same installer lets you know the dependency was not changed" do
       _ = cmd!("mix", ["igniter.install", "jason", "--yes"], cd: "test_project")
       output = cmd!("mix", ["igniter.install", "jason", "--yes"], cd: "test_project")
-      assert String.contains?(output, "Dependency jason is already in mix.exs with the desired version. Skipping.")
+
+      assert String.contains?(
+               output,
+               "Dependency jason is already in mix.exs with the desired version. Skipping."
+             )
     end
   end
 

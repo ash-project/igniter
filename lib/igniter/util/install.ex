@@ -221,7 +221,7 @@ defmodule Igniter.Util.Install do
         |> File.read!()
         |> Code.eval_string([], file: Path.expand("mix.exs"))
 
-        Igniter.Util.DepsCompile.run()
+        Igniter.Util.DepsCompile.run(recompile_igniter?: true)
 
       exit_code ->
         Mix.shell().info("""

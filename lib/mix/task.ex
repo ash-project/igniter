@@ -16,13 +16,22 @@ defmodule Igniter.Mix.Task do
     ## Configurable Keys
 
     * `schema` - The option schema for this task, in the format given to `OptionParser`, i.e `[name: :string]`
+    * `positional` - A list of positional arguments that this task accepts. A list of atoms, or a keyword list with the option and config.
+      See the positional arguments section for more.
     * `aliases` - A map of aliases to the schema keys.
     * `composes` - A list of tasks that this task might compose.
     * `installs` - A list of dependencies that should be installed before continuing.
     * `adds_deps` - A list of dependencies that should be added to the `mix.exs`, but do not need to be installed before continuing.
     * `extra_args?` - Whether or not to allow extra arguments. This forces all tasks that compose this task to allow extra args as well.
+    * `example` - An example usage of the task. This is used in the help output.
 
     Your task should *always* use `switches` and not `strict` to validate provided options!
+
+    ## Positonal Arguments
+
+    Each positional argument can provide the following options:
+
+    * `:optional` - Whether or not the argument is optional. Defaults to `false`.
     """
 
     @global_options [
@@ -40,14 +49,18 @@ defmodule Igniter.Mix.Task do
               composes: [],
               installs: [],
               adds_deps: [],
+              positional: [],
+              example: nil,
               extra_args?: false
 
     @type t :: %__MODULE__{
             schema: Keyword.t(),
             aliases: Keyword.t(),
             composes: [String.t()],
+            positional: list(atom | {atom, [{:optional, boolean()}, {:example, String.t()}]}),
             installs: [{atom(), String.t()}],
             adds_deps: [{atom(), String.t()}],
+            example: String.t() | nil,
             extra_args?: boolean()
           }
 
@@ -58,6 +71,9 @@ defmodule Igniter.Mix.Task do
   Returns an `Igniter.Mix.Task.Info` struct, with information used when running the igniter task.
 
   This info will be used to validate arguments in composed tasks.
+
+  Use the `positional_args!(argv)` to get your positional arguments according to your `info.positional`, and the remaining unused args.
+  Use the `options!(argv)` macro to get your parsed options according to your `info.schema`.
 
   ## Important Limitations
 
@@ -74,7 +90,7 @@ defmodule Igniter.Mix.Task do
     quote do
       use Mix.Task
       @behaviour Igniter.Mix.Task
-      import Igniter.Mix.Task, only: [options!: 1]
+      import Igniter.Mix.Task, only: [options!: 1, positional_args!: 1]
 
       @impl Mix.Task
       def run(argv) do
@@ -122,14 +138,97 @@ defmodule Igniter.Mix.Task do
     end
   end
 
+  @doc "Parses the options for the task based on its info."
   @spec options!(argv :: term()) :: term() | no_return
   defmacro options!(argv) do
     quote do
       argv = unquote(argv)
-      info = info(argv, Mix.Task.task_name(__MODULE__))
-      {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
 
+      task_name = Mix.Task.task_name(__MODULE__)
+
+      info = info(argv, task_name)
+      {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
       parsed
     end
+  end
+
+  defmacro positional_args!(argv) do
+    quote do
+      argv = unquote(argv)
+      task_name = Mix.Task.task_name(__MODULE__)
+      info = info(argv, task_name)
+
+      desired =
+        Enum.map(info.positional, fn
+          value when is_atom(value) ->
+            {value, []}
+
+          other ->
+            other
+        end)
+
+      {rest, positional} = Enum.split_with(argv, &String.starts_with?(&1, "-"))
+
+      {remaining_desired, got} =
+        Enum.reduce(positional, {desired, []}, fn
+          _arg, {[], got} ->
+            {[], got}
+
+          arg, {desired, got} ->
+            {name, _config} =
+              Enum.find(desired, fn {_name, config} ->
+                !config[:optional]
+              end) || Enum.at(desired, 0)
+
+            {Keyword.delete(desired, name), Keyword.put(got, name, arg)}
+        end)
+
+      case Enum.find(remaining_desired, fn {_arg, config} -> !config[:optional] end) do
+        {name, _config} ->
+          raise ArgumentError, """
+          Required positional argument `#{name}` was not supplied.
+
+          Command: `#{Igniter.Mix.Task.call_structure(task_name, desired)}`
+          #{Igniter.Mix.Task.call_example(info)}
+
+          Run `mix help #{task_name}` for more information.
+          """
+
+        _ ->
+          {Map.new(got), rest}
+      end
+    end
+  end
+
+  @doc false
+  def call_example(info) do
+    if info.example do
+      """
+
+      Example:
+
+      #{indent(info.example)}
+      """
+    end
+  end
+
+  defp indent(example) do
+    example
+    |> String.split("\n")
+    |> Enum.map_join("\n", &"    #{&1}")
+  end
+
+  @doc false
+  def call_structure(name, desired) do
+    call =
+      Enum.map_join(desired, " ", fn {name, config} ->
+        if config[:optional] do
+          "[#{name}]"
+        else
+          name
+        end
+      end)
+
+    "mix #{name} #{call}"
   end
 end

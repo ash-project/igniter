@@ -27,7 +27,7 @@ defmodule Igniter.Util.Info do
         {igniter, Enum.map(Enum.uniq(acc), &"#{&1}.install"), validate!(argv, schema, task_name)}
 
       installs ->
-        schema = %{schema |  installs: []}
+        schema = %{schema | installs: []}
         install_names = Keyword.keys(installs)
 
         igniter
