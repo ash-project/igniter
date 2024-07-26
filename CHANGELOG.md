@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.10](https://github.com/ash-project/igniter/compare/v0.3.9...v0.3.10) (2024-07-26)
+
+
+
+
+### Bug Fixes:
+
+* recompile igniter in `ingiter.install`
+
+### Improvements:
+
+* add `positional_args!/1` macro for use in tasks
+
+* better output on missing installers & already present dep
+
 ## [v0.3.9](https://github.com/ash-project/igniter/compare/v0.3.8...v0.3.9) (2024-07-22)
 
 
