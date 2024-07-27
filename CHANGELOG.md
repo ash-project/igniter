@@ -5,6 +5,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.11](https://github.com/ash-project/igniter/compare/v0.3.10...v0.3.11) (2024-07-27)
+
+
+
+
+### Bug Fixes:
+
+* ensure igniter is compiled first
+
+* fetch deps after adding any nested installers
+
+* various fixes & improvements to positional argument listing
+
+### Improvements:
+
+* clean up dependency compiling logic
+
+* optimize module finding w/ async_stream
+
+* add `rest: true` option for positional args
+
 ## [v0.3.10](https://github.com/ash-project/igniter/compare/v0.3.9...v0.3.10) (2024-07-26)
 
 
