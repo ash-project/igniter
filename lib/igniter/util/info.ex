@@ -19,7 +19,7 @@ defmodule Igniter.Util.Info do
         igniter =
           igniter
           |> add_deps(
-            List.wrap(schema.adds_deps) ++ List.wrap(schema.installs),
+            List.wrap(schema.adds_deps),
             opts
           )
           |> Igniter.apply_and_fetch_dependencies(opts)
@@ -31,6 +31,10 @@ defmodule Igniter.Util.Info do
         install_names = Keyword.keys(installs)
 
         igniter
+        |> add_deps(
+          List.wrap(installs),
+          opts
+        )
         |> Igniter.apply_and_fetch_dependencies(opts)
         |> compose_install_and_validate!(
           argv,
@@ -38,7 +42,7 @@ defmodule Igniter.Util.Info do
             schema
             | composes: Enum.map(install_names, &"#{&1}.install"),
               installs: [],
-              adds_deps: schema.adds_deps ++ installs
+              adds_deps: schema.adds_deps
           },
           task_name,
           opts,

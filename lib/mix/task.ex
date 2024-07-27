@@ -32,6 +32,9 @@ defmodule Igniter.Mix.Task do
     Each positional argument can provide the following options:
 
     * `:optional` - Whether or not the argument is optional. Defaults to `false`.
+    * `:rest` - Whether or not the argument consumes the rest of the positional arguments. Defaults to `false`.
+                The value will be converted to a list automatically.
+
     """
 
     @global_options [
@@ -57,7 +60,7 @@ defmodule Igniter.Mix.Task do
             schema: Keyword.t(),
             aliases: Keyword.t(),
             composes: [String.t()],
-            positional: list(atom | {atom, [{:optional, boolean()}, {:example, String.t()}]}),
+            positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
             installs: [{atom(), String.t()}],
             adds_deps: [{atom(), String.t()}],
             example: String.t() | nil,
@@ -158,6 +161,8 @@ defmodule Igniter.Mix.Task do
       task_name = Mix.Task.task_name(__MODULE__)
       info = info(argv, task_name)
 
+      {argv, positional} = Igniter.Mix.Task.extract_positional_args(argv)
+
       desired =
         Enum.map(info.positional, fn
           value when is_atom(value) ->
@@ -167,26 +172,20 @@ defmodule Igniter.Mix.Task do
             other
         end)
 
-      {rest, positional} = Enum.split_with(argv, &String.starts_with?(&1, "-"))
-
       {remaining_desired, got} =
-        Enum.reduce(positional, {desired, []}, fn
-          _arg, {[], got} ->
-            {[], got}
-
-          arg, {desired, got} ->
-            {name, _config} =
-              Enum.find(desired, fn {_name, config} ->
-                !config[:optional]
-              end) || Enum.at(desired, 0)
-
-            {Keyword.delete(desired, name), Keyword.put(got, name, arg)}
-        end)
+        Igniter.Mix.Task.consume_args(positional, desired)
 
       case Enum.find(remaining_desired, fn {_arg, config} -> !config[:optional] end) do
-        {name, _config} ->
+        {name, config} ->
+          line =
+            if config[:rest] do
+              "Must provide one or more values for positional argument `#{name}`"
+            else
+              "Required positional argument `#{name}` was not supplied."
+            end
+
           raise ArgumentError, """
-          Required positional argument `#{name}` was not supplied.
+          #{line}
 
           Command: `#{Igniter.Mix.Task.call_structure(task_name, desired)}`
           #{Igniter.Mix.Task.call_example(info)}
@@ -195,8 +194,45 @@ defmodule Igniter.Mix.Task do
           """
 
         _ ->
-          {Map.new(got), rest}
+          {Igniter.Mix.Task.add_default_values(Map.new(got), desired), positional}
       end
+    end
+  end
+
+  @doc false
+  def add_default_values(got, desired) do
+    Enum.reduce(desired, got, fn {name, config}, acc ->
+      if config[:optional] do
+        if config[:rest] do
+          Map.update(got, name, [], &List.wrap/1)
+        else
+          Map.put_new(got, name, nil)
+        end
+      else
+        acc
+      end
+    end)
+  end
+
+  @doc false
+  def consume_args(positional, desired, got \\ [])
+
+  def consume_args([], desired, got) do
+    {desired, got}
+  end
+
+  def consume_args([arg | positional], desired, got) do
+    {name, config} =
+      Enum.find(desired, fn {_name, config} ->
+        !config[:optional]
+      end) || Enum.at(desired, 0)
+
+    desired = Keyword.delete(desired, name)
+
+    if config[:rest] do
+      {desired, Keyword.put(got, name, [arg | positional])}
+    else
+      consume_args(positional, desired, Keyword.put(got, name, arg))
     end
   end
 
@@ -212,6 +248,27 @@ defmodule Igniter.Mix.Task do
     end
   end
 
+  @doc false
+  def extract_positional_args(argv, argv \\ [], positional \\ [])
+  def extract_positional_args([], argv, positional), do: {argv, positional}
+
+  def extract_positional_args(argv, got_argv, positional) do
+    case OptionParser.next(argv, switches: []) do
+      {:ok, key, value, rest} ->
+        extract_positional_args(rest, got_argv ++ [{key, value}], positional)
+
+      {:invalid, key, value, rest} ->
+        extract_positional_args(rest, got_argv ++ [{key, value}], positional)
+
+      {:undefined, key, value, rest} ->
+        extract_positional_args(rest, got_argv ++ [{key, value}], positional)
+
+      {:error, rest} ->
+        [first | rest] = rest
+        extract_positional_args(rest, got_argv, positional ++ [first])
+    end
+  end
+
   defp indent(example) do
     example
     |> String.split("\n")
@@ -222,10 +279,17 @@ defmodule Igniter.Mix.Task do
   def call_structure(name, desired) do
     call =
       Enum.map_join(desired, " ", fn {name, config} ->
-        if config[:optional] do
-          "[#{name}]"
+        with_optional =
+          if config[:optional] do
+            "[#{name}]"
+          else
+            to_string(name)
+          end
+
+        if config[:rest] do
+          with_optional <> "[...]"
         else
-          name
+          with_optional
         end
       end)
 

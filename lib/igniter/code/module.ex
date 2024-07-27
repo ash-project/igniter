@@ -125,18 +125,18 @@ defmodule Igniter.Code.Module do
 
     igniter
     |> Map.get(:rewrite)
-    |> Enum.find_value({:error, igniter}, fn source ->
-      source
-      |> Rewrite.Source.get(:quoted)
-      |> Zipper.zip()
-      |> move_to_defmodule(module_name)
-      |> case do
-        {:ok, zipper} ->
-          {:ok, {igniter, source, zipper}}
+    |> Task.async_stream(fn source ->
+      {source
+       |> Rewrite.Source.get(:quoted)
+       |> Zipper.zip()
+       |> move_to_defmodule(module_name), source}
+    end)
+    |> Enum.find_value({:error, igniter}, fn
+      {:ok, {{:ok, zipper}, source}} ->
+        {:ok, {igniter, source, zipper}}
 
-        _ ->
-          nil
-      end
+      _other ->
+        false
     end)
   end
 
@@ -150,7 +150,7 @@ defmodule Igniter.Code.Module do
     matching_modules =
       igniter
       |> Map.get(:rewrite)
-      |> Enum.flat_map(fn source ->
+      |> Task.async_stream(fn source ->
         source
         |> Rewrite.Source.get(:quoted)
         |> Zipper.zip()
@@ -179,6 +179,9 @@ defmodule Igniter.Code.Module do
           end
         end)
         |> elem(1)
+      end)
+      |> Enum.flat_map(fn {:ok, v} ->
+        v
       end)
 
     {igniter, matching_modules}

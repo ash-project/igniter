@@ -42,7 +42,7 @@ defmodule Igniter.Util.DepsCompile do
     deps = Mix.Dep.load_and_cache()
 
     opts =
-      [include_children: true, force: true]
+      [include_children: true]
       |> Keyword.put(:recompile_igniter?, Keyword.get(opts, :recompile_igniter?))
 
     compile(filter_available_and_local_deps(deps), opts)
@@ -54,12 +54,7 @@ defmodule Igniter.Util.DepsCompile do
     config = Mix.Project.deps_config()
     Mix.Task.run("deps.precompile")
 
-    igniter_needs_compiling? =
-      if options[:recompile_igniter?] do
-        true
-      else
-        not Code.ensure_loaded?(Igniter)
-      end
+    igniter_needs_compiling? = not Code.ensure_loaded?(Igniter)
 
     compiled =
       deps
@@ -69,6 +64,9 @@ defmodule Igniter.Util.DepsCompile do
         else
           Enum.reject(deps, &(&1.app == :igniter))
         end
+      end)
+      |> Enum.sort_by(fn %{app: app} ->
+        app != :igniter
       end)
       |> Enum.map(fn %Mix.Dep{app: app, status: status, opts: opts, scm: scm} = dep ->
         check_unavailable!(app, scm, status)
