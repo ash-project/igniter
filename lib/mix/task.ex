@@ -194,7 +194,7 @@ defmodule Igniter.Mix.Task do
           """
 
         _ ->
-          {Igniter.Mix.Task.add_default_values(Map.new(got), desired), positional}
+          {Igniter.Mix.Task.add_default_values(Map.new(got), desired), argv}
       end
     end
   end
@@ -254,14 +254,26 @@ defmodule Igniter.Mix.Task do
 
   def extract_positional_args(argv, got_argv, positional) do
     case OptionParser.next(argv, switches: []) do
-      {:ok, key, value, rest} ->
-        extract_positional_args(rest, got_argv ++ [{key, value}], positional)
+      {:ok, _key, _value, rest} ->
+        extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
+          positional
+        )
 
-      {:invalid, key, value, rest} ->
-        extract_positional_args(rest, got_argv ++ [{key, value}], positional)
+      {:invalid, _key, _value, rest} ->
+        extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
+          positional
+        )
 
-      {:undefined, key, value, rest} ->
-        extract_positional_args(rest, got_argv ++ [{key, value}], positional)
+      {:undefined, _key, _value, rest} ->
+        extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
+          positional
+        )
 
       {:error, rest} ->
         [first | rest] = rest

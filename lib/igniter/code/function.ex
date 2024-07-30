@@ -107,7 +107,7 @@ defmodule Igniter.Code.Function do
   end
 
   @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current or lower scope"
-  @spec move_to_function_call(Zipper.t(), atom, non_neg_integer()) ::
+  @spec move_to_function_call(Zipper.t(), atom | {atom, atom}, non_neg_integer()) ::
           {:ok, Zipper.t()} | :error
   def move_to_function_call(zipper, name, arity, predicate \\ fn _ -> true end)
 
@@ -135,51 +135,124 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @doc "Returns `true` if the node is a function call of the given name and arity"
-  @spec function_call?(Zipper.t(), atom, non_neg_integer()) :: boolean()
-  def function_call?(%Zipper{} = zipper, name, arity) do
+  @doc """
+  Returns `true` if the node is a function call of the given name
+
+  If an `atom` is provided, it only matches functions in the form of `function(name)`.
+
+  If an `{module, atom}` is provided, it matches functions called on the given module,
+  taking into account any imports or aliases.
+  """
+  @spec function_call?(Zipper.t(), atom | {module, atom}, arity :: integer | :any) :: boolean()
+  def function_call?(zipper, name, arity \\ :any)
+
+  def function_call?(%Zipper{} = zipper, name, arity) when is_atom(name) do
     zipper
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
       {^name, _, args} ->
-        Enum.count(args) == arity
+        arity == :any || Enum.count(args) == arity
 
       {{^name, _, context}, _, args} when is_atom(context) ->
-        Enum.count(args) == arity
+        arity == :any || Enum.count(args) == arity
 
       {:|>, _, [{^name, _, context} | rest]} when is_atom(context) ->
-        Enum.count(rest) == arity - 1
+        arity == :any || Enum.count(rest) == arity - 1
 
       {:|>, _, [^name | rest]} ->
-        Enum.count(rest) == arity - 1
+        arity == :any || Enum.count(rest) == arity - 1
 
       _ ->
         false
     end
   end
 
-  @doc "Returns `true` if the node is a function call of the given name"
-  @spec function_call?(Zipper.t(), atom) :: boolean()
-  def function_call?(%Zipper{} = zipper, name) do
-    zipper
-    |> Common.maybe_move_to_single_child_block()
-    |> Zipper.node()
-    |> case do
-      {^name, _, _} ->
-        true
+  def function_call?(%Zipper{} = zipper, {module, name}, arity) when is_atom(name) do
+    node =
+      zipper
+      |> Common.maybe_move_to_single_child_block()
+      |> Igniter.Code.Common.expand_aliases()
+      |> Zipper.node()
 
-      {{^name, _, context}, _, _} when is_atom(context) ->
-        true
+    split = module |> Module.split() |> Enum.map(&String.to_atom/1)
 
-      {:|>, _, [{^name, _, context} | _rest]} when is_atom(context) ->
-        true
+    case Igniter.Code.Common.current_env(zipper) do
+      {:ok, env} ->
+        imported? =
+          Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
+            imported_module == module &&
+              Enum.any?(funcs, fn {imported_name, imported_arity} ->
+                name == imported_name && (arity == :any || Enum.count(imported_arity) == arity)
+              end)
+          end)
 
-      {:|>, _, [^name | _rest]} ->
-        true
+        case node do
+          {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args} ->
+            arity == :any || Enum.count(args) == arity
+
+          {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+          when is_atom(context) ->
+            arity == :any || Enum.count(args) == arity
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+           ]} ->
+            arity == :any || Enum.count(args) == arity - 1
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+           ]}
+          when is_atom(context) ->
+            arity == :any || Enum.count(args) == arity - 1
+
+          {^name, _, args} ->
+            imported? && (arity == :any || Enum.count(args) == arity)
+
+          {{^name, _, context}, _, args} when is_atom(context) ->
+            imported? && (arity == :any || Enum.count(args) == arity)
+
+          {:|>, _, [{^name, _, context} | rest]} when is_atom(context) ->
+            imported? && (arity == :any || Enum.count(rest) == arity - 1)
+
+          {:|>, _, [^name | rest]} ->
+            imported? && (arity == :any || Enum.count(rest) == arity - 1)
+
+          _ ->
+            false
+        end
 
       _ ->
-        false
+        case node do
+          {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args} ->
+            arity == :any || Enum.count(args) == arity
+
+          {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+          when is_atom(context) ->
+            arity == :any || Enum.count(args) == arity
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+           ]} ->
+            arity == :any || Enum.count(args) == arity - 1
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+           ]}
+          when is_atom(context) ->
+            arity == :any || Enum.count(args) == arity - 1
+
+          _ ->
+            false
+        end
     end
   end
 
@@ -190,6 +263,22 @@ defmodule Igniter.Code.Function do
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
+      {:|>, _,
+       [
+         _,
+         {{:., _, [_, name]}, _, _}
+       ]}
+      when is_atom(name) ->
+        true
+
+      {:|>, _,
+       [
+         _,
+         {{:., _, [_, {name, _, context}]}, _, _args}
+       ]}
+      when is_atom(name) and is_atom(context) ->
+        true
+
       {:|>, _, [{name, _, context} | _rest]} when is_atom(context) and is_atom(name) ->
         true
 
@@ -200,6 +289,13 @@ defmodule Igniter.Code.Function do
         true
 
       {{name, _, context}, _, _} when is_atom(context) and is_atom(name) ->
+        true
+
+      {{:., _, [_, name]}, _, _} when is_atom(name) ->
+        true
+
+      {{:., _, [_, {name, _, context}]}, _, _}
+      when is_atom(name) and is_atom(context) ->
         true
 
       _ ->
@@ -404,43 +500,15 @@ defmodule Igniter.Code.Function do
         else
           zipper
           |> Zipper.down()
-          |> case do
-            nil ->
-              nil
-
-            zipper ->
-              zipper
-              |> Zipper.rightmost()
-              |> Zipper.down()
-              |> case do
-                nil ->
-                  nil
-
-                zipper ->
-                  zipper
-                  |> Common.nth_right(index - 1)
-                  |> case do
-                    :error ->
-                      false
-
-                    {:ok, zipper} ->
-                      zipper
-                      |> Common.maybe_move_to_single_child_block()
-                      |> func.()
-                  end
-              end
-          end
+          |> Zipper.right()
+          |> argument_matches_predicate?(index - 1, func)
         end
       else
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            false
-
-          zipper ->
+        case Zipper.node(zipper) do
+          {{:., _, [_mod, name]}, _, args} when is_atom(name) and is_list(args) ->
             zipper
-            |> Common.nth_right(index)
+            |> Zipper.down()
+            |> Common.nth_right(index + 1)
             |> case do
               :error ->
                 false
@@ -449,6 +517,27 @@ defmodule Igniter.Code.Function do
                 zipper
                 |> Common.maybe_move_to_single_child_block()
                 |> func.()
+            end
+
+          _ ->
+            zipper
+            |> Zipper.down()
+            |> case do
+              nil ->
+                false
+
+              zipper ->
+                zipper
+                |> Common.nth_right(index)
+                |> case do
+                  :error ->
+                    false
+
+                  {:ok, zipper} ->
+                    zipper
+                    |> Common.maybe_move_to_single_child_block()
+                    |> func.()
+                end
             end
         end
       end
