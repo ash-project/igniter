@@ -9,6 +9,26 @@ defmodule Igniter.Libs.Phoenix do
     Module.concat(inspect(Igniter.Code.Module.module_name_prefix()) <> "Web", suffix)
   end
 
+  @spec endpoints_for_router(igniter :: Igniter.t(), router :: module()) ::
+          {Igniter.t(), list(module())}
+  def endpoints_for_router(igniter, router) do
+    Igniter.Code.Module.find_all_matching_modules(igniter, fn _module, zipper ->
+      with {:ok, _} <- Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint),
+           {:ok, _} <-
+             Igniter.Code.Function.move_to_function_call_in_current_scope(
+               zipper,
+               :plug,
+               [1, 2],
+               &Igniter.Code.Function.argument_equals?(&1, 0, router)
+             ) do
+        true
+      else
+        _ ->
+          false
+      end
+    end)
+  end
+
   def add_scope(igniter, route, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
