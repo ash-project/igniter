@@ -25,6 +25,8 @@ defmodule Mix.Tasks.Igniter.Install do
   """
   use Mix.Task
 
+  @requirements "deps.compile"
+
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do

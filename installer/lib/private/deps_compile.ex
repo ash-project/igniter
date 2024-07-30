@@ -37,13 +37,12 @@ defmodule Igniter.Util.DepsCompile do
   #   * `--skip-umbrella-children` - skips umbrella applications from compiling
   #   * `--skip-local-deps` - skips non-remote dependencies, such as path deps, from compiling
 
-  def run(opts \\ []) do
+  def run(_opts \\ []) do
     Mix.Project.get!()
     deps = Mix.Dep.load_and_cache()
 
     opts =
-      [include_children: true]
-      |> Keyword.put(:recompile_igniter?, Keyword.get(opts, :recompile_igniter?))
+      [include_children: true, force: true]
 
     compile(filter_available_and_local_deps(deps), opts)
   end
@@ -54,17 +53,8 @@ defmodule Igniter.Util.DepsCompile do
     config = Mix.Project.deps_config()
     Mix.Task.run("deps.precompile")
 
-    igniter_needs_compiling? = not Code.ensure_loaded?(Igniter)
-
     compiled =
       deps
-      |> then(fn deps ->
-        if igniter_needs_compiling? do
-          deps
-        else
-          Enum.reject(deps, &(&1.app == :igniter))
-        end
-      end)
       |> Enum.sort_by(fn %{app: app} ->
         app != :igniter
       end)
