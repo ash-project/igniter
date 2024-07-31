@@ -161,7 +161,7 @@ defmodule Igniter.Mix.Task do
       task_name = Mix.Task.task_name(__MODULE__)
       info = info(argv, task_name)
 
-      {argv, positional} = Igniter.Mix.Task.extract_positional_args(argv)
+      {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
 
       desired =
         Enum.map(info.positional, fn
@@ -245,39 +245,6 @@ defmodule Igniter.Mix.Task do
 
       #{indent(info.example)}
       """
-    end
-  end
-
-  @doc false
-  def extract_positional_args(argv, argv \\ [], positional \\ [])
-  def extract_positional_args([], argv, positional), do: {argv, positional}
-
-  def extract_positional_args(argv, got_argv, positional) do
-    case OptionParser.next(argv, switches: []) do
-      {:ok, _key, _value, rest} ->
-        extract_positional_args(
-          rest,
-          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
-          positional
-        )
-
-      {:invalid, _key, _value, rest} ->
-        extract_positional_args(
-          rest,
-          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
-          positional
-        )
-
-      {:undefined, _key, _value, rest} ->
-        extract_positional_args(
-          rest,
-          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
-          positional
-        )
-
-      {:error, rest} ->
-        [first | rest] = rest
-        extract_positional_args(rest, got_argv, positional ++ [first])
     end
   end
 

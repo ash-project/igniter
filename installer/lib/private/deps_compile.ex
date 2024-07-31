@@ -42,7 +42,7 @@ defmodule Igniter.Util.DepsCompile do
     deps = Mix.Dep.load_and_cache()
 
     opts =
-      [include_children: true, force: true]
+      [include_children: true]
 
     compile(filter_available_and_local_deps(deps), opts)
   end

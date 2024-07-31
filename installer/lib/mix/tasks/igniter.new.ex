@@ -16,7 +16,26 @@ defmodule Mix.Tasks.Igniter.New do
   @igniter_version Mix.Project.config()[:version]
 
   @impl Mix.Task
-  def run([name | _] = argv) do
+  def run(argv) do
+    {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+
+    name =
+      case positional do
+        [name | _] -> name
+        _ ->
+          raise ArgumentError, """
+          Required positional argument missing: project_name.
+
+          Usage:
+
+              mix igniter.new project_name [options]
+          """
+      end
+
+    if String.starts_with?(name, "-") do
+      raise ArgumentError, "The first positional argument must be a project name that starts with a dash, got: #{name}"
+    end
+
     {options, argv, _errors} =
       OptionParser.parse(argv,
         strict: [install: :keep, local: :string, example: :boolean, with: :string],
@@ -46,7 +65,7 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
-    Mix.Task.run(install_with, argv)
+    Mix.Task.run(install_with, [name | argv])
 
     version_requirement =
       if options[:local] do
@@ -78,33 +97,15 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     unless Enum.empty?(install) do
-      case Mix.shell().cmd("mix deps.get") do
-        0 ->
-          Mix.Project.clear_deps_cache()
-          Mix.Project.pop()
-          Mix.Dep.clear_cached()
-
-          "mix.exs"
-          |> File.read!()
-          |> Code.eval_string([], file: Path.expand("mix.exs"))
-
-          Igniter.Util.DepsCompile.run()
-
-        exit_code ->
-          Mix.shell().info("""
-          mix deps.get returned exited with code: `#{exit_code}`
-          """)
-      end
-
       example =
         if options[:example] do
           "--example"
         end
 
-      Mix.Task.run(
-        "igniter.install",
-        Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
-      )
+      install_args = Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
+
+      System.cmd("mix", ["deps.get"])
+      System.cmd("mix", ["igniter.install" | install_args], use_stdio: false)
     end
 
     :ok
