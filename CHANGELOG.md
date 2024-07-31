@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.16](https://github.com/ash-project/igniter/compare/v0.3.15...v0.3.16) (2024-07-31)
+
+
+
+
+### Bug Fixes:
+
+* loadpaths after compiling deps
+
+### Improvements:
+
+* add `create_module` utility
+
 ## [v0.3.15](https://github.com/ash-project/igniter/compare/v0.3.14...v0.3.15) (2024-07-31)
 
 
