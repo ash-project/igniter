@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.15](https://github.com/ash-project/igniter/compare/v0.3.14...v0.3.15) (2024-07-31)
+
+
+
+
+### Bug Fixes:
+
+* remove `force?: true` from dep installation
+
+* better handling of positional args in igniter.new
+
 ## [v0.3.14](https://github.com/ash-project/igniter/compare/v0.3.13...v0.3.14) (2024-07-30)
 
 
