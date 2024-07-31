@@ -21,7 +21,9 @@ defmodule Mix.Tasks.Igniter.New do
 
     name =
       case positional do
-        [name | _] -> name
+        [name | _] ->
+          name
+
         _ ->
           raise ArgumentError, """
           Required positional argument missing: project_name.
@@ -33,7 +35,8 @@ defmodule Mix.Tasks.Igniter.New do
       end
 
     if String.starts_with?(name, "-") do
-      raise ArgumentError, "The first positional argument must be a project name that starts with a dash, got: #{name}"
+      raise ArgumentError,
+            "The first positional argument must be a project name that starts with a dash, got: #{name}"
     end
 
     {options, argv, _errors} =
