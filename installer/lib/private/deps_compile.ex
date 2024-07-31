@@ -45,6 +45,8 @@ defmodule Igniter.Util.DepsCompile do
       [include_children: true]
 
     compile(filter_available_and_local_deps(deps), opts)
+    Mix.Task.reenable("deps.loadpaths")
+    Mix.Task.run("deps.loadpaths", ["--no-deps-check"])
   end
 
   @doc false

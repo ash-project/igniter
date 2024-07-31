@@ -105,10 +105,12 @@ defmodule Mix.Tasks.Igniter.New do
           "--example"
         end
 
-      install_args = Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
+      install_args =
+        Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
 
       System.cmd("mix", ["deps.get"])
-      System.cmd("mix", ["igniter.install" | install_args], use_stdio: false)
+      System.cmd("mix", ["deps.compile"])
+      System.cmd("mix", ["igniter.install" | install_args])
     end
 
     :ok

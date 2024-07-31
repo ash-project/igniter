@@ -31,23 +31,7 @@ defmodule Igniter.Code.Module do
         igniter
 
       {:error, igniter} ->
-        contents =
-          """
-          defmodule #{inspect(module_name)} do
-            #{contents}
-          end
-          """
-
-        location =
-          case Keyword.get(opts, :path, nil) do
-            nil ->
-              proper_location(module_name)
-
-            path ->
-              path
-          end
-
-        Igniter.create_new_elixir_file(igniter, location, contents)
+        create_module(igniter, module_name, contents, opts)
     end
   end
 
@@ -61,6 +45,27 @@ defmodule Igniter.Code.Module do
       when is_binary(path) do
     Logger.warning("You should use `opts` instead of `path` and pass `path` as a keyword.")
     find_and_update_or_create_module(igniter, module_name, contents, updater, path: path)
+  end
+
+  @doc "Creates a new file & module in its appropriate location."
+  def create_module(igniter, module_name, contents, opts \\ []) do
+    contents =
+      """
+      defmodule #{inspect(module_name)} do
+        #{contents}
+      end
+      """
+
+    location =
+      case Keyword.get(opts, :path, nil) do
+        nil ->
+          proper_location(module_name)
+
+        path ->
+          path
+      end
+
+    Igniter.create_new_elixir_file(igniter, location, contents)
   end
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
