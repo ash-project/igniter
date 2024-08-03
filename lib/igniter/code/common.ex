@@ -384,15 +384,19 @@ defmodule Igniter.Code.Common do
 
   def maybe_move_to_single_child_block(zipper) do
     case zipper.node do
-      {:__block__, _, [_]} ->
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            zipper
+      {:__block__, _, [_]} = block ->
+        if extendable_block?(block) do
+          zipper
+          |> Zipper.down()
+          |> case do
+            nil ->
+              zipper
 
-          zipper ->
-            maybe_move_to_single_child_block(zipper)
+            zipper ->
+              maybe_move_to_single_child_block(zipper)
+          end
+        else
+          zipper
         end
 
       _ ->
