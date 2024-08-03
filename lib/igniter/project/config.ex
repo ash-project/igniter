@@ -400,8 +400,8 @@ defmodule Igniter.Project.Config do
              :config,
              3,
              fn function_call ->
-               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name) &&
-                 Igniter.Code.Function.argument_matches_pattern?(function_call, 1, ^config_item)
+               Igniter.Code.Function.argument_equals?(function_call, 0, app_name) &&
+                 Igniter.Code.Function.argument_equals?(function_call, 1, config_item)
              end
            ) do
         :error ->
@@ -418,8 +418,8 @@ defmodule Igniter.Project.Config do
              :config,
              3,
              fn function_call ->
-               Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name) &&
-                 (Igniter.Code.Function.argument_matches_pattern?(function_call, 1, ^config_item) ||
+               Igniter.Code.Function.argument_equals?(function_call, 0, app_name) &&
+                 (Igniter.Code.Function.argument_equals?(function_call, 1, config_item) ||
                     Igniter.Code.Function.argument_matches_predicate?(
                       function_call,
                       1,
@@ -448,7 +448,7 @@ defmodule Igniter.Project.Config do
            :config,
            2,
            fn function_call ->
-             Igniter.Code.Function.argument_matches_pattern?(function_call, 0, ^app_name)
+             Igniter.Code.Function.argument_equals?(function_call, 0, app_name)
            end
          ) do
       :error ->
