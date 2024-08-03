@@ -218,12 +218,12 @@ defmodule Igniter.Code.Keyword do
                      Common.nodes_equal?(first_elem, key)
 
                    :error ->
-                     :error
+                     false
                  end
                end
              end) do
           :error ->
-            :error
+            {:ok, zipper}
 
           {:ok, zipper} ->
             {:ok, zipper |> Zipper.remove()}
