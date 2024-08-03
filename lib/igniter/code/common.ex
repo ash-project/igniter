@@ -384,15 +384,19 @@ defmodule Igniter.Code.Common do
 
   def maybe_move_to_single_child_block(zipper) do
     case zipper.node do
-      {:__block__, _, [_]} ->
-        zipper
-        |> Zipper.down()
-        |> case do
-          nil ->
-            zipper
+      {:__block__, _, [_]} = block ->
+        if extendable_block?(block) do
+          zipper
+          |> Zipper.down()
+          |> case do
+            nil ->
+              zipper
 
-          zipper ->
-            maybe_move_to_single_child_block(zipper)
+            zipper ->
+              maybe_move_to_single_child_block(zipper)
+          end
+        else
+          zipper
         end
 
       _ ->
@@ -684,18 +688,18 @@ defmodule Igniter.Code.Common do
   def nodes_equal?(v, v), do: true
 
   def nodes_equal?(l, r) do
-    equal_strings?(l, r) || equal_modules?(l, r)
+    equal_vals?(l, r) || equal_modules?(l, r)
   end
 
-  defp equal_strings?({:__block__, _, [value]} = block, value) when is_binary(value) do
+  defp equal_vals?({:__block__, _, [value]} = block, value) do
     !extendable_block?(block)
   end
 
-  defp equal_strings?(value, {:__block__, _, [value]} = block) when is_binary(value) do
+  defp equal_vals?(value, {:__block__, _, [value]} = block) do
     !extendable_block?(block)
   end
 
-  defp equal_strings?(_, _), do: false
+  defp equal_vals?(_, _), do: false
 
   @spec expand_alias(Zipper.t()) :: Zipper.t()
   def expand_alias(zipper) do

@@ -16,7 +16,7 @@ defmodule Igniter.Code.Keyword do
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do
                  {:ok, first_elem} ->
-                   Common.node_matches_pattern?(first_elem, ^key)
+                   Common.nodes_equal?(first_elem, key)
 
                  :error ->
                    false
@@ -48,7 +48,7 @@ defmodule Igniter.Code.Keyword do
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do
                  {:ok, first_elem} ->
-                   Common.node_matches_pattern?(first_elem, ^key)
+                   Common.nodes_equal?(first_elem, key)
 
                  :error ->
                    false
@@ -93,12 +93,12 @@ defmodule Igniter.Code.Keyword do
   end
 
   defp do_put_in_keyword(zipper, [key | rest], value, updater) do
-    if Common.node_matches_pattern?(zipper, value when is_list(value)) do
+    if Igniter.Code.List.list?(zipper) do
       case Igniter.Code.List.move_to_list_item(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do
                  {:ok, first_elem} ->
-                   Common.node_matches_pattern?(first_elem, ^key)
+                   Common.nodes_equal?(first_elem, key)
 
                  :error ->
                    false
@@ -153,14 +153,14 @@ defmodule Igniter.Code.Keyword do
         ) ::
           {:ok, Zipper.t()} | :error
   def set_keyword_key(zipper, key, value, updater) do
-    if Common.node_matches_pattern?(zipper, value when is_list(value)) do
+    if Igniter.Code.List.list?(zipper) do
       zipper = Common.maybe_move_to_single_child_block(zipper)
 
       case Igniter.Code.List.move_to_list_item(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do
                  {:ok, first_elem} ->
-                   Common.node_matches_pattern?(first_elem, ^key)
+                   Common.nodes_equal?(first_elem, key)
 
                  :error ->
                    false
@@ -210,7 +210,7 @@ defmodule Igniter.Code.Keyword do
   @spec remove_keyword_key(Zipper.t(), atom()) :: {:ok, Zipper.t()} | :error
   def remove_keyword_key(zipper, key) do
     Common.within(zipper, fn zipper ->
-      if Common.node_matches_pattern?(zipper, value when is_list(value)) do
+      if Igniter.Code.List.list?(zipper) do
         case Igniter.Code.List.move_to_list_item(zipper, fn item ->
                if Igniter.Code.Tuple.tuple?(item) do
                  case Igniter.Code.Tuple.tuple_elem(item, 0) do

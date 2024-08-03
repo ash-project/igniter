@@ -83,7 +83,7 @@ defmodule Igniter.Project.Deps do
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do
                  {:ok, first_elem} ->
-                   Common.node_matches_pattern?(first_elem, ^name)
+                   Common.nodes_equal?(first_elem, name)
 
                  :error ->
                    false
@@ -104,13 +104,13 @@ defmodule Igniter.Project.Deps do
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
-           true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
+           true <- Igniter.Code.List.list?(zipper),
            current_declaration_index when not is_nil(current_declaration_index) <-
              Igniter.Code.List.find_list_item_index(zipper, fn item ->
                if Igniter.Code.Tuple.tuple?(item) do
                  case Igniter.Code.Tuple.tuple_elem(item, 0) do
                    {:ok, first_elem} ->
-                     Common.node_matches_pattern?(first_elem, ^name)
+                     Common.nodes_equal?(first_elem, name)
 
                    :error ->
                      false
@@ -136,7 +136,7 @@ defmodule Igniter.Project.Deps do
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
-           true <- Common.node_matches_pattern?(zipper, value when is_list(value)) do
+           true <- Igniter.Code.List.list?(zipper) do
         quoted =
           if opts[:dep_opts] do
             quote do
