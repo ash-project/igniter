@@ -64,7 +64,7 @@ defmodule Igniter.Project.Application do
       end
 
     Igniter.update_elixir_file(igniter, path, fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Application),
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, application),
            {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
            {:ok, zipper} <-
              Igniter.Code.Function.move_to_function_call_in_current_scope(
