@@ -3,7 +3,7 @@ defmodule Igniter do
   Tools for generating and patching code into an Elixir project.
   """
 
-  defstruct [:rewrite, issues: [], tasks: [], warnings: [], assigns: %{}, moves: %{}]
+  defstruct [:rewrite, issues: [], tasks: [], warnings: [], notices: [], assigns: %{}, moves: %{}]
 
   alias Sourceror.Zipper
 
@@ -12,6 +12,7 @@ defmodule Igniter do
           issues: [String.t()],
           tasks: [{String.t() | list(String.t())}],
           warnings: [String.t()],
+          notices: [String.t()],
           assigns: map(),
           moves: %{optional(String.t()) => String.t()}
         }
@@ -155,6 +156,16 @@ defmodule Igniter do
   @spec add_warning(t, term | list(term)) :: t()
   def add_warning(igniter, warning) do
     %{igniter | warnings: List.wrap(warning) ++ igniter.warnings}
+  end
+
+  @doc "Adds a notice to the notices list. Notices are displayed to the user once the igniter finishes running."
+  @spec add_notice(t, String.t()) :: t()
+  def add_notice(igniter, notice) do
+    if notice in igniter.notices do
+      igniter
+    else
+      %{igniter | notices: [notice] ++ igniter.notices}
+    end
   end
 
   @doc "Adds a task to the tasks list. Tasks will be run after all changes have been commited"
@@ -589,6 +600,8 @@ defmodule Igniter do
                   |> Enum.each(fn {task, args} ->
                     Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
                   end)
+
+                  display_notices(igniter)
 
                   :changes_made
 
@@ -1059,17 +1072,29 @@ defmodule Igniter do
   defp display_warnings(%{warnings: []}, _title), do: :ok
 
   defp display_warnings(%{warnings: warnings}, title) do
-    Mix.shell().info("\n#{title} - #{IO.ANSI.yellow()}Notices:#{IO.ANSI.reset()}\n")
+    Mix.shell().info("\n#{title} - #{IO.ANSI.yellow()}Warnings:#{IO.ANSI.reset()}\n")
 
-    warnings
-    |> Enum.map_join("\n --- \n", fn error ->
-      if is_binary(error) do
-        "* #{IO.ANSI.yellow()}#{error}#{IO.ANSI.reset()}"
-      else
-        "* #{IO.ANSI.yellow()}#{Exception.format(:error, error)}#{IO.ANSI.reset()}"
-      end
-    end)
-    |> Mix.shell().info()
+    warnings =
+      warnings
+      |> Enum.map_join("\n\n", fn error ->
+        if is_binary(error) do
+          "* #{IO.ANSI.yellow()}#{error}#{IO.ANSI.reset()}"
+        else
+          "* #{IO.ANSI.yellow()}#{Exception.format(:error, error)}#{IO.ANSI.reset()}"
+        end
+      end)
+
+    Mix.shell().info(warnings <> "\n\n")
+  end
+
+  defp display_notices(igniter) do
+    notices =
+      igniter.notices
+      |> Enum.map_join("\n\n", fn notice ->
+        "#{IO.ANSI.green()}#{notice}#{IO.ANSI.reset()}"
+      end)
+
+    Mix.shell().info("\n" <> notices)
   end
 
   defp display_moves(%{moves: moves}) when moves == %{}, do: :ok
