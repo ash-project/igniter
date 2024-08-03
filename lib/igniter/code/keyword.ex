@@ -215,15 +215,15 @@ defmodule Igniter.Code.Keyword do
                if Igniter.Code.Tuple.tuple?(item) do
                  case Igniter.Code.Tuple.tuple_elem(item, 0) do
                    {:ok, first_elem} ->
-                     Common.node_matches_pattern?(first_elem, ^key)
+                     Common.nodes_equal?(first_elem, key)
 
                    :error ->
-                     false
+                     :error
                  end
                end
              end) do
           :error ->
-            {:ok, zipper}
+            :error
 
           {:ok, zipper} ->
             {:ok, zipper |> Zipper.remove()}
