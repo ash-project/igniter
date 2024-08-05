@@ -12,13 +12,34 @@ defmodule Igniter.Code.FileTest do
       """)
       |> Igniter.prepare_for_write()
 
-    contents =
-      rewrite
-      |> Rewrite.source!("lib/foo/bar/something.heex")
-      |> Rewrite.Source.get(:content)
+    assert rewrite
+           |> Rewrite.source!("lib/foo/bar/something.heex")
+           |> Rewrite.Source.get(:content) == """
+           <div>Hello</div>
+           """
+  end
 
-    assert contents == """
-      <div>Hello</div>
-      """
+  test "files will be read if they exist" do
+    assert %{rewrite: rewrite} =
+             Igniter.new()
+             |> Igniter.include_existing_file("README.md", required?: true)
+
+    assert rewrite
+           |> Rewrite.source!("README.md")
+           |> Rewrite.Source.get(:content) =~ "code generation"
+  end
+
+  test "can update file if it exists" do
+    assert %{rewrite: rewrite} =
+             Igniter.new()
+             |> Igniter.include_existing_file("README.md", required?: true)
+             |> Igniter.update_file("README.md", fn source ->
+               Rewrite.Source.update(source, :content, "Hello Test")
+             end)
+             |> Igniter.prepare_for_write()
+
+    assert rewrite
+           |> Rewrite.source!("README.md")
+           |> Rewrite.Source.get(:content) == "Hello Test"
   end
 end

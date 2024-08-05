@@ -248,67 +248,51 @@ defmodule Igniter do
   Updates a given file's `Rewrite.Source`
   """
   @spec update_file(t(), Path.t(), (Rewrite.Source.t() -> Rewrite.Source.t())) :: t()
-  def update_file(igniter, path, updater) do
-    if Rewrite.has_source?(igniter.rewrite, path) do
-      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
-    else
-      if File.exists?(path) do
-        source = read_ex_source!(path)
+  def update_file(igniter, path, updater, opts \\ []) do
+    source_handler = source_handler(path, opts)
 
-        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        |> format(path)
-        |> Map.update!(:rewrite, fn rewrite ->
-          source = Rewrite.source!(rewrite, path)
-          Rewrite.update!(rewrite, path, updater.(source))
-        end)
+    if source_handler == Rewrite.Source.Ex do
+      update_elixir_file(igniter, path, updater)
+    else
+      if Rewrite.has_source?(igniter.rewrite, path) do
+        %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
       else
-        add_issue(igniter, "Required #{path} but it did not exist")
+        if File.exists?(path) do
+          source = read_source!(path, source_handler)
+
+          %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+          |> maybe_format(path, true, Keyword.put(opts, :source_handler, source_handler))
+          |> Map.update!(:rewrite, fn rewrite ->
+            source = Rewrite.source!(rewrite, path)
+            Rewrite.update!(rewrite, path, updater.(source))
+          end)
+        else
+          add_issue(igniter, "Required #{path} but it did not exist")
+        end
       end
     end
   end
 
-  @doc "Includes the given elixir file in the project, expecting it to exist. Does nothing if its already been added."
+  @deprecated "Use `include_existing_file/3` instead"
   @spec include_existing_elixir_file(t(), Path.t(), opts :: Keyword.t()) :: t()
   def include_existing_elixir_file(igniter, path, opts \\ []) do
-    required? = Keyword.get(opts, :required?, false)
-
-    if Rewrite.has_source?(igniter.rewrite, path) do
-      igniter
-    else
-      if File.exists?(path) do
-        source = read_ex_source!(path)
-
-        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        |> then(fn igniter ->
-          if opts[:format?] do
-            format(igniter, path)
-          else
-            igniter
-          end
-        end)
-      else
-        if required? do
-          add_issue(igniter, "Required #{path} but it did not exist")
-        else
-          igniter
-        end
-      end
-    end
+    include_existing_file(igniter, path, Keyword.put(opts, :source_handler, Rewrite.Source.Ex))
   end
 
   @doc "Includes the given file in the project, expecting it to exist. Does nothing if its already been added."
   @spec include_existing_file(t(), Path.t(), opts :: Keyword.t()) :: t()
   def include_existing_file(igniter, path, opts \\ []) do
     required? = Keyword.get(opts, :required?, false)
+    source_handler = source_handler(path, opts)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
       if File.exists?(path) do
-        source = Rewrite.Source.read!(path)
+        source = read_source!(path, source_handler)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        |> format(path)
+        |> maybe_format(path, false, opts)
       else
         if required? do
           add_issue(igniter, "Required #{path} but it did not exist")
@@ -319,15 +303,23 @@ defmodule Igniter do
     end
   end
 
-  @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
+  @deprecated "Use `include_or_create_file/3` instead"
   @spec include_or_create_elixir_file(t(), Path.t(), contents :: String.t()) :: t()
   def include_or_create_elixir_file(igniter, path, contents \\ "") do
+    include_or_create_file(igniter, path, contents)
+  end
+
+  @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
+  @spec include_or_create_elixir_file(t(), Path.t(), contents :: String.t()) :: t()
+  def include_or_create_file(igniter, path, contents \\ "") do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
+      source_handler = source_handler(path)
+
       source =
         try do
-          read_ex_source!(path)
+          read_source!(path, source_handler)
         rescue
           _ ->
             ""
@@ -336,7 +328,7 @@ defmodule Igniter do
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-      |> format(path)
+      |> maybe_format(path, true, source_handler: source_handler)
     end
   end
 
@@ -375,16 +367,53 @@ defmodule Igniter do
     end
   end
 
-  @doc "Creates a new elixir file in the project with the provided string contents. Adds an error if it already exists."
+  @doc "Creates the given file in the project with the provided string contents, or updates it with a function as in `update_file/3` (or with `zipper_updater()` for elixir files) if it already exists."
+  def create_or_update_file(igniter, path, contents, updater) do
+    if Rewrite.has_source?(igniter.rewrite, path) do
+      igniter
+      |> update_file(path, updater)
+    else
+      source_handler = source_handler(path)
+
+      {created?, source} =
+        try do
+          {false, read_source!(path, source_handler)}
+        rescue
+          _ ->
+            {true,
+             ""
+             |> source_handler.from_string(path)
+             |> Rewrite.Source.update(:file_creator, :content, contents)}
+        end
+
+      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+      |> maybe_format(path, true, source_handler: source_handler)
+      |> then(fn igniter ->
+        if created? do
+          igniter
+        else
+          update_file(igniter, path, updater)
+        end
+      end)
+    end
+  end
+
+  @deprecated "Use `create_new_file/4`"
   @spec create_new_elixir_file(t(), Path.t(), String.t()) :: Igniter.t()
-  def create_new_elixir_file(igniter, path, contents \\ "") do
-    create_new_file(igniter, path, contents, Rewrite.Source.Ex)
-    |> format(path)
+  def create_new_elixir_file(igniter, path, contents \\ "", opts \\ []) do
+    create_new_file(
+      igniter,
+      path,
+      contents,
+      Keyword.put(opts, :source_handler, Rewrite.Source.Ex)
+    )
   end
 
   @doc "Creates a new (non-elixir) file in the project with the provided string contents. Adds an error if it already exists."
   @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
-  def create_new_file(igniter, path, contents \\ "", source_handler \\ Rewrite.Source) do
+  def create_new_file(igniter, path, contents \\ "", opts \\ []) do
+    source_handler = source_handler(path, opts)
+
     source =
       try do
         source = read_source!(path, source_handler)
@@ -397,6 +426,26 @@ defmodule Igniter do
       end
 
     %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+    |> maybe_format(path, true, opts)
+  end
+
+  defp maybe_format(igniter, path, default_bool, opts) do
+    if source_handler(path, opts) == Rewrite.Source.Ex and
+         Keyword.get(opts, :format?, default_bool) do
+      format(igniter, path)
+    else
+      igniter
+    end
+  end
+
+  defp source_handler(path, opts \\ []) do
+    Keyword.get_lazy(opts, :source_handler, fn ->
+      if Path.extname(path) in Rewrite.Source.Ex.extensions() do
+        Rewrite.Source.Ex
+      else
+        Rewrite.Source
+      end
+    end)
   end
 
   @doc """
