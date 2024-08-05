@@ -707,7 +707,7 @@ defmodule Igniter.Code.Common do
       {:__aliases__, _, parts} ->
         case current_env(zipper) do
           {:ok, env} ->
-            case Macro.Env.expand_alias(env, [], parts) do
+            case do_expand_alias(env, [], parts) do
               {:alias, value} ->
                 Zipper.replace(zipper, {:__aliases__, [], Module.split(value)})
 
@@ -725,6 +725,16 @@ defmodule Igniter.Code.Common do
   rescue
     _ ->
       zipper
+  end
+
+  if Code.ensure_loaded?(Macro.Env) && function_exported?(Macro.Env, :expand_alias, 3) do
+    defp do_expand_alias(env, meta, parts) do
+      Macro.Env.expand_alias(env, meta, parts)
+    end
+  else
+    defp do_expand_alias(env, _, _) do
+      :error
+    end
   end
 
   @spec expand_aliases(Zipper.t()) :: Zipper.t()
