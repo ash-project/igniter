@@ -310,7 +310,7 @@ defmodule Igniter do
   end
 
   @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
-  @spec include_or_create_elixir_file(t(), Path.t(), contents :: String.t()) :: t()
+  @spec include_or_create_file(t(), Path.t(), contents :: String.t()) :: t()
   def include_or_create_file(igniter, path, contents \\ "") do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
