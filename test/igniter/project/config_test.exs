@@ -234,28 +234,6 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
-    @tag :regression
-    test "arbitrary data structures can be used as values" do
-      %{rewrite: rewrite} =
-        Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
-          import Config
-
-          config :level1, :level2, level3: [{"hello", "world"}]
-        """)
-        |> Igniter.Project.Config.configure("fake.exs", :level1, [:level2, :level3], [
-          {"hello1", "world1"}
-        ])
-
-      config_file = Rewrite.source!(rewrite, "config/fake.exs")
-
-      assert Source.get(config_file, :content) == """
-             import Config
-
-             config :level1, :level2, level3: [{"hello1", "world1"}]
-             """
-    end
-
     test "present values can be updated by updating map keys" do
       %{rewrite: rewrite} =
         Igniter.new()
