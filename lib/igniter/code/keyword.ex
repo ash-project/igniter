@@ -93,6 +93,8 @@ defmodule Igniter.Code.Keyword do
   end
 
   defp do_put_in_keyword(zipper, [key | rest], value, updater) do
+    zipper = Common.maybe_move_to_single_child_block(zipper)
+
     if Igniter.Code.List.list?(zipper) do
       case Igniter.Code.List.move_to_list_item(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
@@ -125,8 +127,11 @@ defmodule Igniter.Code.Keyword do
                   {{:__block__, [], [key]}, {:__block__, [], [value]}}
                 end
 
+              [] ->
+                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
+
               _current_node ->
-                {key, value}
+                {{:__block__, [], [key]}, {:__block__, [], [value]}}
             end
 
           {:ok, Zipper.append_child(zipper, to_append)}
@@ -153,6 +158,8 @@ defmodule Igniter.Code.Keyword do
         ) ::
           {:ok, Zipper.t()} | :error
   def set_keyword_key(zipper, key, value, updater) do
+    zipper = Common.maybe_move_to_single_child_block(zipper)
+
     if Igniter.Code.List.list?(zipper) do
       zipper = Common.maybe_move_to_single_child_block(zipper)
 
