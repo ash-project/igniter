@@ -136,6 +136,56 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
+    @tag :regression
+    test "it merges with 3 arg version of existing config with the config set to []" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
+          config :foo, SomeModule, []
+        """)
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :foo,
+          [SomeModule, :level1, :level2],
+          :value
+        )
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+
+             config :foo, SomeModule, level1: [level2: :value]
+             """
+    end
+
+    @tag :regression
+    test "it merges with 3 arg version of existing config with the config set to [] and the path is one level deeper than existing" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+
+          config :foo, SomeModule, [level1: []]
+        """)
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :foo,
+          [SomeModule, :level1, :level2, :level3],
+          :value
+        )
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+
+             config :foo, SomeModule, level1: [level2: [level3: :value]]
+             """
+    end
+
     test "it merges with 3 arg version of existing config with a single path item" do
       %{rewrite: rewrite} =
         Igniter.new()
