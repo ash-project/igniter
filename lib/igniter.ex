@@ -378,19 +378,25 @@ defmodule Igniter do
   @doc "Creates a new elixir file in the project with the provided string contents. Adds an error if it already exists."
   @spec create_new_elixir_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_elixir_file(igniter, path, contents \\ "") do
+    create_new_file(igniter, path, contents, Rewrite.Source.Ex)
+    |> format(path)
+  end
+
+  @doc "Creates a new (non-elixir) file in the project with the provided string contents. Adds an error if it already exists."
+  @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
+  def create_new_file(igniter, path, contents \\ "", source_handler \\ Rewrite.Source) do
     source =
       try do
-        source = read_ex_source!(path)
+        source = read_source!(path, source_handler)
         Rewrite.Source.add_issue(source, "File already exists")
       rescue
         _ ->
           ""
-          |> Rewrite.Source.Ex.from_string(path)
+          |> source_handler.from_string(path)
           |> Rewrite.Source.update(:file_creator, :content, contents)
       end
 
     %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-    |> format(path)
   end
 
   @doc """
@@ -980,7 +986,11 @@ defmodule Igniter do
   end
 
   defp read_ex_source!(path) do
-    source = Rewrite.Source.Ex.read!(path)
+    read_source!(path, Rewrite.Source.Ex)
+  end
+
+  defp read_source!(path, source_handler \\ Rewrite.Source) do
+    source = source_handler.read!(path)
 
     content =
       source
