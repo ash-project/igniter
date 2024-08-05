@@ -272,7 +272,7 @@ defmodule Igniter.Code.Common do
 
   def replace_code(zipper, code) do
     # code = use_aliases(code, zipper)
-    Zipper.replace(zipper, code |> Macro.to_string() |> Sourceror.parse_string!())
+    Zipper.replace(zipper, code)
   end
 
   def extendable_block?({:__block__, meta, contents}) when is_list(contents) do
