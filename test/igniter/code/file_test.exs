@@ -1,12 +1,9 @@
 defmodule Igniter.Code.FileTest do
   use ExUnit.Case
 
-  test "files will be created if they do not exist, in the conventional place, which can be configured" do
+  test "files will be created if they do not exist" do
     %{rewrite: rewrite} =
       Igniter.new()
-      |> Igniter.assign(:igniter_exs,
-        module_location: :inside_matching_folder
-      )
       |> Igniter.create_new_file("lib/foo/bar/something.heex", """
       <div>Hello</div>
       """)
