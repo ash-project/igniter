@@ -5,6 +5,31 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.17](https://github.com/ash-project/igniter/compare/v0.3.16...v0.3.17) (2024-08-08)
+
+
+
+
+### Bug Fixes:
+
+* properly parse boolean switches from positional args
+
+* don't warn on `Macro.Env.expand_alias/3` not being defined
+
+* descend into single child block when modifying keyword
+
+* set `format: :keyword` when adding keyword list item to empty list
+
+* escape injected code in Common.replace_code/2 (#70)
+
+* :error consistency in remove_keyword_key and argument_equals? in Config.configure (#68)
+
+### Improvements:
+
+* support for non-elixir files with create_new_file, update_file, include_existing_file, include_or_create_file, create_or_update_file (#75)
+
+* support "notices" (#65)
+
 ## [v0.3.16](https://github.com/ash-project/igniter/compare/v0.3.15...v0.3.16) (2024-07-31)
 
 
