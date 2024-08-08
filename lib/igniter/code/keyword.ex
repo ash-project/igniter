@@ -191,6 +191,9 @@ defmodule Igniter.Code.Keyword do
                   {{:__block__, [], [key]}, value}
                 end
 
+              [] ->
+                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
+
               _ ->
                 {key, value}
             end

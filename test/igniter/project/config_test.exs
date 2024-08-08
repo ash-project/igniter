@@ -38,7 +38,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     @tag :regression
-    test "it merges the spark formatter plugins" do
+    test "it sets the spark formatter plugins" do
       %{rewrite: rewrite} =
         Igniter.new()
         |> Igniter.Project.Config.configure(
@@ -61,6 +61,35 @@ defmodule Igniter.Project.ConfigTest do
       assert Source.get(config_file, :content) == """
              import Config
              config :spark, formatter: ["Ash.Resource": [], "Ash.Domain": []]
+             """
+    end
+
+    @tag :regression
+    test "it merges the spark formatter plugins" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_file("config/fake.exs", """
+        import Config
+        config :spark, formatter: ["Ash.Resource": []]
+        """)
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :spark,
+          [:formatter, :"Ash.Resource", :section_order],
+          [:section],
+          updater: fn zipper ->
+            case Igniter.Code.List.prepend_new_to_list(zipper, :section) do
+              {:ok, zipper} -> {:ok, zipper}
+              :error -> {:ok, zipper}
+            end
+          end
+        )
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+             config :spark, formatter: ["Ash.Resource": [section_order: [:section]]]
              """
     end
 
