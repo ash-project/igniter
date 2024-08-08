@@ -9,8 +9,8 @@ defmodule Igniter.Code.ModuleTest do
       |> Igniter.assign(:igniter_exs,
         module_location: :inside_matching_folder
       )
-      |> Igniter.include_or_create_elixir_file("lib/foo/bar.ex", "defmodule Foo.Bar do\nend")
-      |> Igniter.include_or_create_elixir_file(
+      |> Igniter.include_or_create_file("lib/foo/bar.ex", "defmodule Foo.Bar do\nend")
+      |> Igniter.include_or_create_file(
         "lib/foo/bar/baz.ex",
         "defmodule Foo.Bar.Baz do\nend"
       )
@@ -25,7 +25,7 @@ defmodule Igniter.Code.ModuleTest do
   test "modules can be found anywhere across the project" do
     %{rewrite: rewrite} =
       Igniter.new()
-      |> Igniter.create_new_elixir_file("lib/foo/bar.ex", """
+      |> Igniter.create_new_file("lib/foo/bar.ex", """
         defmodule Foo.Bar do
           defmodule Baz do
             10
@@ -59,7 +59,7 @@ defmodule Igniter.Code.ModuleTest do
   test "modules will be created if they do not exist, in the conventional place" do
     %{rewrite: rewrite} =
       Igniter.new()
-      |> Igniter.create_new_elixir_file("lib/foo/bar.ex", """
+      |> Igniter.create_new_file("lib/foo/bar.ex", """
       defmodule Foo.Bar do
       end
       """)
@@ -91,7 +91,7 @@ defmodule Igniter.Code.ModuleTest do
       |> Igniter.assign(:igniter_exs,
         module_location: :inside_matching_folder
       )
-      |> Igniter.create_new_elixir_file("lib/foo/bar/something.ex", """
+      |> Igniter.create_new_file("lib/foo/bar/something.ex", """
       defmodule Foo.Bar.Something do
       end
       """)

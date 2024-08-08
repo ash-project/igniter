@@ -69,7 +69,7 @@ defmodule Igniter.Project.Deps do
   def get_dependency_declaration(igniter, name) do
     zipper =
       igniter
-      |> Igniter.include_existing_elixir_file("mix.exs")
+      |> Igniter.include_existing_file("mix.exs")
       |> Map.get(:rewrite)
       |> Rewrite.source!("mix.exs")
       |> Rewrite.Source.get(:quoted)

@@ -16,7 +16,7 @@ defmodule Igniter.Project.Formatter do
   @spec import_dep(Igniter.t(), dep :: atom) :: Igniter.t()
   def import_dep(igniter, dep) do
     igniter
-    |> Igniter.include_or_create_elixir_file(".formatter.exs", @default_formatter)
+    |> Igniter.include_or_create_file(".formatter.exs", @default_formatter)
     |> Igniter.update_elixir_file(".formatter.exs", fn zipper ->
       zipper
       |> Zipper.down()
@@ -62,7 +62,7 @@ defmodule Igniter.Project.Formatter do
   @spec add_formatter_plugin(Igniter.t(), plugin :: module()) :: Igniter.t()
   def add_formatter_plugin(igniter, plugin) do
     igniter
-    |> Igniter.include_or_create_elixir_file(".formatter.exs", @default_formatter)
+    |> Igniter.include_or_create_file(".formatter.exs", @default_formatter)
     |> Igniter.update_elixir_file(".formatter.exs", fn zipper ->
       zipper
       |> Zipper.down()

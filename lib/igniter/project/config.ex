@@ -57,7 +57,7 @@ defmodule Igniter.Project.Config do
 
     igniter
     |> ensure_default_configs_exist(file_path)
-    |> Igniter.include_or_create_elixir_file(file_path, file_contents)
+    |> Igniter.include_or_create_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
       case Zipper.find(zipper, fn
              {:import, _, [Config]} ->
@@ -81,17 +81,17 @@ defmodule Igniter.Project.Config do
   defp ensure_default_configs_exist(igniter, file)
        when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
     igniter
-    |> Igniter.include_or_create_elixir_file("config/config.exs", """
+    |> Igniter.include_or_create_file("config/config.exs", """
     import Config
     """)
     |> ensure_config_evaluates_env()
-    |> Igniter.include_or_create_elixir_file("config/dev.exs", """
+    |> Igniter.include_or_create_file("config/dev.exs", """
     import Config
     """)
-    |> Igniter.include_or_create_elixir_file("config/test.exs", """
+    |> Igniter.include_or_create_file("config/test.exs", """
     import Config
     """)
-    |> Igniter.include_or_create_elixir_file("config/prod.exs", """
+    |> Igniter.include_or_create_file("config/prod.exs", """
     import Config
     """)
   end
@@ -378,7 +378,7 @@ defmodule Igniter.Project.Config do
     config_file_path = Path.join("config", config_file_name)
 
     igniter =
-      Igniter.include_existing_elixir_file(igniter, config_file_path, required?: false)
+      Igniter.include_existing_file(igniter, config_file_path, required?: false)
 
     case Rewrite.source(igniter.rewrite, config_file_path) do
       {:ok, source} ->

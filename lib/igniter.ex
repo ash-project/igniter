@@ -796,12 +796,12 @@ defmodule Igniter do
         "**/.formatter.exs"
         |> Path.wildcard()
         |> Enum.reduce(igniter, fn path, igniter ->
-          Igniter.include_existing_elixir_file(igniter, path)
+          Igniter.include_existing_file(igniter, path)
         end)
 
       igniter =
         if File.exists?(".formatter.exs") do
-          Igniter.include_existing_elixir_file(igniter, ".formatter.exs")
+          Igniter.include_existing_file(igniter, ".formatter.exs")
         else
           igniter
         end
@@ -1038,7 +1038,7 @@ defmodule Igniter do
     read_source!(path, Rewrite.Source.Ex)
   end
 
-  defp read_source!(path, source_handler \\ Rewrite.Source) do
+  defp read_source!(path, source_handler) do
     source = source_handler.read!(path)
 
     content =

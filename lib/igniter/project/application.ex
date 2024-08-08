@@ -114,7 +114,7 @@ defmodule Igniter.Project.Application do
     end
     """
 
-    Igniter.create_new_elixir_file(igniter, path, contents)
+    Igniter.create_new_file(igniter, path, contents)
   end
 
   defp point_to_application_in_mix_exs(igniter, application) do

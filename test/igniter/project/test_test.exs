@@ -7,7 +7,7 @@ defmodule Igniter.Project.TestTest do
     test "it adds the path if it doesn't exist" do
       assert %{rewrite: rewrite} =
                Igniter.new()
-               |> Igniter.include_existing_elixir_file("mix.exs")
+               |> Igniter.include_existing_file("mix.exs")
                |> Map.update!(:rewrite, fn rewrite ->
                  source = Rewrite.source!(rewrite, "mix.exs")
 
@@ -47,7 +47,7 @@ defmodule Igniter.Project.TestTest do
     test "it doesnt change anything if the setting is already configured" do
       assert %{rewrite: rewrite} =
                Igniter.new()
-               |> Igniter.include_existing_elixir_file("mix.exs")
+               |> Igniter.include_existing_file("mix.exs")
                |> Map.update!(:rewrite, fn rewrite ->
                  source = Rewrite.source!(rewrite, "mix.exs")
 

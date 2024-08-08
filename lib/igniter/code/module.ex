@@ -65,7 +65,7 @@ defmodule Igniter.Code.Module do
           path
       end
 
-    Igniter.create_new_elixir_file(igniter, location, contents)
+    Igniter.create_new_file(igniter, location, contents)
   end
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."

@@ -21,7 +21,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 2 arg version of existing config" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, buz: [:blat]
@@ -67,7 +67,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 2 arg version of existing config with a single path item" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, buz: [:blat]
@@ -86,7 +86,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it chooses the 3 arg version when first item in path is not pretty" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
         """)
         |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
@@ -102,7 +102,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it chooses the 3 arg version when first item in path is not pretty, and merges that way" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
         """)
         |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
@@ -119,7 +119,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 3 arg version of existing config" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, :buz, [:blat]
@@ -140,7 +140,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 3 arg version of existing config with the config set to []" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :foo, SomeModule, []
@@ -165,7 +165,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 3 arg version of existing config with the config set to [] and the path is one level deeper than existing" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :foo, SomeModule, [level1: []]
@@ -189,7 +189,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 3 arg version of existing config with a single path item" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, :buz, [:blat]
@@ -209,7 +209,7 @@ defmodule Igniter.Project.ConfigTest do
     test "present values can be updated" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, :buz, [:blat]
@@ -232,7 +232,7 @@ defmodule Igniter.Project.ConfigTest do
     test "we merge configs even in large config files" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
         # this is too
 
         import Config
@@ -268,7 +268,7 @@ defmodule Igniter.Project.ConfigTest do
     test "integers can be used as values" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, :buz, [:blat]
@@ -287,7 +287,7 @@ defmodule Igniter.Project.ConfigTest do
     test "present values can be updated by updating map keys" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :fake, foo: %{"a" => ["a", "b"]}
@@ -314,7 +314,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it presents users with instructions on how to update a malformed config" do
       %{warnings: [warning]} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           config :fake, foo: %{"a" => ["a", "b"]}
         """)
         |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo], %{"b" => ["c", "d"]},
@@ -334,7 +334,7 @@ defmodule Igniter.Project.ConfigTest do
   test "configures_root_key?/3" do
     igniter =
       Igniter.new()
-      |> Igniter.create_new_elixir_file("config/fake.exs", """
+      |> Igniter.create_new_file("config/fake.exs", """
       import Config
 
       config :foo, key1: "key1"
@@ -352,7 +352,7 @@ defmodule Igniter.Project.ConfigTest do
       %{
         igniter:
           Igniter.new()
-          |> Igniter.create_new_elixir_file("config/fake.exs", """
+          |> Igniter.create_new_file("config/fake.exs", """
           import Config
 
           config :foo, key1: [key2: "key2"]
