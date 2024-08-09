@@ -732,7 +732,7 @@ defmodule Igniter.Code.Common do
       Macro.Env.expand_alias(env, meta, parts)
     end
   else
-    defp do_expand_alias(env, _, _) do
+    defp do_expand_alias(_env, _meta, _parts) do
       :error
     end
   end
