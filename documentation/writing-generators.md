@@ -55,5 +55,5 @@ A large part of writing generators with igniter is leveraging our built-in suite
 
 - `Igniter.Project.*` - project-level, off-the-shelf patchers
 - `Igniter.Code.*` - working with zippers and manipulating source code
-- `Ignier.Mix.*` - mix tasks, tools for writing igniter mix tasks
+- `Igniter.Mix.*` - mix tasks, tools for writing igniter mix tasks
 - `Igniter.Util.*` - various utilities and helpers
