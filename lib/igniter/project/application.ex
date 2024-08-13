@@ -95,8 +95,9 @@ defmodule Igniter.Project.Application do
     end)
   end
 
-  defp create_application_file(igniter, application) do
+  def create_application_file(igniter, application) do
     path = Igniter.Code.Module.proper_location(application)
+    supervisor = Igniter.Code.Module.module_name("Supervisor")
 
     contents = """
     defmodule #{inspect(application)} do
@@ -108,7 +109,7 @@ defmodule Igniter.Project.Application do
       def start(_type, _args) do
         children = []
 
-        opts = [strategy: :one_for_one, name: Foo.Supervisor]
+        opts = [strategy: :one_for_one, name: #{inspect(supervisor)}]
         Supervisor.start_link(children, opts)
       end
     end
