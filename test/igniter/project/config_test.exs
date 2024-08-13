@@ -219,7 +219,7 @@ defmodule Igniter.Project.ConfigTest do
     test "it merges with 2 arg version of existing config with the config set to [] and the path is one level deeper than existing" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file(
+        |> Igniter.create_new_file(
           "config/fake.exs",
           """
             import Config
@@ -244,11 +244,7 @@ defmodule Igniter.Project.ConfigTest do
 
                config :level1,
                  version: "1.0.0",
-                 level2: [
-                   level3: [
-                     args: 1
-                   ]
-                 ]
+                 level2: [level3: 1]
                """
     end
 
@@ -352,15 +348,22 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "arbitrary data structures can be used as values" do
+      :erlang.system_flag(:backtrace_depth, 1000)
+
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file("config/fake.exs", """
+        |> Igniter.create_new_file("config/fake.exs", """
           import Config
           config :level1, :level2, level3: [{"hello", "world"}]
         """)
-        |> Igniter.Project.Config.configure("fake.exs", :level1, [:level2, :level3], [
-          {"hello1", "world1"}
-        ])
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :level1,
+          [:level2, :level3],
+          [
+            {"hello1", "world1"}
+          ]
+        )
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
 
@@ -374,7 +377,7 @@ defmodule Igniter.Project.ConfigTest do
     test "quoted code can be used as values" do
       %{rewrite: rewrite} =
         Igniter.new()
-        |> Igniter.create_new_elixir_file(
+        |> Igniter.create_new_file(
           "config/fake.exs",
           """
             import Config
@@ -388,16 +391,19 @@ defmodule Igniter.Project.ConfigTest do
           "fake.exs",
           :tailwind,
           [:default, :args],
-          quote(
-            do:
-              ~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css)
-          )
+          {:code,
+           Sourceror.parse_string!("""
+           ~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css)
+           """)}
         )
         |> Igniter.Project.Config.configure(
           "fake.exs",
           :tailwind,
           [:default, :cd],
-          quote(do: Path.expand("../assets", __DIR__))
+          {:code,
+           Sourceror.parse_string!("""
+           Path.expand("../assets", __DIR__)
+           """)}
         )
 
       config_file = Rewrite.source!(rewrite, "config/fake.exs")
@@ -409,13 +415,9 @@ defmodule Igniter.Project.ConfigTest do
                config :tailwind,
                  version: "1.0.0",
                  default: [
-                   args: ~w(
-                     --config=tailwind.config.js
-                     --input=css/app.css
-                     --output=../output/assets/app.css
-                   ),
-                 cd: Path.expand("../assets", __DIR__)
-               ]
+                   args: ~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css),
+                   cd: Path.expand("../assets", __DIR__)
+                 ]
                """
     end
 

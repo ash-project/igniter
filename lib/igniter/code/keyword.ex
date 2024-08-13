@@ -177,7 +177,7 @@ defmodule Igniter.Code.Keyword do
         :error ->
           to_append =
             case zipper.node do
-              [{{:__block__, meta, _}, {:__block__, _, _}} | _] ->
+              [{{:__block__, meta, _}, _} | _] ->
                 value =
                   value
                   |> Sourceror.to_string()

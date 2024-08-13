@@ -50,7 +50,7 @@ defmodule Igniter.Project.Config do
     value =
       case value do
         {:code, value} -> value
-        value -> Macro.escape(value)
+        value -> Sourceror.parse_string!(Sourceror.to_string(Macro.escape(value)))
       end
 
     updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
