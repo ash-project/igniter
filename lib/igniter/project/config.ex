@@ -8,6 +8,8 @@ defmodule Igniter.Project.Config do
   @doc """
   Sets a config value in the given configuration file, if it is not already set.
 
+  See `configure/6` for more.
+
   ## Opts
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
@@ -27,6 +29,22 @@ defmodule Igniter.Project.Config do
 
   @doc """
   Sets a config value in the given configuration file, updating it with `updater` if it is already set.
+
+  If the value is source code, pass `{:code, value}`, otherwise pass just the value.
+
+  To produce this source code, we suggest using `Sourceror.parse_string!`. For example:
+
+  ```elixir
+  |> Igniter.Project.Config.configure(
+    "fake.exs",
+    :tailwind,
+    [:default, :args],
+    {:code,
+     Sourceror.parse_string!(\"\"\"
+     ~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css)
+     \"\"\")}
+  )
+  ```
 
   ## Opts
 
