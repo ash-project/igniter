@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.19](https://github.com/ash-project/igniter/compare/v0.3.18...v0.3.19) (2024-08-13)
+
+
+
+
+### Bug Fixes:
+
+* properly handle values vs code in configure
+
 ## [v0.3.18](https://github.com/ash-project/igniter/compare/v0.3.17...v0.3.18) (2024-08-08)
 
 
