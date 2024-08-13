@@ -215,6 +215,43 @@ defmodule Igniter.Project.ConfigTest do
              """
     end
 
+    @tag :regression
+    test "it merges with 2 arg version of existing config with the config set to [] and the path is one level deeper than existing" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file(
+          "config/fake.exs",
+          """
+            import Config
+
+            config :level1,
+              version: "1.0.0",
+              level2: []
+          """
+        )
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :level1,
+          [:level2, :level3],
+          1
+        )
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) ==
+               """
+               import Config
+
+               config :level1,
+                 version: "1.0.0",
+                 level2: [
+                   level3: [
+                     args: 1
+                   ]
+                 ]
+               """
+    end
+
     test "it merges with 3 arg version of existing config with a single path item" do
       %{rewrite: rewrite} =
         Igniter.new()
@@ -311,6 +348,75 @@ defmodule Igniter.Project.ConfigTest do
 
              config :fake, :buz, 12
              """
+    end
+
+    @tag :regression
+    test "arbitrary data structures can be used as values" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file("config/fake.exs", """
+          import Config
+          config :level1, :level2, level3: [{"hello", "world"}]
+        """)
+        |> Igniter.Project.Config.configure("fake.exs", :level1, [:level2, :level3], [
+          {"hello1", "world1"}
+        ])
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) == """
+             import Config
+             config :level1, :level2, level3: [{"hello1", "world1"}]
+             """
+    end
+
+    @tag :regression
+    test "quoted code can be used as values" do
+      %{rewrite: rewrite} =
+        Igniter.new()
+        |> Igniter.create_new_elixir_file(
+          "config/fake.exs",
+          """
+            import Config
+
+            config :tailwind,
+              version: "1.0.0",
+              default: []
+          """
+        )
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :tailwind,
+          [:default, :args],
+          quote(
+            do:
+              ~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css)
+          )
+        )
+        |> Igniter.Project.Config.configure(
+          "fake.exs",
+          :tailwind,
+          [:default, :cd],
+          quote(do: Path.expand("../assets", __DIR__))
+        )
+
+      config_file = Rewrite.source!(rewrite, "config/fake.exs")
+
+      assert Source.get(config_file, :content) ==
+               """
+               import Config
+
+               config :tailwind,
+                 version: "1.0.0",
+                 default: [
+                   args: ~w(
+                     --config=tailwind.config.js
+                     --input=css/app.css
+                     --output=../output/assets/app.css
+                   ),
+                 cd: Path.expand("../assets", __DIR__)
+               ]
+               """
     end
 
     test "present values can be updated by updating map keys" do
