@@ -108,9 +108,12 @@ defmodule Igniter do
       end)
 
     paths
-    |> Task.async_stream(fn path ->
-      read_ex_source!(path)
-    end)
+    |> Task.async_stream(
+      fn path ->
+        read_ex_source!(path)
+      end,
+      timeout: :infinity
+    )
     |> Enum.reduce(igniter, fn {:ok, source}, igniter ->
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
     end)

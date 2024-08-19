@@ -130,12 +130,15 @@ defmodule Igniter.Code.Module do
 
     igniter
     |> Map.get(:rewrite)
-    |> Task.async_stream(fn source ->
-      {source
-       |> Rewrite.Source.get(:quoted)
-       |> Zipper.zip()
-       |> move_to_defmodule(module_name), source}
-    end)
+    |> Task.async_stream(
+      fn source ->
+        {source
+         |> Rewrite.Source.get(:quoted)
+         |> Zipper.zip()
+         |> move_to_defmodule(module_name), source}
+      end,
+      timeout: :infinity
+    )
     |> Enum.find_value({:error, igniter}, fn
       {:ok, {{:ok, zipper}, source}} ->
         {:ok, {igniter, source, zipper}}
@@ -155,36 +158,39 @@ defmodule Igniter.Code.Module do
     matching_modules =
       igniter
       |> Map.get(:rewrite)
-      |> Task.async_stream(fn source ->
-        source
-        |> Rewrite.Source.get(:quoted)
-        |> Zipper.zip()
-        |> Zipper.traverse([], fn zipper, acc ->
-          case zipper.node do
-            {:defmodule, _, [_, _]} ->
-              {:ok, mod_zipper} = Igniter.Code.Function.move_to_nth_argument(zipper, 0)
+      |> Task.async_stream(
+        fn source ->
+          source
+          |> Rewrite.Source.get(:quoted)
+          |> Zipper.zip()
+          |> Zipper.traverse([], fn zipper, acc ->
+            case zipper.node do
+              {:defmodule, _, [_, _]} ->
+                {:ok, mod_zipper} = Igniter.Code.Function.move_to_nth_argument(zipper, 0)
 
-              module_name =
-                mod_zipper
-                |> Igniter.Code.Common.expand_alias()
-                |> Zipper.node()
-                |> Igniter.Code.Module.to_module_name()
+                module_name =
+                  mod_zipper
+                  |> Igniter.Code.Common.expand_alias()
+                  |> Zipper.node()
+                  |> Igniter.Code.Module.to_module_name()
 
-              with module_name when not is_nil(module_name) <- module_name,
-                   {:ok, do_zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
-                   true <- predicate.(module_name, do_zipper) do
-                {zipper, [module_name | acc]}
-              else
-                _ ->
-                  {zipper, acc}
-              end
+                with module_name when not is_nil(module_name) <- module_name,
+                     {:ok, do_zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+                     true <- predicate.(module_name, do_zipper) do
+                  {zipper, [module_name | acc]}
+                else
+                  _ ->
+                    {zipper, acc}
+                end
 
-            _ ->
-              {zipper, acc}
-          end
-        end)
-        |> elem(1)
-      end)
+              _ ->
+                {zipper, acc}
+            end
+          end)
+          |> elem(1)
+        end,
+        timeout: :infinity
+      )
       |> Enum.flat_map(fn {:ok, v} ->
         v
       end)
