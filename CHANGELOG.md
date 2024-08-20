@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.22](https://github.com/ash-project/igniter/compare/v0.3.21...v0.3.22) (2024-08-20)
+
+
+
+
+### Improvements:
+
+* add options to control behavior when creating a file that already exists
+
 ## [v0.3.21](https://github.com/ash-project/igniter/compare/v0.3.20...v0.3.21) (2024-08-20)
 
 
