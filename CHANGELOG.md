@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.21](https://github.com/ash-project/igniter/compare/v0.3.20...v0.3.21) (2024-08-20)
+
+
+
+
+### Improvements:
+
+* add `copy_template/4`
+
 ## [v0.3.20](https://github.com/ash-project/igniter/compare/v0.3.19...v0.3.20) (2024-08-19)
 
 
