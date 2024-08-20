@@ -412,7 +412,18 @@ defmodule Igniter do
     )
   end
 
-  @doc "Creates a new (non-elixir) file in the project with the provided string contents. Adds an error if it already exists."
+  @spec copy_template(
+          igniter :: Igniter.t(),
+          target :: Path.t(),
+          source :: Path.t(),
+          assigns :: Keyword.t()
+        ) :: Igniter.t()
+  def copy_template(igniter, source, target, assigns) do
+    contents = EEx.eval_file(source, assigns: assigns)
+    create_new_file(igniter, target, contents)
+  end
+
+  @doc "Creates a new file in the project with the provided string contents. Adds an error if it already exists."
   @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_file(igniter, path, contents \\ "", opts \\ []) do
     source_handler = source_handler(path, opts)
