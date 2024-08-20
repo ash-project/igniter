@@ -412,35 +412,86 @@ defmodule Igniter do
     )
   end
 
+  @doc """
+  Copies an EEx template file from  the source path to the target path.
+
+  Accepts the same options as `create_new_file/4`.
+  """
   @spec copy_template(
           igniter :: Igniter.t(),
           target :: Path.t(),
           source :: Path.t(),
-          assigns :: Keyword.t()
+          assigns :: Keyword.t(),
+          opts :: Keyword.t()
         ) :: Igniter.t()
-  def copy_template(igniter, source, target, assigns) do
+  def copy_template(igniter, source, target, assigns, opts \\ []) do
     contents = EEx.eval_file(source, assigns: assigns)
-    create_new_file(igniter, target, contents)
+    create_new_file(igniter, target, contents, opts)
   end
 
-  @doc "Creates a new file in the project with the provided string contents. Adds an error if it already exists."
+  @doc """
+  Creates a new file in the project with the provided string contents. Adds an error if it already exists.
+
+  ## Options
+
+  - `:on_exists` - The action to take if the file already exists. Can be
+    - `:error` (default) - Adds an error that prevents any eventual write.
+    - `:warning` - Warns when writing but continues (without overwriting)
+    - `:skip` - Skips writing the file without a warning
+    - `:overwrite` - Warns when writing and overwrites the content with the new content
+  """
   @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_file(igniter, path, contents \\ "", opts \\ []) do
     source_handler = source_handler(path, opts)
 
-    source =
+    {igniter, source} =
       try do
         source = read_source!(path, source_handler)
-        Rewrite.Source.add_issue(source, "File already exists")
+        {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
       rescue
         _ ->
-          ""
-          |> source_handler.from_string(path)
-          |> Rewrite.Source.update(:file_creator, :content, contents)
+          has_source? =
+            Rewrite.has_source?(igniter.rewrite, path)
+
+          source =
+            ""
+            |> source_handler.from_string(path)
+            |> Rewrite.Source.update(:file_creator, :content, contents)
+
+          if has_source? do
+            IO.inspect(opts)
+            {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
+          else
+            {igniter, source}
+          end
       end
 
-    %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+    sources =
+      case opts[:on_exists] do
+        :overwrite ->
+          Map.put(igniter.rewrite.sources, path, source)
+
+        _ ->
+          Map.put_new(igniter.rewrite.sources, path, source)
+      end
+
+    %{
+      igniter
+      | rewrite: %{igniter.rewrite | sources: sources}
+    }
     |> maybe_format(path, true, opts)
+  end
+
+  defp already_exists(igniter, path, :error) do
+    Igniter.add_issue(igniter, "#{path}: File already exists")
+  end
+
+  defp already_exists(igniter, path, warning) when warning in [:warning, :overwrite] do
+    Igniter.add_warning(igniter, "#{path}: File already exists")
+  end
+
+  defp already_exists(igniter, _path, _) do
+    igniter
   end
 
   defp maybe_format(igniter, path, default_bool, opts) do
