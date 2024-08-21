@@ -2,6 +2,14 @@ defmodule Igniter.Libs.Phoenix do
   @moduledoc "Codemods & utilities for working with Phoenix"
 
   @doc """
+  Returns the web module name for the current app
+  """
+  @spec web_module_name() :: module()
+  def web_module_name do
+    Module.concat([inspect(Igniter.Code.Module.module_name_prefix()) <> "Web"])
+  end
+
+  @doc """
   Generates a module name that lives in the Web directory of the current app.
   """
   @spec web_module_name(String.t()) :: module()

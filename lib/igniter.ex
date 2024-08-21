@@ -459,7 +459,6 @@ defmodule Igniter do
             |> Rewrite.Source.update(:file_creator, :content, contents)
 
           if has_source? do
-            IO.inspect(opts)
             {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
           else
             {igniter, source}
