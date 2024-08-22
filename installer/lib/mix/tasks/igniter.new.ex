@@ -9,6 +9,11 @@ defmodule Mix.Tasks.Igniter.New do
   * `--install` - A comma-separated list of dependencies to install using `mix igniter.install` after creating the project.
   * `--example` - Request example code to be added to the project when installing packages.
   * `--with` - The command to use instead of `new`, i.e `phx.new`
+  * `--with-args` - Additional arguments to pass to the installer provided in `--with`
+
+  Example
+
+      mix igniter.new my_project --install foo,bar,baz --with=phx.new --with-args="--no-ecto"
   """
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
@@ -39,10 +44,16 @@ defmodule Mix.Tasks.Igniter.New do
             "The first positional argument must be a project name that starts with a dash, got: #{name}"
     end
 
-    {options, argv, _errors} =
+    {options, _argv, _errors} =
       OptionParser.parse(argv,
-        strict: [install: :keep, local: :string, example: :boolean, with: :string],
-        aliases: [i: :install, l: :local, e: :example, w: :with]
+        strict: [
+          install: :keep,
+          local: :string,
+          example: :boolean,
+          with: :string,
+          with_args: :string
+        ],
+        aliases: [i: :install, l: :local, e: :example, w: :with, wa: :with_args]
       )
 
     install_with = options[:with] || "new"
@@ -68,7 +79,7 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
-    Mix.Task.run(install_with, [name | argv])
+    Mix.Task.run(install_with, [name | OptionParser.split(options[:with_args] || "")])
 
     version_requirement =
       if options[:local] do
