@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.24](https://github.com/ash-project/igniter/compare/v0.3.23...v0.3.24) (2024-08-26)
+
+
+
+
+### Bug Fixes:
+
+* detect equal lists for node equality
+
 ## [v0.3.23](https://github.com/ash-project/igniter/compare/v0.3.22...v0.3.23) (2024-08-26)
 
 
