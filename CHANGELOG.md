@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.23](https://github.com/ash-project/igniter/compare/v0.3.22...v0.3.23) (2024-08-26)
+
+
+
+
+### Bug Fixes:
+
+* properly move to arguments of Module.fun calls
+
+### Improvements:
+
+* add `Igniter.Code.Common.expand_literal/1`
+
+* add `--with-args` to pass additional args to installers
+
 ## [v0.3.22](https://github.com/ash-project/igniter/compare/v0.3.21...v0.3.22) (2024-08-20)
 
 
