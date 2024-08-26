@@ -422,6 +422,15 @@ defmodule Igniter.Code.Function do
           end
         end
       else
+        offset =
+          case zipper.node do
+            {{:., _, _}, _, _args} ->
+              1
+
+            _ ->
+              0
+          end
+
         zipper
         |> Zipper.down()
         |> case do
@@ -430,7 +439,7 @@ defmodule Igniter.Code.Function do
 
           zipper ->
             zipper
-            |> Common.nth_right(index)
+            |> Common.nth_right(index + offset)
             |> case do
               :error ->
                 :error

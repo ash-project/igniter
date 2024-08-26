@@ -86,6 +86,23 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Expands a literal value using the env at the cursor, if possible
+  """
+  def expand_literal(zipper) do
+    if Macro.quoted_literal?(zipper.node) do
+      case current_env(zipper) do
+        {:ok, env} ->
+          {:ok, Macro.expand_literals(zipper.node, env)}
+
+        _ ->
+          :error
+      end
+    else
+      :error
+    end
+  end
+
+  @doc """
   Adds the provided code to the zipper.
 
   Use `placement` to determine if the code goes `:after` or `:before` the current node.
@@ -691,15 +708,38 @@ defmodule Igniter.Code.Common do
     equal_vals?(l, r) || equal_modules?(l, r)
   end
 
-  defp equal_vals?({:__block__, _, [value]} = block, value) do
-    !extendable_block?(block)
+  defp equal_vals?({:__block__, _, [value]}, value) do
+    true
   end
 
-  defp equal_vals?(value, {:__block__, _, [value]} = block) do
-    !extendable_block?(block)
+  defp equal_vals?(value, {:__block__, _, [value]}) do
+    true
   end
 
-  defp equal_vals?(_, _), do: false
+  defp equal_vals?(left, right) do
+    cond do
+      extendable_block?(left) ->
+        case left do
+          {:__block__, _, [left]} ->
+            equal_vals?(left, right)
+
+          _ ->
+            false
+        end
+
+      extendable_block?(right) ->
+        case right do
+          {:__block__, _, [right]} ->
+            equal_vals?(left, right)
+
+          _ ->
+            false
+        end
+
+      true ->
+        false
+    end
+  end
 
   @spec expand_alias(Zipper.t()) :: Zipper.t()
   def expand_alias(zipper) do
