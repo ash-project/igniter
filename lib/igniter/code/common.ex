@@ -721,7 +721,7 @@ defmodule Igniter.Code.Common do
       extendable_block?(left) ->
         case left do
           {:__block__, _, [left]} ->
-            equal_vals?(left, right)
+            nodes_equal?(left, right)
 
           _ ->
             false
@@ -730,11 +730,15 @@ defmodule Igniter.Code.Common do
       extendable_block?(right) ->
         case right do
           {:__block__, _, [right]} ->
-            equal_vals?(left, right)
+            nodes_equal?(left, right)
 
           _ ->
             false
         end
+
+      is_list(left) and is_list(right) ->
+        length(left) == length(right) and
+          Enum.all?(Enum.zip(left, right), fn {l, r} -> nodes_equal?(l, r) end)
 
       true ->
         false
