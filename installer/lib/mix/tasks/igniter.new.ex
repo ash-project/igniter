@@ -11,6 +11,14 @@ defmodule Mix.Tasks.Igniter.New do
   * `--with` - The command to use instead of `new`, i.e `phx.new`
   * `--with-args` - Additional arguments to pass to the installer provided in `--with`
 
+  ## Options for `mix.new`
+
+  See `mix help new` for more information on the options available for `mix new`.
+
+  * `--module` - The base module name to use for the project.
+  * `--sup` - Generates an OTP application skeleton including a supervision tree.
+  * `--umbrella` - Generates an umbrella project.
+
   Example
 
       mix igniter.new my_project --install foo,bar,baz --with=phx.new --with-args="--no-ecto"
@@ -51,7 +59,10 @@ defmodule Mix.Tasks.Igniter.New do
           local: :string,
           example: :boolean,
           with: :string,
-          with_args: :string
+          with_args: :string,
+          module: :string,
+          sup: :boolean,
+          umbrella: :boolean
         ],
         aliases: [i: :install, l: :local, e: :example, w: :with, wa: :with_args]
       )
@@ -79,7 +90,32 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
-    Mix.Task.run(install_with, [name | OptionParser.split(options[:with_args] || "")])
+    with_args =
+      [name | OptionParser.split(options[:with_args] || "")]
+
+    with_args =
+      if options[:module] do
+        with_args ++ ["--module", options[:module]]
+      else
+        with_args
+      end
+
+    with_args =
+      if with_args[:sup] do
+        with_args ++ ["--sup"]
+      else
+        with_args
+      end
+
+    with_args =
+      if with_args[:umbrella] do
+        with_args ++ ["--umbrella"]
+      else
+        with_args
+      end
+      |> IO.inspect()
+
+    Mix.Task.run(install_with, with_args)
 
     version_requirement =
       if options[:local] do
