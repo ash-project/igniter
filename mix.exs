@@ -92,8 +92,6 @@ defmodule Igniter.MixProject do
       {:sourceror, "~> 1.4"},
       {:jason, "~> 1.4"},
       {:owl, "~> 0.9"},
-      {:ucwidth, "~> 0.2"},
-      {:inflex, "~> 2.0"},
       # can't use spark because spark depends on this
       {:nimble_options, "~> 1.0"},
       # Dev/Test dependencies
