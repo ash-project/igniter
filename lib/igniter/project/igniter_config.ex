@@ -4,9 +4,9 @@ defmodule Igniter.Project.IgniterConfig do
       type: {:in, [:outside_matching_folder, :inside_matching_folder]},
       default: :outside_matching_folder,
       doc: """
-      - `:outside_matching_folder`, modules will be placed in a folder exactly matching their path.
-      - `:inside_matching_folder`, modules who's name matches an existing folder will be placed inside that folder,
-         or moved there if the folder is created.
+        - `:outside_matching_folder`, modules will be placed in a folder exactly matching their path.
+        - `:inside_matching_folder`, modules who's name matches an existing folder will be placed inside that folder,
+          or moved there if the folder is created.
       """
     ],
     source_folders: [
@@ -22,6 +22,11 @@ defmodule Igniter.Project.IgniterConfig do
     ]
   ]
 
+  docs =
+    Enum.map_join(@configs, "\n", fn {name, config} ->
+      "- `#{name}` - \n#{config[:doc]}"
+    end)
+
   @moduledoc """
   Tools for reading and modifying the `.igniter.exs` file.
 
@@ -33,7 +38,7 @@ defmodule Igniter.Project.IgniterConfig do
 
   ## Options
 
-  #{NimbleOptions.docs(@configs)}
+  #{docs}
   """
 
   def get(igniter, config) do

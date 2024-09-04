@@ -163,7 +163,29 @@ defmodule Igniter.Libs.Phoenix do
         {igniter, router}
 
       {igniter, routers} ->
-        {igniter, Owl.IO.select(routers, label: label, render_as: &inspect/1)}
+        router_numbers =
+          routers
+          |> Enum.with_index()
+          |> Enum.map_join("\n", fn {router, index} ->
+            "#{index}. #{inspect(router)}"
+          end)
+
+        case String.trim(
+               Mix.shell().prompt(label <> "\n" <> router_numbers <> "\nInput router number ❯ ")
+             ) do
+          "" ->
+            select_router(igniter, label)
+
+          router ->
+            case Integer.parse(router) do
+              {int, ""} ->
+                {igniter, Enum.at(routers, int)}
+
+              _ ->
+                Mix.shell().info("Expected a number, got: #{router}")
+                select_router(igniter, label)
+            end
+        end
     end
   end
 
