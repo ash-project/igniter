@@ -50,12 +50,12 @@ defmodule Igniter.Project.Config do
     |> Igniter.update_elixir_file("config/runtime.exs", fn zipper ->
       patterns = [
         """
-        if config_env() == :prod do
+        if config_env() == #{inspect(env)} do
           __cursor__()
         end
         """,
         """
-        if :prod == config_env() do
+        if #{inspect(env)} == config_env() do
           __cursor__()
         end
         """
@@ -82,7 +82,7 @@ defmodule Igniter.Project.Config do
         :error ->
           zipper
           |> Igniter.Code.Common.add_code("""
-          if config_env() == :prod do
+          if config_env() == #{inspect(env)} do
           end
           """)
           |> Igniter.Code.Common.move_to_cursor_match_in_scope(patterns)
@@ -109,7 +109,7 @@ defmodule Igniter.Project.Config do
 
                ```elixir
                # in `runtime.exs`
-               if config_env() == :prod do
+               if config_env() == #{inspect(env)} do
                  # Please configure #{inspect([app_name | config_path])} it to the following value
                  #{value}
                end
