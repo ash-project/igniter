@@ -27,6 +27,99 @@ defmodule Igniter.Project.Config do
     )
   end
 
+  @spec configure_runtime_env(
+          Igniter.t(),
+          atom(),
+          atom(),
+          list(atom),
+          term(),
+          opts :: Keyword.t()
+        ) ::
+          Igniter.t()
+  def configure_runtime_env(igniter, env, app_name, config_path, value, opts \\ []) do
+    default_runtime =
+      """
+      import Config
+
+      if config_env() == #{inspect(env)} do
+      end
+      """
+
+    igniter
+    |> Igniter.create_or_update_file("config/runtime.exs", default_runtime, &{:ok, &1})
+    |> Igniter.update_elixir_file("config/runtime.exs", fn zipper ->
+      patterns = [
+        """
+        if config_env() == :prod do
+          __cursor__()
+        end
+        """,
+        """
+        if :prod == config_env() do
+          __cursor__()
+        end
+        """
+      ]
+
+      modify_to =
+        case value do
+          {:code, value} -> value
+          value -> Sourceror.parse_string!(Sourceror.to_string(Macro.escape(value)))
+        end
+
+      zipper
+      |> Igniter.Code.Common.move_to_cursor_match_in_scope(patterns)
+      |> case do
+        {:ok, zipper} ->
+          modify_configuration_code(
+            zipper,
+            config_path,
+            app_name,
+            modify_to,
+            opts[:updater] || (&{:ok, &1})
+          )
+
+        :error ->
+          zipper
+          |> Igniter.Code.Common.add_code("""
+          if config_env() == :prod do
+          end
+          """)
+          |> Igniter.Code.Common.move_to_cursor_match_in_scope(patterns)
+          |> case do
+            {:ok, zipper} ->
+              modify_configuration_code(
+                zipper,
+                config_path,
+                app_name,
+                modify_to,
+                opts[:updater] || (&{:ok, &1})
+              )
+
+            _ ->
+              value =
+                case value do
+                  {:code, value} -> Sourceror.to_string(value)
+                  value -> inspect(value)
+                end
+
+              {:warning,
+               """
+               Could not set #{inspect([app_name | config_path])} in `#{inspect(env)}` of `config/runtime.exs`.
+
+               ```elixir
+               # in `runtime.exs`
+               if config_env() == :prod do
+                 # Please configure #{inspect([app_name | config_path])} it to the following value
+                 #{value}
+               end
+               ```
+               """}
+          end
+      end
+    end)
+  end
+
   @doc """
   Sets a config value in the given configuration file, updating it with `updater` if it is already set.
 
