@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.25](https://github.com/ash-project/igniter/compare/v0.3.24...v0.3.25) (2024-09-06)
+
+
+
+
+### Improvements:
+
+* add `configure_runtime_env` codemod
+
+* remove dependencies that aren't strictly necessary
+
+* remove dependencies that we don't really need
+
+* more options to `igniter.new`
+
 ## [v0.3.24](https://github.com/ash-project/igniter/compare/v0.3.23...v0.3.24) (2024-08-26)
 
 
