@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.27](https://github.com/ash-project/igniter/compare/v0.3.26...v0.3.27) (2024-09-08)
+
+
+
+
+### Improvements:
+
+* when replacing a dependency, leave it in the same location
+
 ## [v0.3.26](https://github.com/ash-project/igniter/compare/v0.3.25...v0.3.26) (2024-09-08)
 
 
