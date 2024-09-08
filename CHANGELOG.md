@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.26](https://github.com/ash-project/igniter/compare/v0.3.25...v0.3.26) (2024-09-08)
+
+
+
+
+### Improvements:
+
+* add `igniter.update_gettext`
+
 ## [v0.3.25](https://github.com/ash-project/igniter/compare/v0.3.24...v0.3.25) (2024-09-06)
 
 
