@@ -56,9 +56,7 @@ defmodule Igniter.Project.Deps do
                Desired: `#{inspect(desired)}`
                Found: `#{inspect(current)}`
                """) do
-            igniter
-            |> remove_dependency(name)
-            |> do_add_dependency(name, version, opts)
+            do_add_dependency(igniter, name, version, opts)
           else
             igniter
           end
@@ -99,7 +97,8 @@ defmodule Igniter.Project.Deps do
     end
   end
 
-  defp remove_dependency(igniter, name) do
+  @doc "Removes a dependency from mix.exs"
+  def remove_dep(igniter, name) do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
@@ -137,6 +136,19 @@ defmodule Igniter.Project.Deps do
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
            true <- Igniter.Code.List.list?(zipper) do
+        match =
+          Igniter.Code.List.move_to_list_item(zipper, fn zipper ->
+            if Igniter.Code.Tuple.tuple?(zipper) do
+              case Igniter.Code.Tuple.tuple_elem(zipper, 0) do
+                {:ok, first_elem} ->
+                  Common.nodes_equal?(first_elem, name)
+
+                :error ->
+                  false
+              end
+            end
+          end)
+
         quoted =
           if opts[:dep_opts] do
             quote do
@@ -148,10 +160,16 @@ defmodule Igniter.Project.Deps do
             end
           end
 
-        if Keyword.get(opts, :append?, false) do
-          Igniter.Code.List.append_to_list(zipper, quoted)
-        else
-          Igniter.Code.List.prepend_to_list(zipper, quoted)
+        case match do
+          {:ok, zipper} ->
+            Igniter.Code.Common.replace_code(zipper, quoted)
+
+          _ ->
+            if Keyword.get(opts, :append?, false) do
+              Igniter.Code.List.append_to_list(zipper, quoted)
+            else
+              Igniter.Code.List.prepend_to_list(zipper, quoted)
+            end
         end
       else
         _ ->

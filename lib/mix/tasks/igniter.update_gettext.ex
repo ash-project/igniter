@@ -13,11 +13,16 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
   def igniter(igniter, _argv) do
     {igniter, modules} = find_use_gettext_modules(igniter)
 
-    Enum.reduce(modules, igniter, fn module, igniter ->
+    modules
+    |> Enum.reduce(igniter, fn module, igniter ->
       igniter
       |> use_gettext_backend(module)
       |> rewrite_imports(module)
     end)
+    |> Igniter.Project.Deps.add_dep(
+      {:gettext, "~> 0.26 and >= 0.26.1"},
+      yes?: true
+    )
   end
 
   defp rewrite_imports(igniter, rewriting_module) do
