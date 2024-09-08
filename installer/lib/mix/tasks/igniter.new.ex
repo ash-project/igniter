@@ -113,7 +113,6 @@ defmodule Mix.Tasks.Igniter.New do
       else
         with_args
       end
-      |> IO.inspect()
 
     Mix.Task.run(install_with, with_args)
 

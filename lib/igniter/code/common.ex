@@ -7,22 +7,18 @@ defmodule Igniter.Code.Common do
   @doc """
   Moves to the next node that matches the predicate.
   """
-  @spec move_to(Zipper.t(), (Zipper.tree() -> boolean())) :: {:ok, Zipper.t()} | :error
+  @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
   def move_to(zipper, pred) do
-    Zipper.find(zipper, fn thing ->
-      try do
-        pred.(thing)
-      rescue
-        FunctionClauseError ->
-          false
-      end
-    end)
-    |> case do
-      nil ->
-        :error
+    if pred.(zipper) do
+      {:ok, zipper}
+    else
+      case Zipper.next(zipper) do
+        nil ->
+          :error
 
-      zipper ->
-        {:ok, zipper}
+        next ->
+          move_to(next, pred)
+      end
     end
   end
 
@@ -283,12 +279,56 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @doc """
+  Updates all nodes matching the given predicate with the given function.
+
+  Recurses until the predicate no longer returns false
+  """
+  @spec update_all_matches(
+          Zipper.t(),
+          (Zipper.t() -> boolean()),
+          (Zipper.t() ->
+             {:ok, Zipper.t() | {:code, term()}}
+             | {:warning | :error, term()})
+        ) ::
+          {:ok, Zipper.t()} | {:warning | :error, term()}
+  def update_all_matches(zipper, pred, fun) do
+    within(zipper, fn zipper ->
+      case move_to(zipper, pred) do
+        {:ok, zipper} ->
+          case fun.(zipper) do
+            {:code, new_code} ->
+              {:ok, replace_code(zipper, new_code)}
+
+            {:ok, new_zipper} ->
+              {:ok, replace_code(zipper, new_zipper.node)}
+
+            other ->
+              throw(other)
+          end
+
+        _ ->
+          throw(:done)
+      end
+    end)
+    |> case do
+      {:ok, zipper} ->
+        update_all_matches(zipper, pred, fun)
+
+      :error ->
+        {:ok, zipper}
+    end
+  catch
+    :done -> {:ok, zipper}
+    v -> v
+  end
+
   def replace_code(zipper, code) when is_binary(code) do
     add_code(zipper, Sourceror.parse_string!(code))
   end
 
   def replace_code(zipper, code) do
-    # code = use_aliases(code, zipper)
+    code = use_aliases(code, zipper)
     Zipper.replace(zipper, code)
   end
 
