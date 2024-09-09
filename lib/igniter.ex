@@ -609,6 +609,7 @@ defmodule Igniter do
 
     if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
          has_changes?(igniter, ["mix.exs"]) do
+      igniter = prompt_on_git_changes(igniter, opts)
       source = Rewrite.source!(igniter.rewrite, "mix.exs")
 
       original_quoted = Rewrite.Source.get(source, :quoted, 1)
@@ -758,7 +759,7 @@ defmodule Igniter do
             if opts[:dry_run] || !opts[:yes] do
               Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
-              display_diff(Map.values(Rewrite.sources(igniter.rewrite)), opts)
+              display_diff(Rewrite.sources(igniter.rewrite), opts)
             end
 
             :dry_run_with_changes
@@ -869,9 +870,37 @@ defmodule Igniter do
           "Changes have been made to the project and the --check flag was specified."
         )
 
-        display_diff(igniter.rewrite.sources |> Map.values(), opts)
+        display_diff(Rewrite.sources(igniter.rewrite), opts)
 
         System.halt(1)
+    end
+  end
+
+  defp prompt_on_git_changes(igniter, opts) do
+    if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
+      igniter
+    else
+      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
+        case System.cmd("which", ["git"]) do
+          {"", _} ->
+            igniter
+
+          {_git, _} ->
+            case System.cmd("git", ["status", "-s", "--porcelain"]) do
+              {"", _} ->
+                Igniter.assign(igniter, :prompt_on_git_changes?, false)
+
+              _ ->
+                if Mix.shell().yes?("Uncommitted changes detected in the project. Continue?") do
+                  Igniter.assign(igniter, :prompt_on_git_changes?, false)
+                else
+                  exit({:shutdown, 1})
+                end
+            end
+        end
+      else
+        igniter
+      end
     end
   end
 
