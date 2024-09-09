@@ -41,6 +41,7 @@ defmodule Igniter.Mix.Task do
       switches: [
         dry_run: :boolean,
         yes: :boolean,
+        only: :keep,
         check: :boolean
       ],
       # no aliases for global options!
@@ -50,6 +51,7 @@ defmodule Igniter.Mix.Task do
     defstruct schema: [],
               aliases: [],
               composes: [],
+              only: [],
               installs: [],
               adds_deps: [],
               positional: [],
@@ -60,6 +62,7 @@ defmodule Igniter.Mix.Task do
             schema: Keyword.t(),
             aliases: Keyword.t(),
             composes: [String.t()],
+            only: [atom()],
             positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
             installs: [{atom(), String.t()}],
             adds_deps: [{atom(), String.t()}],

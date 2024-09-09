@@ -12,7 +12,7 @@ defmodule Igniter.Util.Info do
         opts,
         acc \\ []
       ) do
-    schema = recursively_compose_schema(schema, argv, task_name)
+    schema = recursively_compose_schema(schema, argv, task_name, opts)
 
     case schema.installs do
       [] ->
@@ -36,6 +36,7 @@ defmodule Igniter.Util.Info do
           opts
         )
         |> Igniter.apply_and_fetch_dependencies(opts)
+        |> maybe_set_only(install_names, argv, task_name)
         |> compose_install_and_validate!(
           argv,
           %{
@@ -45,19 +46,50 @@ defmodule Igniter.Util.Info do
               adds_deps: schema.adds_deps
           },
           task_name,
-          opts,
+          Keyword.delete(opts, :only),
           acc ++ install_names
         )
     end
   end
 
+  defp maybe_set_only(igniter, install_names, argv, parent) do
+    Enum.reduce(install_names, igniter, fn install, igniter ->
+      composing_task = "#{install}.install"
+
+      with composing_task when not is_nil(composing_task) <- Mix.Task.get(composing_task),
+           true <- function_exported?(composing_task, :info, 2),
+           composing_schema when not is_nil(composing_schema) <-
+             composing_task.info(argv, parent),
+           only when not is_nil(only) <- composing_schema.only do
+        Igniter.Project.Deps.set_dep_option(igniter, install, :only, only)
+      else
+        _ ->
+          igniter
+      end
+    end)
+  end
+
   defp add_deps(igniter, add_deps, opts) do
     Enum.reduce(add_deps, igniter, fn dependency, igniter ->
-      Igniter.Project.Deps.add_dep(
-        igniter,
-        dependency,
-        Keyword.put(opts, :notify_on_present?, true)
-      )
+      with {_, _, dep_opts} <- dependency,
+           only when not is_nil(only) <- dep_opts[:only],
+           false <- Mix.env() in only do
+        Igniter.add_warning(igniter, """
+        Dependency #{inspect(dependency)} could not be installed,
+        because it is configured to be installed with `only: #{inspect(only)}`.
+
+        Please install it manually, for example:
+
+            `MIX_ENV=#{Enum.at(only, 0)} mix igniter.install #{dependency}`.
+        """)
+      else
+        _ ->
+          Igniter.Project.Deps.add_dep(
+            igniter,
+            dependency,
+            Keyword.put(opts, :notify_on_present?, true)
+          )
+      end
     end)
   end
 
@@ -65,7 +97,7 @@ defmodule Igniter.Util.Info do
   def validate!(_argv, nil, _task_name), do: {[], []}
 
   def validate!(argv, schema, task_name) do
-    merged_schema = recursively_compose_schema(schema, argv, task_name)
+    merged_schema = recursively_compose_schema(schema, argv, task_name, [])
 
     options_key =
       if merged_schema.extra_args? do
@@ -83,13 +115,20 @@ defmodule Igniter.Util.Info do
     )
   end
 
-  defp recursively_compose_schema(%Info{composes: []} = schema, _argv, _parent), do: schema
+  defp recursively_compose_schema(%Info{composes: []} = schema, _argv, _parent, _opts), do: schema
 
-  defp recursively_compose_schema(%Info{composes: [compose | rest]} = schema, argv, parent) do
+  defp recursively_compose_schema(%Info{composes: [compose | rest]} = schema, argv, parent, opts) do
     with composing_task when not is_nil(composing_task) <- Mix.Task.get(compose),
          true <- function_exported?(composing_task, :info, 2),
          composing_schema when not is_nil(composing_schema) <- composing_task.info(argv, parent) do
       composing_task_name = Mix.Task.task_name(composing_task)
+
+      composing_schema =
+        if opts[:only] do
+          %{composing_schema | only: opts[:only]}
+        else
+          composing_schema
+        end
 
       recursively_compose_schema(
         %Info{
@@ -114,16 +153,18 @@ defmodule Igniter.Util.Info do
             adds_deps: Keyword.merge(composing_schema.adds_deps, schema.adds_deps)
         },
         argv,
-        parent
+        parent,
+        Keyword.delete(opts, :only)
       )
       |> Map.put(:composes, List.wrap(composing_schema.composes))
-      |> recursively_compose_schema(argv, composing_task_name)
+      |> recursively_compose_schema(argv, composing_task_name, Keyword.delete(opts, :only))
     else
       _ ->
         recursively_compose_schema(
           %{schema | composes: rest},
           argv,
-          parent
+          parent,
+          Keyword.delete(opts, :only)
         )
     end
   end

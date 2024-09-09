@@ -51,6 +51,28 @@ defmodule Igniter.Util.Install do
         &Keyword.put(&1, :example, :boolean)
       )
 
+    only =
+      argv
+      |> OptionParser.parse!(switches: [only: :keep])
+      |> elem(0)
+      |> Keyword.get_values(:only)
+      |> Enum.join(",")
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.to_atom/1)
+      |> case do
+        [] -> nil
+        value -> value
+      end
+
+    if only && Mix.env() not in only do
+      raise """
+      The `--only` option can only be used when running `mix igniter.install` in an environment
+      that matches one of the environments in `--only`. For example:
+
+          MIX_ENV=#{Enum.at(only, 0)} mix igniter.install --only #{Enum.join(only, ",")}
+      """
+    end
+
     {igniter, desired_tasks, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
         igniter,
@@ -62,6 +84,7 @@ defmodule Igniter.Util.Install do
         },
         "igniter.install",
         yes: "--yes" in argv,
+        only: only,
         append?: Keyword.get(opts, :append?, false)
       )
 

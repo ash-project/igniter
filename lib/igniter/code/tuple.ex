@@ -15,6 +15,22 @@ defmodule Igniter.Code.Tuple do
     end
   end
 
+  @doc "Appends `quoted` to the elem"
+  @spec append_elem(Zipper.t(), quoted :: Macro.t()) :: {:ok, Zipper.t()} | :error
+  def append_elem(zipper, quoted) do
+    if tuple?(zipper) do
+      case zipper.node do
+        {l, r} ->
+          {:ok, Zipper.replace(zipper, {:{}, [], [l, r, quoted]})}
+
+        {:{}, _, list} ->
+          {:ok, Zipper.replace(zipper, {:{}, [], list ++ [quoted]})}
+      end
+    else
+      :error
+    end
+  end
+
   @doc "Returns a zipper at the tuple element at the given index, or `:error` if the index is out of bounds."
   @spec tuple_elem(Zipper.t(), elem :: non_neg_integer()) :: {:ok, Zipper.t()} | :error
   def tuple_elem(item, elem) do

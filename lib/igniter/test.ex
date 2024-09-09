@@ -49,6 +49,22 @@ defmodule Igniter.Test do
   end
 
   @doc """
+  Applies an igniter, raising an error if there are any issues.
+
+  See `apply_igniter/1` for more.
+  """
+  @spec apply_igniter!(Igniter.t()) :: Igniter.t() | no_return
+  def apply_igniter!(igniter) do
+    case apply_igniter(igniter) do
+      {:ok, igniter, _} ->
+        igniter
+
+      {:error, error} ->
+        raise "Error applying igniter:\n\n#{inspect(error)}"
+    end
+  end
+
+  @doc """
   Fakes applying the changes of an igniter.
 
   This function returns any tasks, errors, warnings.
@@ -83,18 +99,45 @@ defmodule Igniter.Test do
         igniter.rewrite.sources
         |> Map.take([path])
         |> Igniter.diff(color?: false)
-        |> String.split("\n")
-        |> Enum.map_join("\n", &String.trim/1)
 
-      patch =
-        patch
-        |> String.split("\n")
-        |> Enum.map_join("\n", &String.trim/1)
+      compare_diff =
+        Igniter.Test.sanitize_diff(diff)
 
-      assert String.contains?(diff, patch)
+      compare_patch =
+        Igniter.Test.sanitize_diff(patch)
+
+      assert String.contains?(compare_diff, compare_patch),
+             """
+             Expected `#{path}` to contain the following patch:
+
+             #{patch}
+
+             Actual diff:
+
+             #{diff}
+             """
 
       igniter
     end
+  end
+
+  @doc false
+  def sanitize_diff(diff) do
+    diff
+    |> String.split("\n")
+    |> Enum.filter(&String.contains?(&1, "|"))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == "...|"))
+    |> Enum.map_join("\n", fn line ->
+      [l, r] = String.split(line, "|", parts: 2)
+
+      l =
+        l
+        |> String.split()
+        |> Enum.join()
+
+      String.trim(String.trim(l) <> String.trim(r))
+    end)
   end
 
   defmacro assert_creates(igniter, path, content \\ nil) do
@@ -129,13 +172,12 @@ defmodule Igniter.Test do
       |> Map.put(:notices, [])
       |> Map.put(:issues, [])
       |> Map.put(:assigns, %{test_mode?: true, test_files: test_files})
-      |> Igniter.assign(:test_files, test_files)
     end)
   end
 
   defp move_files(igniter) do
     igniter.moves
-    |> Enum.reduce(Map.get(igniter, :test_files), fn {from, to}, files ->
+    |> Enum.reduce(igniter.assigns[:test_files], fn {from, to}, files ->
       case Map.pop(files, from) do
         {nil, files} -> files
         {contents, files} -> Map.put(files, to, contents)

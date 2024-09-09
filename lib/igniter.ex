@@ -885,7 +885,13 @@ defmodule Igniter do
   def diff(sources, opts \\ []) do
     color? = Keyword.get(opts, :color?, true)
 
-    Enum.map_join(sources, "\n", fn {_, source} ->
+    Enum.map_join(List.wrap(sources), "\n", fn source ->
+      source =
+        case source do
+          {_, source} -> source
+          source -> source
+        end
+
       if Rewrite.Source.from?(source, :string) do
         content_lines =
           source
@@ -1236,10 +1242,14 @@ defmodule Igniter do
     source_issues =
       Enum.flat_map(igniter.rewrite, fn source ->
         changed_issues =
-          if Rewrite.Source.file_changed?(source) do
-            ["File has been changed since it was originally read."]
-          else
+          if igniter.assigns[:test_mode?] do
             []
+          else
+            if Rewrite.Source.file_changed?(source) do
+              ["File has been changed since it was originally read."]
+            else
+              []
+            end
           end
 
         issues = Enum.uniq(changed_issues ++ Rewrite.Source.issues(source))

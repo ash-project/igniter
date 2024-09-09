@@ -64,6 +64,62 @@ defmodule Igniter.Project.Deps do
     end
   end
 
+  @doc "Sets a dependency option for an existing dependency"
+  @spec set_dep_option(Igniter.t(), atom(), atom(), quoted :: term) :: Igniter.t()
+  def set_dep_option(igniter, name, key, quoted) do
+    Igniter.update_elixir_file(igniter, "mix.exs", fn zipper ->
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
+           true <- Igniter.Code.List.list?(zipper),
+           {:ok, zipper} <-
+             Igniter.Code.List.move_to_list_item(zipper, fn zipper ->
+               if Igniter.Code.Tuple.tuple?(zipper) do
+                 case Igniter.Code.Tuple.tuple_elem(zipper, 0) do
+                   {:ok, first_elem} ->
+                     Common.nodes_equal?(first_elem, name)
+
+                   :error ->
+                     false
+                 end
+               end
+             end) do
+        case Igniter.Code.Tuple.tuple_elem(zipper, 2) do
+          {:ok, zipper} ->
+            Igniter.Code.Keyword.set_keyword_key(zipper, key, quoted, fn zipper ->
+              {:ok,
+               Igniter.Code.Common.replace_code(
+                 zipper,
+                 quoted
+               )}
+            end)
+
+          :error ->
+            with {:ok, zipper} <- Igniter.Code.Tuple.tuple_elem(zipper, 1),
+                 true <- Igniter.Code.List.list?(zipper) do
+              Igniter.Code.Keyword.set_keyword_key(
+                zipper,
+                key,
+                quoted,
+                fn zipper ->
+                  {:ok,
+                   Igniter.Code.Common.replace_code(
+                     zipper,
+                     quoted
+                   )}
+                end
+              )
+            else
+              _ ->
+                nil
+            end
+        end
+      else
+        _ ->
+          {:ok, zipper}
+      end
+    end)
+  end
+
   def get_dependency_declaration(igniter, name) do
     zipper =
       igniter
