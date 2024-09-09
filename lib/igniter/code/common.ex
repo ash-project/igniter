@@ -84,8 +84,12 @@ defmodule Igniter.Code.Common do
   @doc """
   Expands a literal value using the env at the cursor, if possible
   """
+  @spec expand_literal(Zipper.t()) :: {:ok, any()} | :error
   def expand_literal(zipper) do
     if Macro.quoted_literal?(zipper.node) do
+      {v, _} = Code.eval_quoted(zipper.node)
+      {:ok, v}
+    else
       case current_env(zipper) do
         {:ok, env} ->
           {:ok, Macro.expand_literals(zipper.node, env)}
@@ -93,8 +97,6 @@ defmodule Igniter.Code.Common do
         _ ->
           :error
       end
-    else
-      :error
     end
   end
 

@@ -10,7 +10,7 @@ defmodule Mix.Tasks.YourLib.Gen.YourThing do
   def igniter(igniter, [module_name | _ ] = argv) do
     module_name = Igniter.Code.Module.parse(module_name)
     path = Igniter.Code.Module.proper_location(module_name)
-    app_name = Igniter.Project.Application.app_name()
+    app_name = Igniter.Project.Application.app_name(igniter)
 
     igniter
     |> Igniter.create_new_elixir_file(path, """

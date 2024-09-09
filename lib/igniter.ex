@@ -10,7 +10,7 @@ defmodule Igniter do
   @type t :: %__MODULE__{
           rewrite: Rewrite.t(),
           issues: [String.t()],
-          tasks: [{String.t() | list(String.t())}],
+          tasks: [String.t() | {String.t(), list(String.t())}],
           warnings: [String.t()],
           notices: [String.t()],
           assigns: map(),
@@ -18,6 +18,76 @@ defmodule Igniter do
         }
 
   @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(igniter, opts) do
+      rewrite =
+        concat(
+          "rewrite: ",
+          container_doc(
+            "#Rewrite<",
+            [
+              "#{Enum.count(igniter.rewrite.sources)} source(s)"
+            ],
+            ">",
+            opts,
+            fn str, _ -> str end
+          )
+        )
+
+      issues =
+        if Enum.empty?(igniter.issues) do
+          empty()
+        else
+          concat("issues: ", to_doc(igniter.issues, opts))
+        end
+
+      warnings =
+        if Enum.empty?(igniter.warnings) do
+          empty()
+        else
+          concat("warnings: ", to_doc(igniter.warnings, opts))
+        end
+
+      notices =
+        if Enum.empty?(igniter.notices) do
+          empty()
+        else
+          concat("notices: ", to_doc(igniter.notices, opts))
+        end
+
+      tasks =
+        if Enum.empty?(igniter.tasks) do
+          empty()
+        else
+          concat("tasks: ", to_doc(igniter.tasks, opts))
+        end
+
+      moves =
+        if Enum.empty?(igniter.moves) do
+          empty()
+        else
+          concat("moves: ", to_doc(igniter.moves, opts))
+        end
+
+      container_doc(
+        "#Igniter<",
+        [
+          rewrite,
+          issues,
+          warnings,
+          notices,
+          tasks,
+          moves
+        ],
+        ">",
+        opts,
+        fn str, _ -> str end
+      )
+    end
+  end
 
   @doc "Returns a new igniter"
   @spec new() :: t()
@@ -36,7 +106,7 @@ defmodule Igniter do
         move_file(igniter.moves, key, to)
 
       _ ->
-        if File.exists?(to) || match?({:ok, _}, Rewrite.source(igniter.rewrite, to)) do
+        if exists?(igniter, to) || match?({:ok, _}, Rewrite.source(igniter.rewrite, to)) do
           if Keyword.get(opts, :error_if_exists?, true) do
             add_issue(igniter, "Cannot move #{from} to #{to}, as #{to} already exists.")
           else
@@ -110,7 +180,7 @@ defmodule Igniter do
     paths
     |> Task.async_stream(
       fn path ->
-        read_ex_source!(path)
+        read_ex_source!(igniter, path)
       end,
       timeout: :infinity
     )
@@ -235,8 +305,8 @@ defmodule Igniter do
       |> apply_func_with_zipper(source, func)
       |> format(path)
     else
-      if File.exists?(path) do
-        source = read_ex_source!(path)
+      if exists?(igniter, path) do
+        source = read_ex_source!(igniter, path)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> format(path)
@@ -244,6 +314,21 @@ defmodule Igniter do
       else
         add_issue(igniter, "Required #{path} but it did not exist")
       end
+    end
+  end
+
+  @doc "Checks if a file exists on the file system or in the igniter."
+  @spec exists?(t(), Path.t()) :: boolean()
+  def exists?(igniter, path) do
+    cond do
+      Rewrite.has_source?(igniter.rewrite, path) ->
+        true
+
+      igniter.assigns[:test_mode?] ->
+        Map.has_key?(igniter.assigns[:test_files], path)
+
+      true ->
+        File.exists?(path)
     end
   end
 
@@ -260,8 +345,8 @@ defmodule Igniter do
       if Rewrite.has_source?(igniter.rewrite, path) do
         %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
       else
-        if File.exists?(path) do
-          source = read_source!(path, source_handler)
+        if exists?(igniter, path) do
+          source = read_source!(igniter, path, source_handler)
 
           %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
           |> maybe_format(path, true, Keyword.put(opts, :source_handler, source_handler))
@@ -291,8 +376,8 @@ defmodule Igniter do
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
-      if File.exists?(path) do
-        source = read_source!(path, source_handler)
+      if exists?(igniter, path) do
+        source = read_source!(igniter, path, source_handler)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> maybe_format(path, false, opts)
@@ -322,7 +407,7 @@ defmodule Igniter do
 
       source =
         try do
-          read_source!(path, source_handler)
+          read_source!(igniter, path, source_handler)
         rescue
           _ ->
             ""
@@ -335,11 +420,6 @@ defmodule Igniter do
     end
   end
 
-  @spec exists?(t(), Path.t()) :: boolean()
-  def exists?(igniter, path) do
-    Rewrite.has_source?(igniter.rewrite, path) || File.exists?(path)
-  end
-
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function of type `zipper_updater()` if it already exists."
   @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
   def create_or_update_elixir_file(igniter, path, contents, updater) do
@@ -349,7 +429,7 @@ defmodule Igniter do
     else
       {created?, source} =
         try do
-          {false, read_ex_source!(path)}
+          {false, read_ex_source!(igniter, path)}
         rescue
           _ ->
             {true,
@@ -380,7 +460,7 @@ defmodule Igniter do
 
       {created?, source} =
         try do
-          {false, read_source!(path, source_handler)}
+          {false, read_source!(igniter, path, source_handler)}
         rescue
           _ ->
             {true,
@@ -446,7 +526,7 @@ defmodule Igniter do
 
     {igniter, source} =
       try do
-        source = read_source!(path, source_handler)
+        source = read_source!(igniter, path, source_handler)
         {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
       rescue
         _ ->
@@ -523,6 +603,10 @@ defmodule Igniter do
   * `:yes` - If `true`, automatically applies the changes without prompting the user.
   """
   def apply_and_fetch_dependencies(igniter, opts \\ []) do
+    if igniter.assigns[:test_mode?] do
+      raise "Cannot use `Igniter.apply_and_fetch_dependencies/1-2` in test mode"
+    end
+
     if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
          has_changes?(igniter, ["mix.exs"]) do
       source = Rewrite.source!(igniter.rewrite, "mix.exs")
@@ -656,6 +740,11 @@ defmodule Igniter do
   Executes or dry-runs a given Igniter.
   """
   def do_or_dry_run(igniter, opts \\ []) do
+    if igniter.assigns[:test_mode?] do
+      raise ArgumentError,
+            "Must `Igniter.Test.apply/1` instead of `Igniter.do_or_dry_run` when running in `test_mode?`."
+    end
+
     igniter = prepare_for_write(igniter)
 
     title = opts[:title] || "Igniter"
@@ -788,49 +877,63 @@ defmodule Igniter do
 
   defp display_diff(sources, opts) do
     unless opts[:yes] do
-      Enum.each(sources, fn source ->
-        if Rewrite.Source.from?(source, :string) do
-          content_lines =
-            source
-            |> Rewrite.Source.get(:content)
-            |> String.split("\n")
-            |> Enum.with_index()
-
-          space_padding =
-            content_lines
-            |> Enum.map(&elem(&1, 1))
-            |> Enum.max()
-            |> to_string()
-            |> String.length()
-
-          diffish_looking_text =
-            Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-              line_number = line_number_minus_one + 1
-
-              "#{String.pad_trailing(to_string(line_number), space_padding)} #{IO.ANSI.yellow()}| #{IO.ANSI.green()}#{line}#{IO.ANSI.reset()}"
-            end)
-
-          if String.trim(diffish_looking_text) != "" do
-            Mix.shell().info("""
-            Create: #{Rewrite.Source.get(source, :path)}
-
-            #{diffish_looking_text}
-            """)
-          end
-        else
-          diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
-
-          if String.trim(diff) != "" do
-            Mix.shell().info("""
-            Update: #{Rewrite.Source.get(source, :path)}
-
-            #{diff}
-            """)
-          end
-        end
-      end)
+      Mix.shell().info(diff(sources))
     end
   end
+
+  @doc false
+  def diff(sources, opts \\ []) do
+    color? = Keyword.get(opts, :color?, true)
+
+    Enum.map_join(sources, "\n", fn {_, source} ->
+      if Rewrite.Source.from?(source, :string) do
+        content_lines =
+          source
+          |> Rewrite.Source.get(:content)
+          |> String.split("\n")
+          |> Enum.with_index()
+
+        space_padding =
+          content_lines
+          |> Enum.map(&elem(&1, 1))
+          |> Enum.max()
+          |> to_string()
+          |> String.length()
+
+        diffish_looking_text =
+          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+            line_number = line_number_minus_one + 1
+
+            "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}| #{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
+          end)
+
+        if String.trim(diffish_looking_text) != "" do
+          """
+          Create: #{Rewrite.Source.get(source, :path)}
+
+          #{diffish_looking_text}
+          """
+        else
+          ""
+        end
+      else
+        diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
+
+        if String.trim(diff) != "" do
+          """
+          Update: #{Rewrite.Source.get(source, :path)}
+
+          #{diff}
+          """
+        else
+          ""
+        end
+      end
+    end)
+  end
+
+  defp color(color, true), do: color
+  defp color(_, _), do: ""
 
   defp igniter_issues(igniter) do
     Mix.shell().info("Issues during code generation")
@@ -864,7 +967,7 @@ defmodule Igniter do
         end)
 
       igniter =
-        if File.exists?(".formatter.exs") do
+        if exists?(igniter, ".formatter.exs") do
           Igniter.include_existing_file(igniter, ".formatter.exs")
         else
           igniter
@@ -1098,18 +1201,34 @@ defmodule Igniter do
     end)
   end
 
-  defp read_ex_source!(path) do
-    read_source!(path, Rewrite.Source.Ex)
+  defp read_ex_source!(igniter, path) do
+    read_source!(igniter, path, Rewrite.Source.Ex)
   end
 
-  defp read_source!(path, source_handler) do
-    source = source_handler.read!(path)
+  defp read_source!(igniter, path, source_handler) do
+    if igniter.assigns[:test_mode?] do
+      if content = igniter.assigns[:test_files][path] do
+        source =
+          source_handler.from_string(content, path)
+          |> Map.put(:from, :file)
 
-    content =
-      source
-      |> Rewrite.Source.get(:content)
+        content =
+          source
+          |> Rewrite.Source.get(:content)
 
-    Rewrite.Source.update(source, :content, content)
+        Rewrite.Source.update(source, :content, content)
+      else
+        raise "File #{path} not found in test files."
+      end
+    else
+      source = source_handler.read!(path)
+
+      content =
+        source
+        |> Rewrite.Source.get(:content)
+
+      Rewrite.Source.update(source, :content, content)
+    end
   end
 
   @doc false

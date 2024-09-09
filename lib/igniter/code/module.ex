@@ -200,8 +200,15 @@ defmodule Igniter.Code.Module do
 
   @doc "Given a suffix, returns a module name with the prefix of the current project."
   @spec module_name(String.t()) :: module()
+  @deprecated "Use `module_name/2` instead."
   def module_name(suffix) do
     Module.concat(module_name_prefix(), suffix)
+  end
+
+  @doc "Given a suffix, returns a module name with the prefix of the current project."
+  @spec module_name(Igniter.t(), String.t()) :: module()
+  def module_name(igniter, suffix) do
+    Module.concat(module_name_prefix(igniter), suffix)
   end
 
   @doc """
@@ -364,10 +371,10 @@ defmodule Igniter.Code.Module do
 
             should_use_inside_matching_folder? =
               if opts[:move_all?] do
-                File.dir?(inside_matching_folder_dirname) || just_created_folder?
+                dir?(igniter, inside_matching_folder_dirname) || just_created_folder?
               else
                 source.path == proper_location(module) &&
-                  !File.dir?(inside_matching_folder_dirname) && just_created_folder?
+                  !dir?(igniter, inside_matching_folder_dirname) && just_created_folder?
               end
 
             if should_use_inside_matching_folder? do
@@ -381,6 +388,18 @@ defmodule Igniter.Code.Module do
               proper_location
             end
         end
+    end
+  end
+
+  defp dir?(igniter, folder) do
+    if igniter.assigns[:test_mode?] do
+      igniter.assigns[:test_files]
+      |> Map.keys()
+      |> Enum.any?(fn file_path ->
+        List.starts_with?(Path.split(file_path), Path.split(folder))
+      end)
+    else
+      File.dir?(folder)
     end
   end
 
@@ -434,12 +453,48 @@ defmodule Igniter.Code.Module do
   end
 
   @doc "The module name prefix based on the mix project's module name"
+  @deprecated "Use `module_name_prefix/1` instead"
   @spec module_name_prefix() :: module()
   def module_name_prefix do
     Mix.Project.get!()
     |> Module.split()
     |> :lists.droplast()
     |> Module.concat()
+  end
+
+  @doc "The module name prefix based on the mix project's module name"
+  @spec module_name_prefix(Igniter.t()) :: module()
+  def module_name_prefix(igniter) do
+    zipper =
+      igniter
+      |> Igniter.include_existing_file("mix.exs")
+      |> Map.get(:rewrite)
+      |> Rewrite.source!("mix.exs")
+      |> Rewrite.Source.get(:quoted)
+      |> Sourceror.Zipper.zip()
+
+    with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+         {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
+      case Igniter.Code.Common.expand_alias(zipper) do
+        %Zipper{node: module_name} when is_atom(module_name) ->
+          module_name
+          |> Module.split()
+          |> :lists.droplast()
+          |> Module.concat()
+
+        %Zipper{node: {:__aliases__, _, parts}} ->
+          parts
+          |> :lists.droplast()
+          |> Module.concat()
+      end
+    else
+      _ ->
+        raise """
+        Failed to parse the module name from mix.exs.
+
+        Please ensure that you are defining a Mix.Project module in your mix.exs file.
+        """
+    end
   end
 
   @doc "Moves the zipper to a defmodule call"
