@@ -110,7 +110,7 @@ defmodule Igniter.Project.Deps do
               )
             else
               _ ->
-                nil
+                Igniter.Code.Tuple.append_elem(zipper, [{key, quoted}])
             end
         end
       else

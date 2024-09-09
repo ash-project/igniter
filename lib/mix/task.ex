@@ -89,7 +89,7 @@ defmodule Igniter.Mix.Task do
   * You cannot use `composes` to list tasks unless they are in your library or in direct dependencies of your library.
     To validate their options, you must include their options in your own option schema.
   """
-  @callback info(argv :: list(String.t()), source :: nil | String.t()) ::
+  @callback info(argv :: list(String.t()), composing_task :: nil | String.t()) ::
               Info.t()
 
   defmacro __using__(_opts) do

@@ -412,8 +412,21 @@ defmodule Igniter.Code.Module do
     path =
       module_name
       |> Module.split()
-      |> Enum.map(&to_string/1)
-      |> Enum.map(&Macro.underscore/1)
+      |> case do
+        ["Mix", "Tasks" | rest] ->
+          suffix =
+            rest
+            |> Enum.map(&to_string/1)
+            |> Enum.map(&Macro.underscore/1)
+            |> Enum.join(".")
+
+          ["mix", "tasks", suffix]
+
+        other ->
+          other
+          |> Enum.map(&to_string/1)
+          |> Enum.map(&Macro.underscore/1)
+      end
 
     last = List.last(path)
     leading = :lists.droplast(path)

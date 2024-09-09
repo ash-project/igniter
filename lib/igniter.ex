@@ -758,7 +758,7 @@ defmodule Igniter do
             if opts[:dry_run] || !opts[:yes] do
               Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
-              display_diff(Rewrite.sources(igniter.rewrite), opts)
+              display_diff(Map.values(Rewrite.sources(igniter.rewrite)), opts)
             end
 
             :dry_run_with_changes
@@ -869,7 +869,7 @@ defmodule Igniter do
           "Changes have been made to the project and the --check flag was specified."
         )
 
-        display_diff(igniter.rewrite.sources, opts)
+        display_diff(igniter.rewrite.sources |> Map.values(), opts)
 
         System.halt(1)
     end
@@ -885,7 +885,7 @@ defmodule Igniter do
   def diff(sources, opts \\ []) do
     color? = Keyword.get(opts, :color?, true)
 
-    Enum.map_join(List.wrap(sources), "\n", fn source ->
+    Enum.map_join(sources, "\n", fn source ->
       source =
         case source do
           {_, source} -> source

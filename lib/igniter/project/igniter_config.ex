@@ -18,7 +18,9 @@ defmodule Igniter.Project.IgniterConfig do
       type: {:list, :any},
       doc:
         "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved.",
-      default: []
+      default: [
+        ~r"lib/mix"
+      ]
     ]
   ]
 

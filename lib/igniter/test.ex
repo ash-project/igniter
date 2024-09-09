@@ -38,12 +38,34 @@ defmodule Igniter.Test do
     |> Igniter.assign(:test_files, add_mix_new(opts))
   end
 
-  @doc "IO.puts the current igniter diff, and returns the igniter"
-  @spec puts_diff(Igniter.t()) :: Igniter.t()
-  def puts_diff(igniter) do
+  @doc """
+  IO.puts the current igniter diff, and returns the igniter
+
+  ## Options
+
+  * `label` - A label to put before the diff.
+  """
+  @spec puts_diff(Igniter.t(), opts :: Keyword.t()) :: Igniter.t()
+  def puts_diff(igniter, opts \\ []) do
     igniter.rewrite.sources
+    |> Map.values()
     |> Igniter.diff()
-    |> then(&IO.puts/1)
+    |> String.trim()
+    |> case do
+      "" ->
+        if opts[:label] do
+          IO.puts("#{opts[:label]} No changes!")
+        else
+          IO.puts("No changes!")
+        end
+
+      diff ->
+        if opts[:label] do
+          IO.puts("#{opts[:label]}\n\n#{diff}")
+        else
+          IO.puts(diff)
+        end
+    end
 
     igniter
   end
