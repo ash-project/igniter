@@ -7,308 +7,233 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ## [v0.3.29](https://github.com/ash-project/igniter/compare/v0.3.28...v0.3.29) (2024-09-09)
 
-
-
-
 ### Improvements:
 
-* check for git changes to avoid overwriting unsaved changes
+- check for git changes to avoid overwriting unsaved changes
 
-* add `mix igniter.gen.task` to quickly generate a full task
+- add `mix igniter.gen.task` to quickly generate a full task
 
-* properly find the default location for mix task modules
+- properly find the default location for mix task modules
 
-* add `--only` option, and `only` key in `Igniter.Mix.Task.Info`
+- add `--only` option, and `only` key in `Igniter.Mix.Task.Info`
 
-* add `Igniter.Test` with helpers for writing tests
+- add `Igniter.Test` with helpers for writing tests
 
-* extract app name and app module from mix.exs file
+- extract app name and app module from mix.exs file
 
 ## [v0.3.28](https://github.com/ash-project/igniter/compare/v0.3.27...v0.3.28) (2024-09-09)
 
-
-
-
 ### Bug Fixes:
 
-* don't hardcode `Spark.Formatter` plugin
+- don't hardcode `Spark.Formatter` plugin
 
 ## [v0.3.27](https://github.com/ash-project/igniter/compare/v0.3.26...v0.3.27) (2024-09-08)
 
-
-
-
 ### Improvements:
 
-* when replacing a dependency, leave it in the same location
+- when replacing a dependency, leave it in the same location
 
 ## [v0.3.26](https://github.com/ash-project/igniter/compare/v0.3.25...v0.3.26) (2024-09-08)
 
-
-
-
 ### Improvements:
 
-* add `igniter.update_gettext`
+- add `igniter.update_gettext`
 
 ## [v0.3.25](https://github.com/ash-project/igniter/compare/v0.3.24...v0.3.25) (2024-09-06)
 
-
-
-
 ### Improvements:
 
-* add `configure_runtime_env` codemod
+- add `configure_runtime_env` codemod
 
-* remove dependencies that aren't strictly necessary
+- remove dependencies that aren't strictly necessary
 
-* remove dependencies that we don't really need
+- remove dependencies that we don't really need
 
-* more options to `igniter.new`
+- more options to `igniter.new`
 
 ## [v0.3.24](https://github.com/ash-project/igniter/compare/v0.3.23...v0.3.24) (2024-08-26)
 
-
-
-
 ### Bug Fixes:
 
-* detect equal lists for node equality
+- detect equal lists for node equality
 
 ## [v0.3.23](https://github.com/ash-project/igniter/compare/v0.3.22...v0.3.23) (2024-08-26)
 
-
-
-
 ### Bug Fixes:
 
-* properly move to arguments of Module.fun calls
+- properly move to arguments of Module.fun calls
 
 ### Improvements:
 
-* add `Igniter.Code.Common.expand_literal/1`
+- add `Igniter.Code.Common.expand_literal/1`
 
-* add `--with-args` to pass additional args to installers
+- add `--with-args` to pass additional args to installers
 
 ## [v0.3.22](https://github.com/ash-project/igniter/compare/v0.3.21...v0.3.22) (2024-08-20)
 
-
-
-
 ### Improvements:
 
-* add options to control behavior when creating a file that already exists
+- add options to control behavior when creating a file that already exists
 
 ## [v0.3.21](https://github.com/ash-project/igniter/compare/v0.3.20...v0.3.21) (2024-08-20)
 
-
-
-
 ### Improvements:
 
-* add `copy_template/4`
+- add `copy_template/4`
 
 ## [v0.3.20](https://github.com/ash-project/igniter/compare/v0.3.19...v0.3.20) (2024-08-19)
 
-
-
-
 ### Bug Fixes:
 
-* ensure no timeout on task async streams
+- ensure no timeout on task async streams
 
-* don't hardcode `Foo.Supervisor` ð¤¦
+- don't hardcode `Foo.Supervisor` ð¤¦
 
 ## [v0.3.19](https://github.com/ash-project/igniter/compare/v0.3.18...v0.3.19) (2024-08-13)
 
-
-
-
 ### Bug Fixes:
 
-* properly handle values vs code in configure
+- properly handle values vs code in configure
 
 ## [v0.3.18](https://github.com/ash-project/igniter/compare/v0.3.17...v0.3.18) (2024-08-08)
 
-
-
-
 ### Bug Fixes:
 
-* fix and test keyword setting on empty list
+- fix and test keyword setting on empty list
 
 ## [v0.3.17](https://github.com/ash-project/igniter/compare/v0.3.16...v0.3.17) (2024-08-08)
 
-
-
-
 ### Bug Fixes:
 
-* properly parse boolean switches from positional args
+- properly parse boolean switches from positional args
 
-* don't warn on `Macro.Env.expand_alias/3` not being defined
+- don't warn on `Macro.Env.expand_alias/3` not being defined
 
-* descend into single child block when modifying keyword
+- descend into single child block when modifying keyword
 
-* set `format: :keyword` when adding keyword list item to empty list
+- set `format: :keyword` when adding keyword list item to empty list
 
-* escape injected code in Common.replace_code/2 (#70)
+- escape injected code in Common.replace_code/2 (#70)
 
-* :error consistency in remove_keyword_key and argument_equals? in Config.configure (#68)
+- :error consistency in remove_keyword_key and argument_equals? in Config.configure (#68)
 
 ### Improvements:
 
-* support for non-elixir files with create_new_file, update_file, include_existing_file, include_or_create_file, create_or_update_file (#75)
+- support for non-elixir files with create_new_file, update_file, include_existing_file, include_or_create_file, create_or_update_file (#75)
 
-* support "notices" (#65)
+- support "notices" (#65)
 
 ## [v0.3.16](https://github.com/ash-project/igniter/compare/v0.3.15...v0.3.16) (2024-07-31)
 
-
-
-
 ### Bug Fixes:
 
-* loadpaths after compiling deps
+- loadpaths after compiling deps
 
 ### Improvements:
 
-* add `create_module` utility
+- add `create_module` utility
 
 ## [v0.3.15](https://github.com/ash-project/igniter/compare/v0.3.14...v0.3.15) (2024-07-31)
 
-
-
-
 ### Bug Fixes:
 
-* remove `force?: true` from dep installation
+- remove `force?: true` from dep installation
 
-* better handling of positional args in igniter.new
+- better handling of positional args in igniter.new
 
 ## [v0.3.14](https://github.com/ash-project/igniter/compare/v0.3.13...v0.3.14) (2024-07-30)
 
-
-
-
 ### Bug Fixes:
 
-* detect more function call formats
+- detect more function call formats
 
-* properly extract arguments when parsing positional args
+- properly extract arguments when parsing positional args
 
 ## [v0.3.13](https://github.com/ash-project/igniter/compare/v0.3.12...v0.3.13) (2024-07-30)
 
-
-
-
 ### Bug Fixes:
 
-* force compile dependencies to avoid strange compiler issues
+- force compile dependencies to avoid strange compiler issues
 
 ## [v0.3.12](https://github.com/ash-project/igniter/compare/v0.3.11...v0.3.12) (2024-07-30)
 
-
-
-
 ### Improvements:
 
-* add `Igniter.Libs.Phoenix.endpoints_for_router/2`
+- add `Igniter.Libs.Phoenix.endpoints_for_router/2`
 
 ## [v0.3.11](https://github.com/ash-project/igniter/compare/v0.3.10...v0.3.11) (2024-07-27)
 
-
-
-
 ### Bug Fixes:
 
-* ensure igniter is compiled first
+- ensure igniter is compiled first
 
-* fetch deps after adding any nested installers
+- fetch deps after adding any nested installers
 
-* various fixes & improvements to positional argument listing
+- various fixes & improvements to positional argument listing
 
 ### Improvements:
 
-* clean up dependency compiling logic
+- clean up dependency compiling logic
 
-* optimize module finding w/ async_stream
+- optimize module finding w/ async_stream
 
-* add `rest: true` option for positional args
+- add `rest: true` option for positional args
 
 ## [v0.3.10](https://github.com/ash-project/igniter/compare/v0.3.9...v0.3.10) (2024-07-26)
 
-
-
-
 ### Bug Fixes:
 
-* recompile igniter in `ingiter.install`
+- recompile igniter in `ingiter.install`
 
 ### Improvements:
 
-* add `positional_args!/1` macro for use in tasks
+- add `positional_args!/1` macro for use in tasks
 
-* better output on missing installers & already present dep
+- better output on missing installers & already present dep
 
 ## [v0.3.9](https://github.com/ash-project/igniter/compare/v0.3.8...v0.3.9) (2024-07-22)
 
-
-
-
 ### Bug Fixes:
 
-* force compile dependencies.
+- force compile dependencies.
 
-* use length of path for insertion point, instead of node equality
+- use length of path for insertion point, instead of node equality
 
 ## [v0.3.8](https://github.com/ash-project/igniter/compare/v0.3.7...v0.3.8) (2024-07-19)
 
-
-
-
 ### Improvements:
 
-* better map key setting
+- better map key setting
 
-* detect strings as non extendable blocks
+- detect strings as non extendable blocks
 
-* add option to ignore already present phoenix scopes
+- add option to ignore already present phoenix scopes
 
 ## [v0.3.7](https://github.com/ash-project/igniter/compare/v0.3.6...v0.3.7) (2024-07-19)
 
-
-
-
 ### Bug Fixes:
 
-* improve `add_code` by modifying the `supertree`
+- improve `add_code` by modifying the `supertree`
 
 ## [v0.3.6](https://github.com/ash-project/igniter/compare/v0.3.5...v0.3.6) (2024-07-19)
 
-
-
-
 ### Bug Fixes:
 
-* properly scope configuration modification code
+- properly scope configuration modification code
 
-* properly add blocks of code together
+- properly add blocks of code together
 
 ## [v0.3.5](https://github.com/ash-project/igniter/compare/v0.3.4...v0.3.5) (2024-07-19)
 
-
-
-
 ### Bug Fixes:
 
-* properly move to pattern matches in scope
+- properly move to pattern matches in scope
 
-* configures?/3 -> configures_key & configures_root_key (#54)
+- configures?/3 -> configures_key & configures_root_key (#54)
 
 ### Improvements:
 
-* add blocks together more fluidly in `add_code`
+- add blocks together more fluidly in `add_code`
 
 ## [v0.3.4](https://github.com/ash-project/igniter/compare/v0.3.3...v0.3.4) (2024-07-19)
 
