@@ -5,6 +5,25 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.29](https://github.com/ash-project/igniter/compare/v0.3.28...v0.3.29) (2024-09-09)
+
+
+
+
+### Improvements:
+
+* check for git changes to avoid overwriting unsaved changes
+
+* add `mix igniter.gen.task` to quickly generate a full task
+
+* properly find the default location for mix task modules
+
+* add `--only` option, and `only` key in `Igniter.Mix.Task.Info`
+
+* add `Igniter.Test` with helpers for writing tests
+
+* extract app name and app module from mix.exs file
+
 ## [v0.3.28](https://github.com/ash-project/igniter/compare/v0.3.27...v0.3.28) (2024-09-09)
 
 
