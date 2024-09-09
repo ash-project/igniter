@@ -81,11 +81,11 @@ defmodule Igniter.Project.Formatter do
           |> Zipper.rightmost()
           |> Igniter.Code.Keyword.put_in_keyword(
             [:plugins],
-            [Spark.Formatter],
+            [plugin],
             fn nested_zipper ->
               Igniter.Code.List.prepend_new_to_list(
                 nested_zipper,
-                Spark.Formatter
+                plugin
               )
             end
           )
