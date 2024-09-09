@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.28](https://github.com/ash-project/igniter/compare/v0.3.27...v0.3.28) (2024-09-09)
+
+
+
+
+### Bug Fixes:
+
+* don't hardcode `Spark.Formatter` plugin
+
 ## [v0.3.27](https://github.com/ash-project/igniter/compare/v0.3.26...v0.3.27) (2024-09-08)
 
 
