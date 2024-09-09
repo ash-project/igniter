@@ -16,7 +16,7 @@ defmodule Igniter.Mix.Tasks.Igniter.Gen.TaskTest do
 
           @shortdoc "A short description of your task"
           @moduledoc \"\"\"
-          Generates a new igniter task
+          \#{@shortdoc}
 
           Longer explanation of your task
 
@@ -81,12 +81,12 @@ defmodule Igniter.Mix.Tasks.Igniter.Gen.TaskTest do
           @example "mix foo.bar --example arg"
 
           @shortdoc "A short description of your task"
-          @shortdoc if Code.ensure_loaded?(Igniter),
-                      do: "Generates a new igniter task | Install `igniter` to use",
-                      else: @shortdoc
+          if !Code.ensure_loaded?(Igniter) do
+            @shortdoc "\#{@shortdoc} | Install `igniter` to use"
+          end
 
           @moduledoc \"\"\"
-          Generates a new igniter task
+          \#{@shortdoc}
 
           Longer explanation of your task
 
