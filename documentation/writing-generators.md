@@ -1,6 +1,12 @@
 # Writing Generators
 
-In `Igniter`, generators are done as a wrapper around `Mix.Task`, allowing them to be called individually or composed as part of a task. Since an example is worth a thousand words, lets take a look at an example that generates a file and ensures a configuration is set in the user's `config.exs`.
+In `Igniter`, generators are done as a wrapper around `Mix.Task`, allowing them to be called individually or composed as part of a task.
+
+Since an example is worth a thousand words, lets take a look at an example that generates a file and ensures a configuration is set in the user's `config.exs`.
+
+> ### An igniter for igniters?! {: .info}
+>
+> Run `mix igniter.gen.task your_app.task.name` to generate a new, fully configured igniter task!
 
 ```elixir
 # lib/mix/tasks/your_lib.gen.your_thing.ex
