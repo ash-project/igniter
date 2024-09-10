@@ -110,7 +110,7 @@ defmodule Igniter.Project.Application do
           Igniter.t()
   def add_new_child(igniter, to_supervise, opts \\ []) do
     to_perform =
-      case IO.inspect(app_module(igniter)) do
+      case app_module(igniter) do
         nil -> {:create_an_app, Igniter.Code.Module.module_name(igniter, "Application")}
         {mod, _} -> {:modify, mod}
         mod -> {:modify, mod}
