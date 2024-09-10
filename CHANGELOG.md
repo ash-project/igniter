@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.32](https://github.com/ash-project/igniter/compare/v0.3.31...v0.3.32) (2024-09-10)
+
+
+
+
+### Bug Fixes:
+
+* properly extract app module from `def project`
+
 ## [v0.3.31](https://github.com/ash-project/igniter/compare/v0.3.30...v0.3.31) (2024-09-10)
 
 
