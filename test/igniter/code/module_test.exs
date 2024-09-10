@@ -1,6 +1,8 @@
 defmodule Igniter.Code.ModuleTest do
   use ExUnit.Case
 
+  import Igniter.Test
+
   doctest Igniter.Code.Module
 
   test "modules will be moved according to config" do
@@ -116,5 +118,22 @@ defmodule Igniter.Code.ModuleTest do
              20
            end
            """
+  end
+
+  describe inspect(&Igniter.Code.Module.find_all_matching_modules/1) do
+    test "finds all elixir files but ignores all other files" do
+      igniter =
+        test_project()
+        |> Igniter.Code.Module.create_module(Foo, """
+        defmodule Foo do
+        end
+        """)
+        |> Igniter.create_new_file("test.txt", "Foo")
+
+      assert {_igniter, [Foo]} =
+               Igniter.Code.Module.find_all_matching_modules(igniter, fn _module, _zipper ->
+                 true
+               end)
+    end
   end
 end
