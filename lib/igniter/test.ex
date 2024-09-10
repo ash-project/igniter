@@ -143,6 +143,32 @@ defmodule Igniter.Test do
     end
   end
 
+  defmacro assert_unchanged(igniter, path_or_paths) do
+    quote bind_quoted: [igniter: igniter, path_or_paths: path_or_paths] do
+      for path <- List.wrap(path_or_paths) do
+        refute Igniter.changed?(igniter, path), """
+        Expected #{inspect(path)} to be unchanged, but it was changed.
+
+        Diff:
+
+        #{igniter.rewrite.sources |> Map.take([path]) |> Igniter.diff()}
+        """
+      end
+    end
+  end
+
+  defmacro assert_unchanged(igniter) do
+    quote bind_quoted: [igniter: igniter] do
+      refute Igniter.changed?(igniter), """
+      Expected there to be no changes, but there were changes.
+
+      Diff:
+
+      #{Rewrite.sources(igniter.rewrite) |> Igniter.diff()}
+      """
+    end
+  end
+
   @doc false
   def sanitize_diff(diff, actual \\ nil) do
     diff

@@ -178,20 +178,16 @@ defmodule Igniter.Project.Application do
            {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1) do
         if Igniter.Code.List.find_list_item_index(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
-               with {:ok, zipper} <- Igniter.Code.Tuple.tuple_elem(zipper, 0),
-                    zipper <- Igniter.Code.Common.expand_alias(zipper),
-                    module when is_atom(module) <- alias_to_mod(zipper.node) do
-                 module == to_supervise_module
+               with {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
+                    item <- Igniter.Code.Common.expand_alias(item) do
+                 Igniter.Code.Common.nodes_equal?(item, to_supervise_module)
                else
                  _ -> false
                end
              else
-               with zipper <- Igniter.Code.Common.expand_alias(zipper),
-                    module when is_atom(module) <- zipper.node do
-                 module == to_supervise_module
-               else
-                 _ -> false
-               end
+               item
+               |> Igniter.Code.Common.expand_alias()
+               |> Igniter.Code.Common.nodes_equal?(to_supervise_module)
              end
            end) do
           {:ok, zipper}

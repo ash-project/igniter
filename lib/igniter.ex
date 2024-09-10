@@ -1344,7 +1344,26 @@ defmodule Igniter do
     end
   end
 
-  defp changed?(source) do
+  @doc "Returns true if any of the files specified in `paths` have changed."
+  @spec changed?(t(), String.t() | list(String.t())) :: boolean()
+  def changed?(%Igniter{} = igniter, paths) do
+    paths = List.wrap(paths)
+
+    igniter.rewrite
+    |> Rewrite.sources()
+    |> Enum.filter(&(&1.path in paths))
+    |> Enum.any?(&changed?/1)
+  end
+
+  @doc "Returns true if the igniter or source provided has changed"
+  @spec changed?(t() | Rewrite.Source.t()) :: boolean()
+  def changed?(%Igniter{} = igniter) do
+    igniter.rewrite
+    |> Rewrite.sources()
+    |> Enum.any?(&changed?/1)
+  end
+
+  def changed?(%Rewrite.Source{} = source) do
     diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
 
     String.trim(diff) != ""

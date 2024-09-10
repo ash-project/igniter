@@ -747,7 +747,7 @@ defmodule Igniter.Code.Common do
   def nodes_equal?(v, v), do: true
 
   def nodes_equal?(l, r) do
-    equal_vals?(l, r) || equal_modules?(l, r)
+    equal_vals?(l, r)
   end
 
   defp equal_vals?({:__block__, _, [value]}, value) do
@@ -766,7 +766,7 @@ defmodule Igniter.Code.Common do
             nodes_equal?(left, right)
 
           _ ->
-            false
+            equal_modules?(left, right)
         end
 
       extendable_block?(right) ->
@@ -775,7 +775,7 @@ defmodule Igniter.Code.Common do
             nodes_equal?(left, right)
 
           _ ->
-            false
+            equal_modules?(left, right)
         end
 
       is_list(left) and is_list(right) ->
@@ -783,7 +783,7 @@ defmodule Igniter.Code.Common do
           Enum.all?(Enum.zip(left, right), fn {l, r} -> nodes_equal?(l, r) end)
 
       true ->
-        false
+        equal_modules?(left, right)
     end
   end
 

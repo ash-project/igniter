@@ -28,6 +28,30 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
 
+    test "doesnt add a module if its already supervised" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> assert_unchanged()
+    end
+
+    test "doesnt add a module if its already supervised as a tuple" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child({Foo, a: 1})
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> assert_unchanged()
+    end
+
+    test "doesnt add a module if its already supervised as an atom and we're adding a tuple" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child({Foo, a: 1})
+      |> assert_unchanged()
+    end
+
     test "supports taking options as the second argument" do
       test_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: :b})
