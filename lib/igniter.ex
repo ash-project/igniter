@@ -157,13 +157,21 @@ defmodule Igniter do
   @doc "Includes all files matching the given glob, expecting them all (for now) to be elixir files."
   @spec include_glob(t, Path.t() | GlobEx.t()) :: t()
   def include_glob(igniter, glob) do
-    paths =
-      glob
-      |> case do
+    glob =
+      case glob do
         %{__struct__: GlobEx} = glob -> glob
         string -> GlobEx.compile!(Path.expand(string))
       end
-      |> GlobEx.ls()
+
+    paths =
+      if igniter.assigns[:test_mode?] do
+        igniter.assigns[:test_files]
+        |> Map.keys()
+        |> Enum.filter(&GlobEx.match?(glob, &1))
+      else
+        glob
+        |> GlobEx.ls()
+      end
       |> Stream.filter(fn path ->
         if Path.extname(path) in [".ex", ".exs"] do
           true
