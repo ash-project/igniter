@@ -62,7 +62,7 @@ defmodule Igniter.Mix.Task do
             schema: Keyword.t(),
             aliases: Keyword.t(),
             composes: [String.t()],
-            only: [atom()],
+            only: [atom()] | nil,
             positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
             installs: [{atom(), String.t()}],
             adds_deps: [{atom(), String.t()}],

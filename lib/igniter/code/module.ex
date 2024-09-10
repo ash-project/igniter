@@ -417,8 +417,7 @@ defmodule Igniter.Code.Module do
           suffix =
             rest
             |> Enum.map(&to_string/1)
-            |> Enum.map(&Macro.underscore/1)
-            |> Enum.join(".")
+            |> Enum.map_join(".", &Macro.underscore/1)
 
           ["mix", "tasks", suffix]
 
