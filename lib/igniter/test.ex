@@ -126,7 +126,7 @@ defmodule Igniter.Test do
         Igniter.Test.sanitize_diff(diff)
 
       compare_patch =
-        Igniter.Test.sanitize_diff(patch)
+        Igniter.Test.sanitize_diff(patch, diff)
 
       assert String.contains?(compare_diff, compare_patch),
              """
@@ -144,12 +144,32 @@ defmodule Igniter.Test do
   end
 
   @doc false
-  def sanitize_diff(diff) do
+  def sanitize_diff(diff, actual \\ nil) do
     diff
     |> String.split("\n")
-    |> Enum.filter(&String.contains?(&1, "|"))
     |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == "...|"))
+    |> Enum.reject(&(&1 == "...|" || &1 == ""))
+    |> Enum.flat_map(fn line ->
+      if String.contains?(line, "|") do
+        [line]
+      else
+        if actual do
+          raise """
+          Invalid patch provided.
+
+          #{diff}
+
+          Each line of the patch should contain at least one | character.
+
+          Actual diff:
+
+          #{actual}
+          """
+        else
+          []
+        end
+      end
+    end)
     |> Enum.map_join("\n", fn line ->
       [l, r] = String.split(line, "|", parts: 2)
 

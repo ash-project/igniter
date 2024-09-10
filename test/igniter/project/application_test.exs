@@ -22,13 +22,9 @@ defmodule Igniter.Project.ApplicationTest do
       end
       """)
       |> assert_has_patch("mix.exs", """
-      15 15   |  def application do
-      16 16   |    [
       17    - |      extra_applications: [:logger]
          17 + |      extra_applications: [:logger],
          18 + |      mod: {Test.Application, []}
-      18 19   |    ]
-      19 20   |  end
       """)
     end
   end
