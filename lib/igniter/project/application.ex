@@ -52,9 +52,10 @@ defmodule Igniter.Project.Application do
       |> Rewrite.Source.get(:quoted)
       |> Sourceror.Zipper.zip()
 
-    with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :project, 0),
+    with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :application, 0),
          zipper <- Igniter.Code.Common.rightmost(zipper),
          true <- Igniter.Code.List.list?(zipper),
+         _ <- Igniter.Util.Debug.puts_code_at_node(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :mod) do
       case Igniter.Code.Common.expand_literal(zipper) do
         {:ok, app_module} ->
@@ -110,7 +111,7 @@ defmodule Igniter.Project.Application do
           Igniter.t()
   def add_new_child(igniter, to_supervise, opts \\ []) do
     to_perform =
-      case app_module(igniter) do
+      case IO.inspect(app_module(igniter)) do
         nil -> {:create_an_app, Igniter.Code.Module.module_name(igniter, "Application")}
         {mod, _} -> {:modify, mod}
         mod -> {:modify, mod}
