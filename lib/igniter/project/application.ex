@@ -79,9 +79,36 @@ defmodule Igniter.Project.Application do
     end
   end
 
-  @doc "Adds a new child to the `children` list in the application file"
-  @spec add_new_child(Igniter.t(), module() | {module, term()}) :: Igniter.t()
-  def add_new_child(igniter, to_supervise) do
+  @doc """
+  Adds a new child to the `children` list in the application file
+
+  To pass quoted code as the options, use the following format:
+
+      {module, {:code, quoted_code}}
+
+  i.e
+
+      {MyApp.Supervisor, {:code, quote do
+        Application.fetch_env!(:app, :config)
+      end}}
+
+  ## Options
+
+  - `after` - A list of other modules that this supervisor should appear after,
+     or a function that takes a module and returns `true` if this module should be placed after it.
+
+  ## Ordering
+
+  We will put the new child as the earliest item in the list that we can, skipping any modules
+  in `after`.
+  """
+  @spec add_new_child(
+          Igniter.t(),
+          module() | {module, {:code, term()}} | {module, term()},
+          opts :: Keyword.t()
+        ) ::
+          Igniter.t()
+  def add_new_child(igniter, to_supervise, opts \\ []) do
     to_perform =
       case app_module(igniter) do
         nil -> {:create_an_app, Igniter.Code.Module.module_name(igniter, "Application")}
@@ -89,14 +116,23 @@ defmodule Igniter.Project.Application do
         mod -> {:modify, mod}
       end
 
+    opts =
+      Keyword.update(opts, :after, fn _ -> false end, fn list ->
+        if is_list(list) do
+          fn item -> item in list end
+        else
+          list
+        end
+      end)
+
     case to_perform do
       {:create_an_app, mod} ->
         igniter
         |> create_app(mod)
-        |> do_add_child(mod, to_supervise)
+        |> do_add_child(mod, to_supervise, opts)
 
       {:modify, mod} ->
-        do_add_child(igniter, mod, to_supervise)
+        do_add_child(igniter, mod, to_supervise, opts)
     end
   end
 
@@ -106,25 +142,20 @@ defmodule Igniter.Project.Application do
     |> create_application_file(application)
   end
 
-  def do_add_child(igniter, application, to_supervise) do
+  def do_add_child(igniter, application, to_supervise, opts) do
     path = Igniter.Code.Module.proper_location(application)
 
-    diff_checker =
+    to_supervise =
       case to_supervise do
-        v when is_atom(v) ->
-          &Common.nodes_equal?/2
+        module when is_atom(module) -> module
+        {module, {:code, contents}} when is_atom(module) -> {module, contents}
+        {module, contents} -> {module, Macro.escape(contents)}
+      end
 
-        {v, _opts} when is_atom(v) ->
-          fn
-            {item, _}, {right, _} ->
-              Common.nodes_equal?(item, right)
-
-            item, {right, _} ->
-              Common.nodes_equal?(item, right)
-
-            _, _ ->
-              false
-          end
+    to_supervise_module =
+      case to_supervise do
+        {module, _} -> module
+        module -> module
       end
 
     Igniter.update_elixir_file(igniter, path, fn zipper ->
@@ -143,11 +174,35 @@ defmodule Igniter.Project.Application do
                  ) &&
                    Igniter.Code.Function.argument_matches_pattern?(call, 1, v when is_list(v))
                end
-             ) do
-        zipper
-        |> Zipper.down()
-        |> Zipper.rightmost()
-        |> Igniter.Code.List.append_new_to_list(Macro.escape(to_supervise), diff_checker)
+             ),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1) do
+        if Igniter.Code.List.find_list_item_index(zipper, fn item ->
+             if Igniter.Code.Tuple.tuple?(item) do
+               with {:ok, zipper} <- Igniter.Code.Tuple.tuple_elem(zipper, 0),
+                    zipper <- Igniter.Code.Common.expand_alias(zipper),
+                    module when is_atom(module) <- zipper.node do
+                 module == to_supervise_module
+               else
+                 _ -> false
+               end
+             else
+               with zipper <- Igniter.Code.Common.expand_alias(zipper),
+                    module when is_atom(module) <- zipper.node do
+                 module == to_supervise_module
+               else
+                 _ -> false
+               end
+             end
+           end) do
+          {:ok, zipper}
+        else
+          zipper
+          |> Zipper.down()
+          |> skip_after(opts)
+          |> Zipper.insert_child(to_supervise)
+
+          # |> Igniter.Code.Common.insert_child(to_supervise)
+        end
       else
         _ ->
           {:warning,
@@ -157,6 +212,28 @@ defmodule Igniter.Project.Application do
            """}
       end
     end)
+  end
+
+  def skip_after(zipper, opts) do
+    Igniter.Code.Common.move_right(zipper, fn item ->
+      with true <- Igniter.Code.Tuple.tuple?(item),
+           {:ok, zipper} <- Igniter.Code.Tuple.tuple_elem(zipper, 0),
+           zipper <- Igniter.Code.Common.expand_alias(zipper),
+           module when is_atom(module) <- zipper.node,
+           true <- opts[:after].(module) do
+        true
+      else
+        _ ->
+          false
+      end
+    end)
+    |> case do
+      {:ok, zipper} ->
+        skip_after(zipper, opts)
+
+      :error ->
+        zipper
+    end
   end
 
   def create_application_file(igniter, application) do
@@ -189,9 +266,14 @@ defmodule Igniter.Project.Application do
           case Igniter.Code.Function.move_to_def(zipper, :application, 0) do
             {:ok, zipper} ->
               zipper
-              |> Zipper.rightmost()
+              |> Igniter.Code.Common.rightmost()
               |> Igniter.Code.Keyword.set_keyword_key(:mod, {application, []}, fn z ->
-                {:ok, Common.replace_code(z, {application, []})}
+                code =
+                  {application, []}
+                  |> Sourceror.to_string()
+                  |> Sourceror.parse_string!()
+
+                {:ok, Common.replace_code(z, code)}
               end)
 
             _ ->
