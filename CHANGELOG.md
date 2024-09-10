@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.34](https://github.com/ash-project/igniter/compare/v0.3.33...v0.3.34) (2024-09-10)
+
+
+
+
+### Bug Fixes:
+
+* properly avoid adding duplicate children to application tree
+
 ## [v0.3.33](https://github.com/ash-project/igniter/compare/v0.3.32...v0.3.33) (2024-09-10)
 
 
