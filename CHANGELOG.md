@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.35](https://github.com/ash-project/igniter/compare/v0.3.34...v0.3.35) (2024-09-10)
+
+
+
+
+### Bug Fixes:
+
+* much smarter removal of `import_config` when evaluating configuration files
+
+* when including a glob, use `test_files` in test_mode
+
+### Improvements:
+
+* add `Igniter.Code.Common.remove/2`
+
 ## [v0.3.34](https://github.com/ash-project/igniter/compare/v0.3.33...v0.3.34) (2024-09-10)
 
 
