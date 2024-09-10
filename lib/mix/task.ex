@@ -51,7 +51,7 @@ defmodule Igniter.Mix.Task do
     defstruct schema: [],
               aliases: [],
               composes: [],
-              only: [],
+              only: nil,
               installs: [],
               adds_deps: [],
               positional: [],
