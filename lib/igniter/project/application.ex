@@ -180,7 +180,7 @@ defmodule Igniter.Project.Application do
              if Igniter.Code.Tuple.tuple?(item) do
                with {:ok, zipper} <- Igniter.Code.Tuple.tuple_elem(zipper, 0),
                     zipper <- Igniter.Code.Common.expand_alias(zipper),
-                    module when is_atom(module) <- zipper.node do
+                    module when is_atom(module) <- alias_to_mod(zipper.node) do
                  module == to_supervise_module
                else
                  _ -> false
@@ -198,10 +198,23 @@ defmodule Igniter.Project.Application do
         else
           zipper
           |> Zipper.down()
-          |> skip_after(opts)
-          |> Zipper.insert_child(to_supervise)
+          |> then(fn zipper ->
+            case Zipper.down(zipper) do
+              nil ->
+                Zipper.insert_child(zipper, to_supervise)
 
-          # |> Igniter.Code.Common.insert_child(to_supervise)
+              zipper ->
+                zipper
+                |> skip_after(opts)
+                |> case do
+                  {:after, zipper} ->
+                    Zipper.insert_right(zipper, to_supervise)
+
+                  {:before, zipper} ->
+                    Zipper.insert_left(zipper, to_supervise)
+                end
+            end
+          end)
         end
       else
         _ ->
@@ -215,24 +228,52 @@ defmodule Igniter.Project.Application do
   end
 
   def skip_after(zipper, opts) do
-    Igniter.Code.Common.move_right(zipper, fn item ->
-      with true <- Igniter.Code.Tuple.tuple?(item),
-           {:ok, zipper} <- Igniter.Code.Tuple.tuple_elem(zipper, 0),
-           zipper <- Igniter.Code.Common.expand_alias(zipper),
-           module when is_atom(module) <- zipper.node,
-           true <- opts[:after].(module) do
-        true
+    zipper
+    |> then(fn zipper ->
+      if opts[:nested?] do
+        Zipper.right(zipper)
       else
-        _ ->
-          false
+        zipper
       end
     end)
     |> case do
+      nil ->
+        {:ok, zipper}
+
+      right_zipper ->
+        Igniter.Code.Common.move_right(right_zipper, fn item ->
+          with {:is_tuple, true} <- {:is_tuple, Igniter.Code.Tuple.tuple?(item)},
+               {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
+               item <- Igniter.Code.Common.expand_alias(item),
+               module when is_atom(module) <- alias_to_mod(item.node),
+               true <- opts[:after].(module) do
+            true
+          else
+            {:is_tuple, false} ->
+              with item <- Igniter.Code.Common.expand_alias(item),
+                   module when is_atom(module) <- alias_to_mod(item.node),
+                   true <- opts[:after].(module) do
+                true
+              else
+                _ ->
+                  false
+              end
+
+            _ ->
+              false
+          end
+        end)
+    end
+    |> case do
       {:ok, zipper} ->
-        skip_after(zipper, opts)
+        skip_after(zipper, Keyword.put(opts, :nested?, true))
 
       :error ->
-        zipper
+        if opts[:nested?] do
+          {:after, zipper}
+        else
+          {:before, zipper}
+        end
     end
   end
 
@@ -303,4 +344,8 @@ defmodule Igniter.Project.Application do
       end
     end)
   end
+
+  defp alias_to_mod({:__aliases__, _, parts}), do: Module.concat(parts)
+  defp alias_to_mod(v) when is_atom(v), do: v
+  defp alias_to_mod(other), do: other
 end
