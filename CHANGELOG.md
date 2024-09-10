@@ -5,6 +5,25 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.30](https://github.com/ash-project/igniter/compare/v0.3.29...v0.3.30) (2024-09-10)
+
+
+
+
+### Bug Fixes:
+
+* handle some edge cases in application child adding
+
+### Improvements:
+
+* support the opts being code when adding a new child to the app tree
+
+* prepend new children instead of appending them
+
+* add an `after` option to `add_new_child/3`
+
+* better warnings on invalid patches in test
+
 ## [v0.3.29](https://github.com/ash-project/igniter/compare/v0.3.28...v0.3.29) (2024-09-09)
 
 ### Improvements:
