@@ -23,6 +23,22 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Removes any nodes matching the provided pattern, until there are no matches left.
+  """
+  @spec remove(Zipper.t(), (Zipper.t() -> boolean)) :: Zipper.t()
+  def remove(zipper, pred) do
+    case move_to(zipper, pred) do
+      {:ok, zipper} ->
+        zipper
+        |> Zipper.remove()
+        |> remove(pred)
+
+      :error ->
+        zipper
+    end
+  end
+
+  @doc """
   Moves to the next zipper that matches the predicate.
   """
   @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error

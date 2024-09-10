@@ -82,7 +82,7 @@ defmodule Igniter.Test do
         igniter
 
       {:error, error} ->
-        raise "Error applying igniter:\n\n#{inspect(error)}"
+        raise "Error applying igniter:\n\n#{Enum.map_join(error, "\n", &"* #{&1}")}"
     end
   end
 

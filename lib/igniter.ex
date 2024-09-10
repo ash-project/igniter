@@ -1051,14 +1051,26 @@ defmodule Igniter do
                   opts
               end
 
-            formatted =
-              with_evaled_configs(rewrite, fn ->
-                Rewrite.Source.Ex.format(source, opts)
-              end)
+            try do
+              formatted =
+                with_evaled_configs(rewrite, fn ->
+                  Rewrite.Source.Ex.format(source, opts)
+                end)
 
-            source
-            |> Rewrite.Source.Ex.put_formatter_opts(opts)
-            |> Rewrite.Source.update(:content, formatted)
+              source
+              |> Rewrite.Source.Ex.put_formatter_opts(opts)
+              |> Rewrite.Source.update(:content, formatted)
+            rescue
+              e ->
+                Rewrite.Source.add_issue(source, """
+                Igniter would have produced invalid syntax.
+
+                This is almost certainly a bug in Igniter, or in the implementation
+                of the task/function you are using.
+
+                #{Exception.format(:error, e, __STACKTRACE__)}
+                """)
+            end
           else
             source
           end
@@ -1076,7 +1088,7 @@ defmodule Igniter do
     ]
     |> Enum.flat_map(fn
       {:ok, source} ->
-        [Rewrite.Source.get(source, :content)]
+        [Rewrite.Source.get(source, :quoted)]
 
       _ ->
         []
@@ -1087,10 +1099,13 @@ defmodule Igniter do
 
       contents ->
         to_set =
-          contents
-          |> Enum.join("\n")
-          |> String.split("import_config", parts: 2)
-          |> List.first()
+          {:__block__, [], contents}
+          |> Sourceror.Zipper.zip()
+          |> Igniter.Code.Common.remove(
+            &Igniter.Code.Function.function_call?(&1, :import_config, 1)
+          )
+          |> Zipper.topmost_root()
+          |> Sourceror.to_string()
           |> then(&Config.Reader.eval!("config/config.exs", &1, env: Mix.env()))
 
         restore =
