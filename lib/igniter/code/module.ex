@@ -158,6 +158,7 @@ defmodule Igniter.Code.Module do
     matching_modules =
       igniter
       |> Map.get(:rewrite)
+      |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
       |> Task.async_stream(
         fn source ->
           source
@@ -194,6 +195,7 @@ defmodule Igniter.Code.Module do
       |> Enum.flat_map(fn {:ok, v} ->
         v
       end)
+      |> Enum.uniq()
 
     {igniter, matching_modules}
   end
