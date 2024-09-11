@@ -1,4 +1,4 @@
-defmodule Igniter.Mix.Tasks.Igniter.Gen.TaskTest do
+defmodule Mix.Tasks.Igniter.Gen.TaskTest do
   use ExUnit.Case
   import Igniter.Test
 

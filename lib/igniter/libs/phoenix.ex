@@ -18,6 +18,58 @@ defmodule Igniter.Libs.Phoenix do
     Module.concat([inspect(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
+  @spec html?(Igniter.t(), module()) :: boolean()
+  def html?(igniter, module) do
+    {_igniter, _source, zipper} =
+      Igniter.Code.Module.find_module!(igniter, module)
+
+    case Igniter.Code.Common.move_to(zipper, fn zipper ->
+           if Igniter.Code.Function.function_call?(zipper, :use, 2) do
+             using_a_webbish_module?(zipper) &&
+               Igniter.Code.Function.argument_equals?(zipper, 1, :html)
+           else
+             false
+           end
+         end) do
+      {:ok, _} ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  @spec controller?(Igniter.t(), module()) :: boolean()
+  def controller?(igniter, module) do
+    {_igniter, _source, zipper} =
+      Igniter.Code.Module.find_module!(igniter, module)
+
+    case Igniter.Code.Common.move_to(zipper, fn zipper ->
+           if Igniter.Code.Function.function_call?(zipper, :use, 2) do
+             using_a_webbish_module?(zipper) &&
+               Igniter.Code.Function.argument_equals?(zipper, 1, :controller)
+           else
+             false
+           end
+         end) do
+      {:ok, _} ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  defp using_a_webbish_module?(zipper) do
+    case Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
+      {:ok, zipper} ->
+        Igniter.Code.Module.module_matching?(zipper, &String.ends_with?(to_string(&1), "Web"))
+
+      :error ->
+        false
+    end
+  end
+
   @doc """
   Generates a module name that lives in the Web directory of the current app.
   """

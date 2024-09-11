@@ -9,6 +9,17 @@ defmodule Igniter.Project.IgniterConfig do
           or moved there if the folder is created.
       """
     ],
+    extensions: [
+      type:
+        {:list,
+         {:or,
+          [
+            {:behaviour, Igniter.Extension},
+            {:tuple, [{:behaviour, Igniter.Extension}, :keyword_list]}
+          ]}},
+      default: [],
+      doc: "A list of extensions to use in the project."
+    ],
     source_folders: [
       type: {:list, :string},
       default: ["lib", "test/support"],
@@ -45,6 +56,58 @@ defmodule Igniter.Project.IgniterConfig do
 
   def get(igniter, config) do
     igniter.assigns[:igniter_exs][config] || @configs[config][:default]
+  end
+
+  def add_extension(igniter, extension) do
+    extension =
+      case extension do
+        {mod, opts} -> {mod, opts}
+        mod -> {mod, []}
+      end
+
+    quoted =
+      extension
+      |> Macro.escape()
+      |> Sourceror.to_string()
+      |> Sourceror.parse_string!()
+
+    igniter
+    |> setup()
+    |> Igniter.update_elixir_file(".igniter.exs", fn zipper ->
+      rightmost = Igniter.Code.Common.rightmost(zipper)
+
+      if Igniter.Code.List.list?(rightmost) do
+        Igniter.Code.Keyword.set_keyword_key(
+          zipper,
+          :extensions,
+          [quoted],
+          fn zipper ->
+            case Igniter.Code.List.move_to_list_item(zipper, fn zipper ->
+                   if Igniter.Code.Tuple.tuple?(zipper) do
+                     with {:ok, item} <- Igniter.Code.Tuple.tuple_elem(zipper, 0),
+                          true <- Igniter.Code.Common.nodes_equal?(item, elem(extension, 0)) do
+                       true
+                     else
+                       _ ->
+                         false
+                     end
+                   else
+                     Igniter.Code.Common.nodes_equal?(zipper, elem(extension, 0))
+                   end
+                 end) do
+              {:ok, _} ->
+                {:ok, zipper}
+
+              _ ->
+                Igniter.Code.List.prepend_to_list(zipper, quoted)
+            end
+          end
+        )
+      else
+        {:warning,
+         "Failed to modify `.igniter.exs` when adding the extension #{inspect(extension)} because its last return value is not a list literal."}
+      end
+    end)
   end
 
   def setup(igniter) do

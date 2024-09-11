@@ -239,7 +239,11 @@ defmodule Igniter.Test do
       |> Map.put(:warnings, [])
       |> Map.put(:notices, [])
       |> Map.put(:issues, [])
-      |> Map.put(:assigns, %{test_mode?: true, test_files: test_files})
+      |> Map.put(:assigns, %{
+        test_mode?: true,
+        test_files: test_files,
+        igniter_exs: igniter.assigns[:igniter_exs]
+      })
     end)
   end
 
