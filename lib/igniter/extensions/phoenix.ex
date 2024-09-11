@@ -70,10 +70,10 @@ defmodule Igniter.Extensions.Phoenix do
           String.contains?(to_string(module), "Web") ->
         :keep
 
-      String.ends_with?(to_string(module), "Json") && List.last(Module.split(module)) != "Json" ->
+      String.ends_with?(to_string(module), "JSON") && List.last(Module.split(module)) != "JSON" ->
         [base | rest] = split = Module.split(module)
 
-        [type] = List.last(split) |> String.split("Json", trim: true)
+        [type] = List.last(split) |> String.split("JSON", trim: true)
 
         rest = :lists.droplast(rest)
 

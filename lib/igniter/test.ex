@@ -44,11 +44,19 @@ defmodule Igniter.Test do
   ## Options
 
   * `label` - A label to put before the diff.
+  * `only` - File path(s) to only show the diff for
   """
   @spec puts_diff(Igniter.t(), opts :: Keyword.t()) :: Igniter.t()
   def puts_diff(igniter, opts \\ []) do
     igniter.rewrite.sources
     |> Map.values()
+    |> then(fn sources ->
+      if opts[:only] do
+        Enum.filter(sources, &(&1.path in List.wrap(opts[:only])))
+      else
+        sources
+      end
+    end)
     |> Igniter.diff()
     |> String.trim()
     |> case do

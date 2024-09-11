@@ -530,7 +530,11 @@ defmodule Igniter.Project.Module do
       :keep ->
         case find_module(igniter, original) do
           {:ok, {_, source, _}} ->
-            split_path = Path.split(source.path)
+            split_path =
+              source.path
+              |> Path.rootname(".ex")
+              |> Path.rootname(".exs")
+              |> Path.split()
 
             igniter
             |> Igniter.Project.IgniterConfig.get(:source_folders)
