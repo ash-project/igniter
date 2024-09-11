@@ -59,14 +59,14 @@ defmodule Igniter.Extensions.PhoenixTest do
         end
         """)
         |> Igniter.create_new_file("lib/test_web/controllers/foo_json.ex", """
-        defmodule TestWeb.FooJson do
+        defmodule TestWeb.FooJSON do
 
           def render(_), do: %{foo: "bar"}
         end
         """)
 
       assert {:ok, "test_web/controllers/foo_json.ex"} =
-               Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooJson, [])
+               Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooJSON, [])
     end
   end
 end
