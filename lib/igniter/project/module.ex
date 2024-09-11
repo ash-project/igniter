@@ -280,6 +280,7 @@ defmodule Igniter.Project.Module do
 
     igniter
     |> Map.get(:rewrite)
+    |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
     |> Task.async_stream(
       fn source ->
         {source
