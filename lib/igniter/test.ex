@@ -225,7 +225,23 @@ defmodule Igniter.Test do
              "Expected #{inspect(path)} to have been created, but it already existed."
 
       if content do
-        assert Rewrite.Source.get(source, :content) == content
+        actual_content = Rewrite.Source.get(source, :content)
+
+        if actual_content != content do
+          flunk """
+          Expected created file #{inspect(path)} to have the following contents:
+
+          #{content}
+
+          But it actually had the following contents:
+
+          #{actual_content}
+
+          Diff, showing your assertion against the actual contents:
+
+          #{Rewrite.TextDiff.format(actual_content, content)}
+          """
+        end
       end
 
       igniter
@@ -288,24 +304,24 @@ defmodule Igniter.Test do
     end
     """)
     |> Map.put_new("lib/#{app_name}.ex", """
-      defmodule #{module_name} do
-        @moduledoc \"\"\"
-        Documentation for `#{module_name}`.
-        \"\"\"
+    defmodule #{module_name} do
+      @moduledoc \"\"\"
+      Documentation for `#{module_name}`.
+      \"\"\"
 
-        @doc \"\"\"
-        Hello world.
+      @doc \"\"\"
+      Hello world.
 
-        ## Examples
+      ## Examples
 
-            iex> #{module_name}.hello()
-            :world
-
-        \"\"\"
-        def hello do
+          iex> #{module_name}.hello()
           :world
-        end
+
+      \"\"\"
+      def hello do
+        :world
       end
+    end
     """)
     |> Map.put_new("README.md", """
       # #{module_name}
