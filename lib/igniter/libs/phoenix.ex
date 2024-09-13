@@ -18,10 +18,9 @@ defmodule Igniter.Libs.Phoenix do
     Module.concat([inspect(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
-  @spec html?(Igniter.t(), module()) :: boolean()
-  def html?(igniter, module) do
-    {_igniter, _source, zipper} =
-      Igniter.Code.Module.find_module!(igniter, module)
+  @spec html?(Igniter.t(), module(), Sourceror.Zipper.t()) :: boolean()
+  def html?(igniter, module, zipper \\ nil) do
+    zipper = zipper || elem(Igniter.Code.Module.find_module!(igniter, module), 2)
 
     case Igniter.Code.Common.move_to(zipper, fn zipper ->
            if Igniter.Code.Function.function_call?(zipper, :use, 2) do
@@ -39,10 +38,9 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  @spec controller?(Igniter.t(), module()) :: boolean()
-  def controller?(igniter, module) do
-    {_igniter, _source, zipper} =
-      Igniter.Code.Module.find_module!(igniter, module)
+  @spec controller?(Igniter.t(), module(), Sourceror.Zipper.t()) :: boolean()
+  def controller?(igniter, module, zipper \\ nil) do
+    zipper = zipper || elem(Igniter.Code.Module.find_module!(igniter, module), 2)
 
     case Igniter.Code.Common.move_to(zipper, fn zipper ->
            if Igniter.Code.Function.function_call?(zipper, :use, 2) do

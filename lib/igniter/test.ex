@@ -219,10 +219,16 @@ defmodule Igniter.Test do
   defmacro assert_creates(igniter, path, content \\ nil) do
     quote bind_quoted: [igniter: igniter, path: path, content: content] do
       assert source = igniter.rewrite.sources[path],
-             "Expected #{inspect(path)} to have been created, but it was not."
+             """
+             Expected #{inspect(path)} to have been created, but it was not.
+             #{Igniter.Test.created_files(igniter)}
+             """
 
       assert source.from == :string,
-             "Expected #{inspect(path)} to have been created, but it already existed."
+             """
+             Expected #{inspect(path)} to have been created, but it already existed.
+             #{Igniter.Test.created_files(igniter)}
+             """
 
       if content do
         actual_content = Rewrite.Source.get(source, :content)
@@ -245,6 +251,21 @@ defmodule Igniter.Test do
       end
 
       igniter
+    end
+  end
+
+  @doc false
+  def created_files(igniter) do
+    igniter.rewrite
+    |> Rewrite.sources()
+    |> Enum.filter(&(&1.from == :string))
+    |> Enum.map(& &1.path)
+    |> case do
+      [] ->
+        "\nNo files were created."
+
+      modules ->
+        "\nThe following files were created:\n\n#{Enum.map_join(modules, "\n", &"* #{&1}")}"
     end
   end
 

@@ -3,6 +3,15 @@ defmodule Igniter.Extensions.PhoenixTest do
   import Igniter.Test
 
   describe "proper_location/2" do
+    test "extensions are honored even if the extension is added in the same check" do
+      test_project()
+      |> Igniter.Project.IgniterConfig.add_extension(Igniter.Extensions.Phoenix)
+      |> Igniter.Project.Module.create_module(TestWeb.FooController, """
+        use TestWeb, :controller
+      """)
+      |> assert_creates("lib/test_web/controllers/foo_controller.ex")
+    end
+
     test "returns a controller location" do
       igniter =
         test_project()
@@ -65,8 +74,7 @@ defmodule Igniter.Extensions.PhoenixTest do
         end
         """)
 
-      assert {:ok, "test_web/controllers/foo_json.ex"} =
-               Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooJSON, [])
+      assert Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooJSON, []) == :keep
     end
   end
 end

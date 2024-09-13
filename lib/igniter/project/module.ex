@@ -539,6 +539,8 @@ defmodule Igniter.Project.Module do
 
             igniter
             |> Igniter.Project.IgniterConfig.get(:source_folders)
+            |> Enum.concat(["test"])
+            |> Enum.uniq()
             |> Enum.map(&Path.split/1)
             |> Enum.sort_by(&(-length(&1)))
             |> Enum.find(fn source_folder ->

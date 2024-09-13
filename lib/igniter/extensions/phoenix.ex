@@ -12,8 +12,14 @@ defmodule Igniter.Extensions.Phoenix do
   end
 
   defp phoenix_generators_proper_location(igniter, module) do
+    split = Module.split(module)
+
     cond do
-      Igniter.Libs.Phoenix.controller?(igniter, module) ->
+      String.ends_with?(to_string(module), "Web.Layouts") ->
+        :keep
+
+      String.ends_with?(to_string(module), "Controller") && List.last(split) != "Controller" &&
+          String.ends_with?(List.first(split), "Web") ->
         [base | rest] = split = Module.split(module)
 
         [type] = List.last(split) |> String.split("Controller", trim: true)
@@ -35,7 +41,8 @@ defmodule Igniter.Extensions.Phoenix do
          end)
          |> Path.join(Macro.underscore(type) <> "_controller.ex")}
 
-      Igniter.Libs.Phoenix.html?(igniter, module) ->
+      String.ends_with?(to_string(module), "HTML") && List.last(split) != "HTML" &&
+          String.ends_with?(List.first(split), "Web") ->
         [base | rest] = split = Module.split(module)
 
         [type] = List.last(split) |> String.split("HTML", trim: true)
@@ -70,36 +77,9 @@ defmodule Igniter.Extensions.Phoenix do
           String.contains?(to_string(module), "Web") ->
         :keep
 
-      String.ends_with?(to_string(module), "JSON") && List.last(Module.split(module)) != "JSON" ->
-        [base | rest] = split = Module.split(module)
-
-        [type] = List.last(split) |> String.split("JSON", trim: true)
-
-        rest = :lists.droplast(rest)
-
-        potential_controller_module =
-          Module.concat([base | rest] ++ [type <> "Controller"])
-
-        {exists?, _} = Igniter.Code.Module.module_exists?(igniter, potential_controller_module)
-
-        if exists? && Igniter.Libs.Phoenix.controller?(igniter, potential_controller_module) do
-          {:ok,
-           base
-           |> Macro.underscore()
-           |> Path.join("controllers")
-           |> then(fn path ->
-             rest
-             |> Enum.map(&Macro.underscore/1)
-             |> case do
-               [] -> [path]
-               nested -> Path.join([path | nested])
-             end
-             |> Path.join()
-           end)
-           |> Path.join(Macro.underscore(type) <> "_json.ex")}
-        else
-          :error
-        end
+      String.ends_with?(to_string(module), "JSON") && List.last(Module.split(module)) != "JSON" &&
+          String.ends_with?(List.first(Module.split(module)), "Web") ->
+        :keep
 
       true ->
         :error

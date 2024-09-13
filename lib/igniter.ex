@@ -996,7 +996,7 @@ defmodule Igniter do
     |> Mix.shell().info()
   end
 
-  defp format(igniter, adding_paths \\ nil) do
+  defp format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
     igniter =
       igniter
       |> include_existing_elixir_file("config/config.exs", require?: false)
@@ -1004,7 +1004,8 @@ defmodule Igniter do
 
     if adding_paths &&
          Enum.any?(List.wrap(adding_paths), &(Path.basename(&1) == ".formatter.exs")) do
-      format(igniter)
+      format(igniter, nil, false)
+      |> reevaluate_igniter_config(adding_paths, reevaluate_igniter_config?)
     else
       igniter =
         "**/.formatter.exs"
@@ -1081,7 +1082,20 @@ defmodule Igniter do
         end)
 
       %{igniter | rewrite: rewrite}
+      |> reevaluate_igniter_config(adding_paths, reevaluate_igniter_config?)
     end
+  end
+
+  defp reevaluate_igniter_config(igniter, adding_paths, true) do
+    if is_nil(adding_paths) || ".igniter.exs" in List.wrap(adding_paths) do
+      parse_igniter_config(igniter)
+    else
+      igniter
+    end
+  end
+
+  defp reevaluate_igniter_config(igniter, _adding_paths, false) do
+    igniter
   end
 
   # for now we only eval `config.exs`
