@@ -8,6 +8,16 @@ Use `mix igniter.setup` to create a `.igniter.exs` file in your project root. Th
 
 See the documentation in `Igniter.Project.IgniterConfig` for available configuration.
 
+## Extensions
+
+Igniter supports extensions. These extensions are limited to determining where modules should be created (i.e a module in `/web` ending in `Controller`).
+This is not bulletproof and will likely need to be improved over time. (The best thing would be if Phoenix conventions were the same as the
+elixir conventions of module names matching paths). To this end, you will want to add the phoenix extension if your generator builds any phoenix-related modules.
+
+For an end user, this can be done with `mix igniter.add_extension phoenix`.
+
+For those writing tasks, use `Igniter.compose_task("igniter.add_extension", ["phoenix"])`.
+
 ## Moving files
 
 One available configuration is `module_location`. This configuration dictates where modules are placed when there is a folder that exactly matches their module name. There are two available strategies for this, and with igniter not only can you change your mind, but you can actually _move back and forth_ between each strategy. To move any modules to their rightful place, use `mix igniter.move_files`.
