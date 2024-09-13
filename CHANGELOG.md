@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.36](https://github.com/ash-project/igniter/compare/v0.3.35...v0.3.36) (2024-09-13)
+
+
+
+
+### Bug Fixes:
+
+* reevaluate .igniter.exs when it changes
+
+### Improvements:
+
+* Support for extensions in igniter config
+
+* Add a phoenix extension to prevent moving modules that may be phoenix-y
+
 ## [v0.3.35](https://github.com/ash-project/igniter/compare/v0.3.34...v0.3.35) (2024-09-10)
 
 
