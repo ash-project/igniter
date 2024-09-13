@@ -1,4 +1,4 @@
-defmodule Igniter.Mix.Tasks.InstallTest do
+defmodule Mix.Tasks.Igniter.InstallTest do
   use ExUnit.Case
 
   setup do

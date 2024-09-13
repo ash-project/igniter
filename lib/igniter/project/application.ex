@@ -143,7 +143,7 @@ defmodule Igniter.Project.Application do
   end
 
   def do_add_child(igniter, application, to_supervise, opts) do
-    path = Igniter.Code.Module.proper_location(application)
+    path = Igniter.Project.Module.proper_location(igniter, application, :source_folder)
 
     to_supervise =
       case to_supervise do
@@ -274,7 +274,7 @@ defmodule Igniter.Project.Application do
   end
 
   def create_application_file(igniter, application) do
-    path = Igniter.Code.Module.proper_location(application)
+    path = Igniter.Project.Module.proper_location(igniter, application)
     supervisor = Igniter.Code.Module.module_name(igniter, "Supervisor")
 
     contents = """

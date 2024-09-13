@@ -86,7 +86,7 @@
         # If you don't want TODO comments to cause `mix credo` to fail, just
         # set this value to 0 (zero).
         #
-        {Credo.Check.Design.TagTODO, [exit_status: 2]},
+        {Credo.Check.Design.TagTODO, false},
         {Credo.Check.Design.TagFIXME, []},
 
         #

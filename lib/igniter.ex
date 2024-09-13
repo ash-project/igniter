@@ -167,7 +167,7 @@ defmodule Igniter do
       if igniter.assigns[:test_mode?] do
         igniter.assigns[:test_files]
         |> Map.keys()
-        |> Enum.filter(&GlobEx.match?(glob, &1))
+        |> Enum.filter(&GlobEx.match?(glob, Path.expand(&1)))
       else
         glob
         |> GlobEx.ls()
@@ -705,19 +705,17 @@ defmodule Igniter do
   end
 
   @doc "This function stores in the igniter if its been run before, so it is only run once, which is expensive."
-  if Application.compile_env(:igniter, :testing?, false) do
-    def include_all_elixir_files(igniter) do
+  def include_all_elixir_files(igniter) do
+    if igniter.assigns[:private][:included_all_elixir_files?] do
       igniter
-    end
-  else
-    def include_all_elixir_files(igniter) do
-      if igniter.assigns[:private][:included_all_elixir_files?] do
-        igniter
-      else
-        igniter
-        |> include_glob("{lib,test,config}/**/*.{ex,exs}")
-        |> assign_private(:included_all_elixir_files?, true)
-      end
+    else
+      igniter
+      |> Igniter.Project.IgniterConfig.get(:source_folders)
+      |> Enum.reduce(igniter, fn source_folder, igniter ->
+        include_glob(igniter, Path.join(source_folder, "/**/*.{ex,exs}"))
+      end)
+      |> include_glob("{test,config}/**/*.{ex,exs}")
+      |> assign_private(:included_all_elixir_files?, true)
     end
   end
 
@@ -992,7 +990,7 @@ defmodule Igniter do
     |> Mix.shell().info()
   end
 
-  defp format(igniter, adding_paths \\ nil) do
+  defp format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
     igniter =
       igniter
       |> include_existing_elixir_file("config/config.exs", require?: false)
@@ -1000,7 +998,8 @@ defmodule Igniter do
 
     if adding_paths &&
          Enum.any?(List.wrap(adding_paths), &(Path.basename(&1) == ".formatter.exs")) do
-      format(igniter)
+      format(igniter, nil, false)
+      |> reevaluate_igniter_config(adding_paths, reevaluate_igniter_config?)
     else
       igniter =
         "**/.formatter.exs"
@@ -1077,7 +1076,20 @@ defmodule Igniter do
         end)
 
       %{igniter | rewrite: rewrite}
+      |> reevaluate_igniter_config(adding_paths, reevaluate_igniter_config?)
     end
+  end
+
+  defp reevaluate_igniter_config(igniter, adding_paths, true) do
+    if is_nil(adding_paths) || ".igniter.exs" in List.wrap(adding_paths) do
+      parse_igniter_config(igniter)
+    else
+      igniter
+    end
+  end
+
+  defp reevaluate_igniter_config(igniter, _adding_paths, false) do
+    igniter
   end
 
   # for now we only eval `config.exs`
@@ -1331,7 +1343,7 @@ defmodule Igniter do
         warnings: Enum.uniq(igniter.warnings),
         tasks: Enum.uniq(igniter.tasks)
     }
-    |> Igniter.Code.Module.move_files()
+    |> Igniter.Project.Module.move_files()
     |> remove_unchanged_files()
     |> then(fn igniter ->
       if needs_test_support? do
@@ -1363,7 +1375,20 @@ defmodule Igniter do
 
       {:ok, source} ->
         {igniter_exs, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
-        assign(igniter, :igniter_exs, igniter_exs)
+
+        assign(
+          igniter,
+          :igniter_exs,
+          Keyword.update(igniter_exs, :extensions, [], fn extensions ->
+            Enum.map(extensions, fn
+              {extension, opts} ->
+                {extension, opts}
+
+              extension ->
+                {extension, []}
+            end)
+          end)
+        )
     end
   end
 
