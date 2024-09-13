@@ -20,12 +20,31 @@ defmodule Igniter.Extensions.Phoenix do
     split = Module.split(module)
 
     cond do
-      String.ends_with?(to_string(module), "Web.Layouts") ->
-        :keep
+      String.ends_with?(to_string(module), "Web.Layouts") && Enum.count(split) == 2 ->
+        [base | rest] = split
+
+        [type] = List.last(split) |> String.split("Controller", trim: true)
+
+        rest = :lists.droplast(rest)
+
+        {:ok,
+         base
+         |> Macro.underscore()
+         |> Path.join("components")
+         |> then(fn path ->
+           rest
+           |> Enum.map(&Macro.underscore/1)
+           |> case do
+             [] -> [path]
+             nested -> Path.join([path | nested])
+           end
+           |> Path.join()
+         end)
+         |> Path.join(Macro.underscore(type) <> ".ex")}
 
       String.ends_with?(to_string(module), "Controller") && List.last(split) != "Controller" &&
           String.ends_with?(List.first(split), "Web") ->
-        [base | rest] = split = Module.split(module)
+        [base | rest] = split
 
         [type] = List.last(split) |> String.split("Controller", trim: true)
 
@@ -48,7 +67,7 @@ defmodule Igniter.Extensions.Phoenix do
 
       String.ends_with?(to_string(module), "HTML") && List.last(split) != "HTML" &&
           String.ends_with?(List.first(split), "Web") ->
-        [base | rest] = split = Module.split(module)
+        [base | rest] = split
 
         [type] = List.last(split) |> String.split("HTML", trim: true)
 
@@ -59,7 +78,8 @@ defmodule Igniter.Extensions.Phoenix do
 
         {exists?, _} = Igniter.Code.Module.module_exists?(igniter, potential_controller_module)
 
-        if exists? && Igniter.Libs.Phoenix.controller?(igniter, potential_controller_module) do
+        if List.last(split) == "ErrorHTML" ||
+             (exists? && Igniter.Libs.Phoenix.controller?(igniter, potential_controller_module)) do
           {:ok,
            base
            |> Macro.underscore()
@@ -75,16 +95,64 @@ defmodule Igniter.Extensions.Phoenix do
            end)
            |> Path.join(Macro.underscore(type) <> "_html.ex")}
         else
-          :keep
+          :error
         end
 
       String.ends_with?(to_string(module), "CoreComponents") &&
           String.contains?(to_string(module), "Web") ->
-        :keep
+        [base | rest] = split
+
+        [type] = List.last(split) |> String.split("HTML", trim: true)
+
+        rest = :lists.droplast(rest)
+
+        {:ok,
+         base
+         |> Macro.underscore()
+         |> Path.join("components")
+         |> then(fn path ->
+           rest
+           |> Enum.map(&Macro.underscore/1)
+           |> case do
+             [] -> [path]
+             nested -> Path.join([path | nested])
+           end
+           |> Path.join()
+         end)
+         |> Path.join(Macro.underscore(type) <> ".ex")}
 
       String.ends_with?(to_string(module), "JSON") && List.last(Module.split(module)) != "JSON" &&
           String.ends_with?(List.first(Module.split(module)), "Web") ->
-        :keep
+        [base | rest] = split
+
+        [type] = List.last(split) |> String.split("JSON", trim: true)
+
+        rest = :lists.droplast(rest)
+
+        potential_controller_module =
+          Module.concat([base | rest] ++ [type <> "Controller"])
+
+        {exists?, _} = Igniter.Code.Module.module_exists?(igniter, potential_controller_module)
+
+        if List.last(split) == "ErrorJSON" ||
+             (exists? && Igniter.Libs.Phoenix.controller?(igniter, potential_controller_module)) do
+          {:ok,
+           base
+           |> Macro.underscore()
+           |> Path.join("controllers")
+           |> then(fn path ->
+             rest
+             |> Enum.map(&Macro.underscore/1)
+             |> case do
+               [] -> [path]
+               nested -> Path.join([path | nested])
+             end
+             |> Path.join()
+           end)
+           |> Path.join(Macro.underscore(type) <> "_json.ex")}
+        else
+          :error
+        end
 
       true ->
         :error
