@@ -228,7 +228,7 @@ defmodule Igniter.Test do
         actual_content = Rewrite.Source.get(source, :content)
 
         if actual_content != content do
-          flunk """
+          flunk("""
           Expected created file #{inspect(path)} to have the following contents:
 
           #{content}
@@ -240,7 +240,7 @@ defmodule Igniter.Test do
           Diff, showing your assertion against the actual contents:
 
           #{Rewrite.TextDiff.format(actual_content, content)}
-          """
+          """)
         end
       end
 
