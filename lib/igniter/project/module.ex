@@ -174,6 +174,8 @@ defmodule Igniter.Project.Module do
   end
 
   @doc "Finds a module and updates its contents. Raises an error if it doesn't exist"
+  @spec find_and_update_module!(Igniter.t(), module(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
+          Igniter.t()
   def find_and_update_module!(igniter, module_name, updater) do
     case find_and_update_module(igniter, module_name, updater) do
       {:ok, igniter} -> igniter

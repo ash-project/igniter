@@ -573,7 +573,7 @@ defmodule Igniter do
     Igniter.add_issue(igniter, "#{path}: File already exists")
   end
 
-  defp already_exists(igniter, path, warning) when warning in [:warning, :overwrite] do
+  defp already_exists(igniter, path, :warning) do
     Igniter.add_warning(igniter, "#{path}: File already exists")
   end
 
