@@ -74,7 +74,8 @@ defmodule Igniter.Extensions.PhoenixTest do
         end
         """)
 
-      assert Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooJSON, []) == :keep
+      assert Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooJSON, []) ==
+               {:ok, "test_web/controllers/foo_json.ex"}
     end
   end
 end
