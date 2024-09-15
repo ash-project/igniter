@@ -507,8 +507,8 @@ defmodule Igniter do
   """
   @spec copy_template(
           igniter :: Igniter.t(),
-          target :: Path.t(),
           source :: Path.t(),
+          target :: Path.t(),
           assigns :: Keyword.t(),
           opts :: Keyword.t()
         ) :: Igniter.t()
@@ -535,6 +535,10 @@ defmodule Igniter do
     {igniter, source} =
       try do
         source = read_source!(igniter, path, source_handler)
+
+        source =
+          Rewrite.Source.update(source, :content, contents)
+
         {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
       rescue
         _ ->
