@@ -162,6 +162,8 @@ defmodule Igniter.Test do
         #{igniter.rewrite.sources |> Map.take([path]) |> Igniter.diff()}
         """
       end
+
+      igniter
     end
   end
 
@@ -174,6 +176,8 @@ defmodule Igniter.Test do
 
       #{Rewrite.sources(igniter.rewrite) |> Igniter.diff()}
       """
+
+      igniter
     end
   end
 
