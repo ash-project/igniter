@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.37](https://github.com/ash-project/igniter/compare/v0.3.36...v0.3.37) (2024-09-15)
+
+
+
+
+### Improvements:
+
+* return `igniter` in `Igniter.Test.assert_unchanged`
+
 ## [v0.3.36](https://github.com/ash-project/igniter/compare/v0.3.35...v0.3.36) (2024-09-13)
 
 
