@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.38](https://github.com/ash-project/igniter/compare/v0.3.37...v0.3.38) (2024-09-16)
+
+
+
+
+### Bug Fixes:
+
+* don't add warning on `overwrite` option
+
+### Improvements:
+
+* better confirmation message experience
+
 ## [v0.3.37](https://github.com/ash-project/igniter/compare/v0.3.36...v0.3.37) (2024-09-15)
 
 
