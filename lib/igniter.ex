@@ -651,7 +651,7 @@ defmodule Igniter do
               "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
             end
 
-          if opts[:yes] || Mix.shell().yes?(message) do
+          if opts[:yes] || Igniter.Util.IO.yes?(message) do
             rewrite =
               case Rewrite.write(rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -685,7 +685,7 @@ defmodule Igniter do
               "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
             end
 
-          if Mix.shell().yes?(message) do
+          if Igniter.Util.IO.yes?(message) do
             rewrite =
               case Rewrite.write(igniter.rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -793,7 +793,7 @@ defmodule Igniter do
           result_of_dry_run
         else
           if opts[:yes] ||
-               Mix.shell().yes?(opts[:confirmation_message] || "Proceed with changes?") do
+               Igniter.Util.IO.yes?(opts[:confirmation_message] || "Proceed with changes?") do
             igniter.rewrite
             |> Enum.any?(fn source ->
               Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
@@ -901,7 +901,7 @@ defmodule Igniter do
                 Igniter.assign(igniter, :prompt_on_git_changes?, false)
 
               _ ->
-                if Mix.shell().yes?("Uncommitted changes detected in the project. Continue?") do
+                if Igniter.Util.IO.yes?("Uncommitted changes detected in the project. Continue?") do
                   Igniter.assign(igniter, :prompt_on_git_changes?, false)
                 else
                   exit({:shutdown, 1})

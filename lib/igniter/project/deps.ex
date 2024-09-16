@@ -50,7 +50,7 @@ defmodule Igniter.Project.Deps do
           igniter
         else
           if opts[:yes?] ||
-               Mix.shell().yes?("""
+               Igniter.Util.IO.yes?("""
                Dependency #{name} is already in mix.exs. Should we replace it?
 
                Desired: `#{inspect(desired)}`

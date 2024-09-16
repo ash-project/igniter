@@ -45,7 +45,7 @@ defmodule Igniter.Extensions.PhoenixTest do
                Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooHTML, [])
     end
 
-    test "when not belonging to a controller, we instruct to keep its current location" do
+    test "when not belonging to a controller, we say we don't know where it goes" do
       igniter =
         test_project()
         |> Igniter.create_new_file("lib/test_web/controllers/foo_html.ex", """
@@ -54,7 +54,7 @@ defmodule Igniter.Extensions.PhoenixTest do
         end
         """)
 
-      assert :keep =
+      assert :error =
                Igniter.Extensions.Phoenix.proper_location(igniter, TestWeb.FooHTML, [])
     end
 
