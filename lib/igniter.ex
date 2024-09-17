@@ -984,17 +984,20 @@ defmodule Igniter do
   defp color(_, _), do: ""
 
   defp igniter_issues(igniter) do
-    Mix.shell().info("Issues during code generation")
+    issues =
+      Enum.map_join(igniter.issues, "\n", fn error ->
+        if is_binary(error) do
+          "* #{IO.ANSI.red()}#{error}#{IO.ANSI.reset()}"
+        else
+          "* #{IO.ANSI.red()}#{Exception.format(:error, error)}#{IO.ANSI.red()}"
+        end
+      end)
 
-    igniter.issues
-    |> Enum.map_join("\n", fn error ->
-      if is_binary(error) do
-        "* #{error}"
-      else
-        "* #{Exception.format(:error, error)}"
-      end
-    end)
-    |> Mix.shell().info()
+    Mix.shell().info("""
+    Issues during code generation
+
+    #{issues}
+    """)
   end
 
   defp format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
