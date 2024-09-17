@@ -776,6 +776,7 @@ defmodule Igniter.Code.Common do
   end
 
   defp equal_vals?(same, same), do: true
+
   defp equal_vals?({:__block__, _, [value]}, value) do
     true
   end
@@ -784,7 +785,10 @@ defmodule Igniter.Code.Common do
     true
   end
 
-  defp equal_vals?({:sigil_r, _, [{:<<>>, _, [left_contents]}, left_flags]}, {:sigil_r, _, [{:<<>>, _, [right_contents]}, right_flags]}) do
+  defp equal_vals?(
+         {:sigil_r, _, [{:<<>>, _, [left_contents]}, left_flags]},
+         {:sigil_r, _, [{:<<>>, _, [right_contents]}, right_flags]}
+       ) do
     equal_vals?(left_contents, right_contents) and equal_vals?(left_flags, right_flags)
   end
 
