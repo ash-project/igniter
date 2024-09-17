@@ -174,12 +174,14 @@ defmodule Igniter.Util.Info do
     composing_schema = composing_schema || []
 
     Keyword.merge(composing_schema, schema, fn key, composing_value, schema_value ->
-      Logger.warning("""
-      #{composing_task} has a different configuration for argument: #{key}. Using #{task}'s configuration.
+      if composing_value != schema_value do
+        Logger.warning("""
+        #{composing_task} has a different configuration for argument: #{key}. Using #{task}'s configuration.
 
-      #{composing_task}: #{composing_value}
-      #{task}: #{schema_value}
-      """)
+        #{composing_task}: #{composing_value}
+        #{task}: #{schema_value}
+        """)
+      end
 
       schema_value
     end)
@@ -190,12 +192,14 @@ defmodule Igniter.Util.Info do
     composing_aliases = composing_aliases || []
 
     Keyword.merge(composing_aliases, aliases, fn key, composing_value, schema_value ->
-      Logger.warning("""
-      #{composing_task} has a different configuration for alias: #{key}. Using #{task}'s configuration.
+      if composing_value != schema_value do
+        Logger.warning("""
+        #{composing_task} has a different configuration for alias: #{key}. Using #{task}'s configuration.
 
-      #{composing_task}: #{composing_value}
-      #{task}: #{schema_value}
-      """)
+        #{composing_task}: #{composing_value}
+        #{task}: #{schema_value}
+        """)
+      end
 
       schema_value
     end)

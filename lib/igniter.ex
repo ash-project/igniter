@@ -290,7 +290,10 @@ defmodule Igniter do
           if is_function(fallback) do
             fallback.(igniter, argv)
           else
-            igniter
+            add_issue(
+              igniter,
+              "Task #{inspect(task_name)}  could not be found."
+            )
           end
 
         task ->

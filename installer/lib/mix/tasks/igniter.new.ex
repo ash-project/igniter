@@ -145,6 +145,9 @@ defmodule Mix.Tasks.Igniter.New do
       File.write!("mix.exs", new_contents)
     end
 
+    System.cmd("mix", ["deps.get"])
+    System.cmd("mix", ["deps.compile"])
+
     unless Enum.empty?(install) do
       example =
         if options[:example] do
@@ -154,8 +157,6 @@ defmodule Mix.Tasks.Igniter.New do
       install_args =
         Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
 
-      System.cmd("mix", ["deps.get"])
-      System.cmd("mix", ["deps.compile"])
       System.cmd("mix", ["igniter.install" | install_args])
     end
 
