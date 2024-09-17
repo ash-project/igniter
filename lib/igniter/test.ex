@@ -36,6 +36,8 @@ defmodule Igniter.Test do
     Igniter.new()
     |> Igniter.assign(:test_mode?, true)
     |> Igniter.assign(:test_files, add_mix_new(opts))
+    |> Igniter.Project.IgniterConfig.setup()
+    |> apply_igniter!()
   end
 
   @doc """

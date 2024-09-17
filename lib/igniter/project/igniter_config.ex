@@ -110,6 +110,40 @@ defmodule Igniter.Project.IgniterConfig do
     end)
   end
 
+  def dont_move_file_pattern(igniter, pattern) do
+    quoted =
+      case pattern do
+        %Regex{} = pattern ->
+          Sourceror.parse_string!(inspect(pattern))
+
+        pattern ->
+          pattern
+          |> Macro.escape()
+          |> Sourceror.to_string()
+          |> Sourceror.parse_string!()
+      end
+
+    igniter
+    |> setup()
+    |> Igniter.update_elixir_file(".igniter.exs", fn zipper ->
+      rightmost = Igniter.Code.Common.rightmost(zipper)
+
+      if Igniter.Code.List.list?(rightmost) do
+        Igniter.Code.Keyword.set_keyword_key(
+          zipper,
+          :dont_move_files,
+          [quoted],
+          fn zipper ->
+            Igniter.Code.List.prepend_new_to_list(zipper, quoted)
+          end
+        )
+      else
+        {:warning,
+         "Failed to modify `.igniter.exs` when adding the ignore module pattern #{inspect(pattern)} because its last return value is not a list literal."}
+      end
+    end)
+  end
+
   def setup(igniter) do
     Igniter.create_or_update_elixir_file(
       igniter,
