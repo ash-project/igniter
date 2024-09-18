@@ -5,6 +5,29 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.39](https://github.com/ash-project/igniter/compare/v0.3.38...v0.3.39) (2024-09-18)
+
+
+
+
+### Bug Fixes:
+
+* don't warn while parsing files
+
+* display an error when a composed task can't be found
+
+### Improvements:
+
+* more phoenix router specific code
+
+* make `issues` red and formatted with more spacing
+
+* properly compare regex literals
+
+* add `dont_move_file_pattern` utility
+
+* update installer to always run mix deps get and install
+
 ## [v0.3.38](https://github.com/ash-project/igniter/compare/v0.3.37...v0.3.38) (2024-09-16)
 
 
