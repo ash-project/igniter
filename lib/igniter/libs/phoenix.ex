@@ -18,6 +18,7 @@ defmodule Igniter.Libs.Phoenix do
     Module.concat([inspect(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
+  @doc "Returns `true` if the module is a Phoenix HTML module"
   @spec html?(Igniter.t(), module()) :: boolean()
   def html?(igniter, module) do
     zipper = elem(Igniter.Code.Module.find_module!(igniter, module), 2)
@@ -38,6 +39,7 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
+  @doc "Returns `true` if the module is a Phoenix controller"
   @spec controller?(Igniter.t(), module()) :: boolean()
   def controller?(igniter, module) do
     zipper = elem(Igniter.Code.Module.find_module!(igniter, module), 2)
@@ -58,30 +60,24 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  defp using_a_webbish_module?(zipper) do
-    case Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
-      {:ok, zipper} ->
-        Igniter.Code.Module.module_matching?(zipper, &String.ends_with?(to_string(&1), "Web"))
-
-      :error ->
-        false
-    end
+  @doc """
+  Generates a module name that lives in the Web directory of the current app.
+  """
+  @spec web_module_name(String.t()) :: module()
+  @deprecated "Use `web_module_name/2` instead."
+  def web_module_name(suffix) do
+    Module.concat(inspect(Igniter.Code.Module.module_name_prefix(Igniter.new())) <> "Web", suffix)
   end
 
   @doc """
   Generates a module name that lives in the Web directory of the current app.
   """
-  @spec web_module_name(String.t()) :: module()
-  @deprecated "Use `web_module_name/1` instead."
-  def web_module_name(suffix) do
-    Module.concat(inspect(Igniter.Code.Module.module_name_prefix(Igniter.new())) <> "Web", suffix)
-  end
-
   @spec web_module_name(Igniter.t(), String.t()) :: module()
   def web_module_name(igniter, suffix) do
     Module.concat(inspect(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web", suffix)
   end
 
+  @doc "Gets the list of endpoints that use a given router"
   @spec endpoints_for_router(igniter :: Igniter.t(), router :: module()) ::
           {Igniter.t(), list(module())}
   def endpoints_for_router(igniter, router) do
@@ -102,7 +98,15 @@ defmodule Igniter.Libs.Phoenix do
     end)
   end
 
-  @doc "Adds a phoenix scope."
+  @doc """
+  Adds a scope to a Phoenix router.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  """
+  @spec add_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def add_scope(igniter, route, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -116,14 +120,11 @@ defmodule Igniter.Libs.Phoenix do
     scope_code =
       case Keyword.fetch(opts, :arg2) do
         {:ok, arg2} ->
-          contents = Sourceror.parse_string!(contents)
-
-          quote do
-            scope unquote(route), unquote(arg2) do
-              unquote(contents)
-            end
+          """
+          scope "#{route}", #{inspect(arg2)} do
+            #{contents}
           end
-          |> Sourceror.to_string()
+          """
 
         _ ->
           """
@@ -158,7 +159,18 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  @doc "Appends to a phoenix scope. Relatively limited currently only exact matches of a top level scope and args"
+  @doc """
+  Appends to a phoenix router scope.
+
+  Relatively limited currently only exact matches of a top level route, second argument, and pipelines.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  * `:with_pipelines` - A list of pipelines that the pipeline must be using to be considered a match.
+  """
+  @spec append_to_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def append_to_scope(igniter, route, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -235,80 +247,14 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  # We can do all kinds of things better here
-  # for example, we can handle nested scopes, etc.
-  defp move_to_matching_scope(zipper, route, opts) do
-    call =
-      if is_nil(opts[:arg2]) do
-        zipper
-        |> Igniter.Code.Function.move_to_function_call_in_current_scope(:scope, [2], fn call ->
-          Igniter.Code.Function.argument_equals?(call, 0, route)
-        end)
-      else
-        Igniter.Code.Function.move_to_function_call_in_current_scope(
-          zipper,
-          :scope,
-          3,
-          fn call ->
-            Igniter.Code.Function.argument_equals?(call, 0, route) and
-              Igniter.Code.Function.argument_equals?(call, 1, opts[:arg2])
-          end
-        )
-      end
+  @doc """
+  Appends code to a Phoenix router pipeline.
 
-    case call do
-      {:ok, zipper} ->
-        with {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
-             true <- contains_pipe_through?(zipper, opts) do
-          {:ok, zipper}
-        else
-          _ ->
-            :error
-        end
+  ## Options
 
-      :error ->
-        :error
-    end
-  end
-
-  defp contains_pipe_through?(zipper, opts) do
-    case List.wrap(opts[:with_pipelines]) do
-      [] ->
-        true
-
-      pipelines ->
-        Enum.all?(pipelines, fn pipeline ->
-          zipper
-          |> Igniter.Code.Function.move_to_function_call_in_current_scope(
-            :pipe_through,
-            1,
-            fn zipper ->
-              with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
-                   {:is_list?, _zipper, true} <-
-                     {:is_list?, zipper, Igniter.Code.List.list?(zipper)},
-                   {:ok, _} <-
-                     Igniter.Code.List.move_to_list_item(
-                       zipper,
-                       &Igniter.Code.Common.nodes_equal?(&1, pipeline)
-                     ) do
-                true
-              else
-                {:is_list?, zipper, false} ->
-                  Igniter.Code.Common.nodes_equal?(zipper, pipeline)
-
-                _ ->
-                  false
-              end
-            end
-          )
-          |> case do
-            {:ok, _} -> true
-            :error -> false
-          end
-        end)
-    end
-  end
-
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  """
+  @spec append_to_pipeline(Igniter.t(), atom, String.t(), Keyword.t()) :: Igniter.t()
   def append_to_pipeline(igniter, name, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -378,6 +324,15 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
+  @doc """
+  Adds a pipeline to a Phoenix router.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  """
+  @spec add_pipeline(Igniter.t(), atom(), String.t(), Keyword.t()) :: Igniter.t()
   def add_pipeline(igniter, name, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -440,6 +395,14 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
+  @doc """
+  Selects a router to be used in a later step. If only one router is found, it will be selected automatically.
+
+  If no routers exist, `{igniter, nil}` is returned.
+
+  If multiple routes are found, the user is prompted to select one of them.
+  """
+  @spec select_router(Igniter.t(), String.t()) :: {Igniter.t(), module() | nil}
   def select_router(igniter, label \\ "Which router should be modified?") do
     case list_routers(igniter) do
       {igniter, []} ->
@@ -475,6 +438,8 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
+  @doc "Lists all routers found in the project."
+  @spec list_routers(Igniter.t()) :: {Igniter.t(), [module()]}
   def list_routers(igniter) do
     Igniter.Code.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
       move_to_router_use(igniter, zipper) != :error
@@ -482,6 +447,8 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   @doc "Moves to the use statement in a module that matches `use TheirWebModule, :router`"
+  @spec move_to_router_use(Igniter.t(), Sourceror.Zipper.t()) ::
+          :error | {:ok, Sourceror.Zipper.t()}
   def move_to_router_use(igniter, zipper) do
     with :error <-
            Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
@@ -554,5 +521,89 @@ defmodule Igniter.Libs.Phoenix do
 
   defp router_using(igniter) do
     Module.concat([to_string(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web"])
+  end
+
+  defp using_a_webbish_module?(zipper) do
+    case Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
+      {:ok, zipper} ->
+        Igniter.Code.Module.module_matching?(zipper, &String.ends_with?(to_string(&1), "Web"))
+
+      :error ->
+        false
+    end
+  end
+
+  # We can do all kinds of things better here
+  # for example, we can handle nested scopes, etc.
+  defp move_to_matching_scope(zipper, route, opts) do
+    call =
+      if is_nil(opts[:arg2]) do
+        zipper
+        |> Igniter.Code.Function.move_to_function_call_in_current_scope(:scope, [2], fn call ->
+          Igniter.Code.Function.argument_equals?(call, 0, route)
+        end)
+      else
+        Igniter.Code.Function.move_to_function_call_in_current_scope(
+          zipper,
+          :scope,
+          3,
+          fn call ->
+            Igniter.Code.Function.argument_equals?(call, 0, route) and
+              Igniter.Code.Function.argument_equals?(call, 1, opts[:arg2])
+          end
+        )
+      end
+
+    case call do
+      {:ok, zipper} ->
+        with {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+             true <- contains_pipe_through?(zipper, opts) do
+          {:ok, zipper}
+        else
+          _ ->
+            :error
+        end
+
+      :error ->
+        :error
+    end
+  end
+
+  defp contains_pipe_through?(zipper, opts) do
+    case List.wrap(opts[:with_pipelines]) do
+      [] ->
+        true
+
+      pipelines ->
+        Enum.all?(pipelines, fn pipeline ->
+          zipper
+          |> Igniter.Code.Function.move_to_function_call_in_current_scope(
+            :pipe_through,
+            1,
+            fn zipper ->
+              with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
+                   {:is_list?, _zipper, true} <-
+                     {:is_list?, zipper, Igniter.Code.List.list?(zipper)},
+                   {:ok, _} <-
+                     Igniter.Code.List.move_to_list_item(
+                       zipper,
+                       &Igniter.Code.Common.nodes_equal?(&1, pipeline)
+                     ) do
+                true
+              else
+                {:is_list?, zipper, false} ->
+                  Igniter.Code.Common.nodes_equal?(zipper, pipeline)
+
+                _ ->
+                  false
+              end
+            end
+          )
+          |> case do
+            {:ok, _} -> true
+            :error -> false
+          end
+        end)
+    end
   end
 end
