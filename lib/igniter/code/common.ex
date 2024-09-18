@@ -708,6 +708,8 @@ defmodule Igniter.Code.Common do
   expanded environment. Currently used for properly working with aliases.
   """
   def current_env(zipper) do
+    Process.put(:elixir_code_diagnostics, {[], false})
+
     zipper
     |> do_add_code({:__cursor__, [], []}, :after, false)
     |> Zipper.topmost_root()
@@ -725,6 +727,8 @@ defmodule Igniter.Code.Common do
   rescue
     e ->
       {:error, e}
+  after
+    Process.delete(:elixir_code_diagnostics)
   end
 
   @doc """

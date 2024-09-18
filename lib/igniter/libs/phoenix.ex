@@ -102,6 +102,7 @@ defmodule Igniter.Libs.Phoenix do
     end)
   end
 
+  @doc "Adds a phoenix scope."
   def add_scope(igniter, route, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -157,6 +158,226 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
+  @doc "Appends to a phoenix scope. Relatively limited currently only exact matches of a top level scope and args"
+  def append_to_scope(igniter, route, contents, opts \\ []) do
+    {igniter, router} =
+      case Keyword.fetch(opts, :router) do
+        {:ok, router} ->
+          {igniter, router}
+
+        :error ->
+          select_router(igniter)
+      end
+
+    scope_code =
+      case Keyword.fetch(opts, :arg2) do
+        {:ok, arg2} ->
+          if opts[:with_pipelines] do
+            """
+            scope "#{route}", #{inspect(arg2)} do
+              pipe_through #{inspect(opts[:with_pipelines])}
+              #{contents}
+            end
+            """
+          else
+            """
+            scope "#{route}", #{inspect(arg2)} do
+              #{contents}
+            end
+            """
+          end
+
+        _ ->
+          if opts[:with_pipelines] do
+            """
+            scope #{inspect(route)} do
+              pipe_through #{inspect(opts[:with_pipelines])}
+              #{contents}
+            end
+            """
+          else
+            """
+            scope #{inspect(route)} do
+              #{contents}
+            end
+            """
+          end
+      end
+
+    if router do
+      Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
+        case move_to_matching_scope(zipper, route, opts) do
+          {:ok, zipper} ->
+            {:ok, Igniter.Code.Common.add_code(zipper, contents)}
+
+          :error ->
+            case move_to_scope_location(igniter, zipper) do
+              {:ok, zipper, append_or_prepend} ->
+                {:ok, Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add a scope for #{inspect(route)} to your router. Please add it manually.",
+                   scope_code
+                 )}
+            end
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        Igniter.Util.Warning.formatted_warning(
+          "Could not add a scope for #{inspect(route)} to your router. Please add it manually.",
+          scope_code
+        )
+      )
+    end
+  end
+
+  # We can do all kinds of things better here
+  # for example, we can handle nested scopes, etc.
+  defp move_to_matching_scope(zipper, route, opts) do
+    call =
+      if is_nil(opts[:arg2]) do
+        zipper
+        |> Igniter.Code.Function.move_to_function_call_in_current_scope(:scope, [2], fn call ->
+          Igniter.Code.Function.argument_equals?(call, 0, route)
+        end)
+      else
+        Igniter.Code.Function.move_to_function_call_in_current_scope(
+          zipper,
+          :scope,
+          3,
+          fn call ->
+            Igniter.Code.Function.argument_equals?(call, 0, route) and
+              Igniter.Code.Function.argument_equals?(call, 1, opts[:arg2])
+          end
+        )
+      end
+
+    case call do
+      {:ok, zipper} ->
+        with {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+             true <- contains_pipe_through?(zipper, opts) do
+          {:ok, zipper}
+        else
+          _ ->
+            :error
+        end
+
+      :error ->
+        :error
+    end
+  end
+
+  defp contains_pipe_through?(zipper, opts) do
+    case List.wrap(opts[:with_pipelines]) do
+      [] ->
+        true
+
+      pipelines ->
+        Enum.all?(pipelines, fn pipeline ->
+          zipper
+          |> Igniter.Code.Function.move_to_function_call_in_current_scope(
+            :pipe_through,
+            1,
+            fn zipper ->
+              with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
+                   {:is_list?, _zipper, true} <-
+                     {:is_list?, zipper, Igniter.Code.List.list?(zipper)},
+                   {:ok, _} <-
+                     Igniter.Code.List.move_to_list_item(
+                       zipper,
+                       &Igniter.Code.Common.nodes_equal?(&1, pipeline)
+                     ) do
+                true
+              else
+                {:is_list?, zipper, false} ->
+                  Igniter.Code.Common.nodes_equal?(zipper, pipeline)
+
+                _ ->
+                  false
+              end
+            end
+          )
+          |> case do
+            {:ok, _} -> true
+            :error -> false
+          end
+        end)
+    end
+  end
+
+  def append_to_pipeline(igniter, name, contents, opts \\ []) do
+    {igniter, router} =
+      case Keyword.fetch(opts, :router) do
+        {:ok, router} ->
+          {igniter, router}
+
+        :error ->
+          select_router(igniter)
+      end
+
+    pipeline_code = """
+    pipeline #{inspect(name)} do
+      #{contents}
+    end
+    """
+
+    if router do
+      Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
+        Igniter.Code.Function.move_to_function_call_in_current_scope(
+          zipper,
+          :pipeline,
+          2,
+          fn zipper ->
+            Igniter.Code.Function.argument_equals?(
+              zipper,
+              0,
+              name
+            )
+          end
+        )
+        |> case do
+          {:ok, zipper} ->
+            case Igniter.Code.Common.move_to_do_block(zipper) do
+              {:ok, zipper} ->
+                {:ok, Igniter.Code.Common.add_code(zipper, contents)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add the #{name} pipline to your router. Please add it manually.",
+                   pipeline_code
+                 )}
+            end
+
+          _ ->
+            case move_to_pipeline_location(igniter, zipper) do
+              {:ok, zipper, append_or_prepend} ->
+                {:ok, Igniter.Code.Common.add_code(zipper, pipeline_code, append_or_prepend)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add the #{name} pipline to your router. Please add it manually.",
+                   pipeline_code
+                 )}
+            end
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        Igniter.Util.Warning.formatted_warning(
+          "Could not append the following contents to the #{name} pipline to your router. Please add it manually.",
+          contents
+        )
+      )
+    end
+  end
+
   def add_pipeline(igniter, name, contents, opts \\ []) do
     {igniter, router} =
       case Keyword.fetch(opts, :router) do
@@ -176,7 +397,7 @@ defmodule Igniter.Libs.Phoenix do
     if router do
       Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
         Igniter.Code.Function.move_to_function_call(zipper, :pipeline, 2, fn zipper ->
-          Igniter.Code.Function.argument_matches_predicate?(
+          Igniter.Code.Function.argument_equals?(
             zipper,
             0,
             &Igniter.Code.Common.nodes_equal?(&1, name)
@@ -260,18 +481,19 @@ defmodule Igniter.Libs.Phoenix do
     end)
   end
 
-  defp move_to_router_use(igniter, zipper) do
+  @doc "Moves to the use statement in a module that matches `use TheirWebModule, :router`"
+  def move_to_router_use(igniter, zipper) do
     with :error <-
            Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
-             Igniter.Code.Function.argument_matches_predicate?(
+             Igniter.Code.Function.argument_equals?(
                zipper,
                0,
-               &Igniter.Code.Common.nodes_equal?(&1, router_using(igniter))
+               router_using(igniter)
              ) &&
-               Igniter.Code.Function.argument_matches_predicate?(
+               Igniter.Code.Function.argument_equals?(
                  zipper,
                  1,
-                 &Igniter.Code.Common.nodes_equal?(&1, :router)
+                 :router
                )
            end) do
       Igniter.Code.Module.move_to_use(zipper, Phoenix.Router)
