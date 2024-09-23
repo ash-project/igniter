@@ -23,6 +23,24 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Moves to the next node that matches the predicate, going upwards.
+  """
+  @spec move_upwards(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
+  def move_upwards(zipper, pred) do
+    if pred.(zipper) do
+      {:ok, zipper}
+    else
+      case Zipper.up(zipper) do
+        nil ->
+          :error
+
+        next ->
+          move_upwards(next, pred)
+      end
+    end
+  end
+
+  @doc """
   Removes any nodes matching the provided pattern, until there are no matches left.
   """
   @spec remove(Zipper.t(), (Zipper.t() -> boolean)) :: Zipper.t()

@@ -205,7 +205,10 @@ defmodule Igniter.Code.Keyword do
           |> Igniter.Code.Tuple.tuple_elem(1)
           |> case do
             {:ok, zipper} ->
-              updater.(zipper)
+              case updater.(zipper) do
+                {:ok, zipper} -> {:ok, Zipper.replace(zipper, {:__block__, [], [zipper.node]})}
+                :error -> :error
+              end
 
             :error ->
               :error

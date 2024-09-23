@@ -7,12 +7,8 @@ defmodule Igniter.Project.IgniterConfigTest do
       test_project()
       |> Igniter.Project.IgniterConfig.add_extension(Foobar)
       |> assert_has_patch(".igniter.exs", """
-      12 12   |    ~r"lib/mix"
-      13 13   |  ],
-      14    - |  extensions: []
-          14 + |  extensions: [{Foobar, []}]
-      15 15   |]
-      16 16   |
+      9 - |  extensions: []
+      9 + |  extensions: [{Foobar, []}]
       """)
     end
   end
@@ -22,10 +18,8 @@ defmodule Igniter.Project.IgniterConfigTest do
       test_project()
       |> Igniter.Project.IgniterConfig.dont_move_file_pattern(~r"abc")
       |> assert_has_patch(".igniter.exs", """
-      11 11   |  dont_move_files: [
-         12 + |    ~r/abc/,
-      12 13   |    ~r"lib/mix"
-      13 14   |  ],
+      8 - |  dont_move_files: [~r"lib/mix"],
+      8 + |  dont_move_files: [~r/abc/, ~r"lib/mix"],
       """)
     end
 

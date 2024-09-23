@@ -256,6 +256,29 @@ defmodule Igniter.Code.Function do
     end
   end
 
+  @doc "Gets the name of a local function call, or `:error` if the node is not a function call or it cannot be determined"
+  def get_local_function_call_name(%Zipper{} = zipper) do
+    zipper
+    |> Common.maybe_move_to_single_child_block()
+    |> Zipper.node()
+    |> case do
+      {:|>, _, [{name, _, context} | _rest]} when is_atom(context) and is_atom(name) ->
+        {:ok, name}
+
+      {:|>, _, [name | _rest]} when is_atom(name) ->
+        {:ok, name}
+
+      {name, _, _args} when is_atom(name) ->
+        {:ok, name}
+
+      {{name, _, context}, _, _args} when is_atom(context) and is_atom(name) ->
+        {:ok, name}
+
+      _ ->
+        :error
+    end
+  end
+
   @doc "Returns `true` if the node is a function call"
   @spec function_call?(Zipper.t()) :: boolean()
   def function_call?(%Zipper{} = zipper) do

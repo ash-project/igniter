@@ -3,6 +3,22 @@ defmodule Igniter.Util.Debug do
   alias Sourceror.Zipper
 
   @doc "Puts the formatted code at the node of the zipper to the console"
+  def puts_code_at_node({:ok, zipper}) do
+    zipper
+    |> Zipper.node()
+    |> Sourceror.to_string()
+    |> then(&"==code==\n{:ok, #{&1}}\n==code==\n")
+    |> IO.puts()
+
+    {:ok, zipper}
+  end
+
+  def puts_code_at_node(:error) do
+    IO.puts("==code==\n:error\n==code==\n")
+
+    :error
+  end
+
   def puts_code_at_node(zipper) do
     zipper
     |> Zipper.node()
