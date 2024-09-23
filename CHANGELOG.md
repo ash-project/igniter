@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.40](https://github.com/ash-project/igniter/compare/v0.3.39...v0.3.40) (2024-09-23)
+
+
+
+
+### Bug Fixes:
+
+* properly detect existing scopes with matching names
+
 ## [v0.3.39](https://github.com/ash-project/igniter/compare/v0.3.38...v0.3.39) (2024-09-18)
 
 
