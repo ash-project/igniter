@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.42](https://github.com/ash-project/igniter/compare/v0.3.41...v0.3.42) (2024-09-23)
+
+
+
+
+### Bug Fixes:
+
+* handle empty requested positional args when extracting positional
+
+### Improvements:
+
+* add `Igniter.Code.List.replace_in_list/3`
+
+* allow appending/prepending a different value when the full
+
 ## [v0.3.41](https://github.com/ash-project/igniter/compare/v0.3.40...v0.3.41) (2024-09-23)
 
 
