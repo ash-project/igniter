@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.43](https://github.com/ash-project/igniter/compare/v0.3.42...v0.3.43) (2024-09-23)
+
+
+
+
+### Bug Fixes:
+
+* traverse lists without entering child nodes
+
 ## [v0.3.42](https://github.com/ash-project/igniter/compare/v0.3.41...v0.3.42) (2024-09-23)
 
 
