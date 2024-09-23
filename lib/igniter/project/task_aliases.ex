@@ -112,8 +112,8 @@ defmodule Igniter.Project.TaskAliases do
   @spec modify_existing_alias(
           Igniter.t(),
           atom() | String.t(),
-          (Zippter.t() ->
-             {:ok, Zippter.t()} | :error)
+          (Sourceror.Zipper.t() ->
+             {:ok, Sourceror.Zipper.t()} | :error)
         ) :: Igniter.t()
   def modify_existing_alias(igniter, name, updater) do
     igniter
