@@ -355,7 +355,7 @@ defmodule Igniter.Libs.Phoenix do
           Igniter.Code.Function.argument_equals?(
             zipper,
             0,
-            &Igniter.Code.Common.nodes_equal?(&1, name)
+            name
           )
         end)
         |> case do
