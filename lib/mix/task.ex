@@ -224,6 +224,10 @@ defmodule Igniter.Mix.Task do
     {desired, got}
   end
 
+  def consume_args(_, [], got) do
+    {[], got}
+  end
+
   def consume_args([arg | positional], desired, got) do
     {name, config} =
       Enum.find(desired, fn {_name, config} ->

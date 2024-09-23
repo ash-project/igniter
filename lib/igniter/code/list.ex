@@ -113,6 +113,34 @@ defmodule Igniter.Code.List do
     end
   end
 
+  @spec replace_in_list(Zipper.t(), predicate :: (Zipper.t() -> boolean()), term :: any()) ::
+          {:ok, Zipper.t()} | :error
+  def replace_in_list(zipper, predicate, value) do
+    if list?(zipper) do
+      Common.within(zipper, fn zipper ->
+        zipper
+        |> Zipper.down()
+        |> Common.move_right(predicate)
+        |> case do
+          :error ->
+            :error
+
+          {:ok, zipper} ->
+            {:ok, Igniter.Code.Common.replace_code(zipper, value)}
+        end
+      end)
+      |> case do
+        :error ->
+          {:ok, zipper}
+
+        {:ok, zipper} ->
+          replace_in_list(zipper, predicate, value)
+      end
+    else
+      :error
+    end
+  end
+
   @doc "Removes the item at the given index, returning `:error` if nothing is at that index"
   @spec remove_index(Zipper.t(), index :: non_neg_integer()) :: {:ok, Zipper.t()} | :error
   def remove_index(zipper, index) do

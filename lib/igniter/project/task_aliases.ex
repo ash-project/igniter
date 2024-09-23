@@ -8,8 +8,10 @@ defmodule Igniter.Project.TaskAliases do
 
   - `:if_exists` - How to alter the alias if it already exists. Options are:
     - `:ignore` - Do nothing if the alias already exists. This is the default.
-    - `:prepend` - Add the new alias to the beginning of the list of aliases.
-    - `:append` - Add the new alias to the end of the list of aliases.
+    - `:prepend` - Add the new alias to the beginning of the list.
+    - `{:prepend, value}` - Add a different value than the originally supplied alias to the beginning of the list.
+    - `:append` - Add the new alias to the end of the list.
+    - `{:append, value}` - Add a different value than the originally supplied alias to the end of the list.
     - `:warn` - Print a warning if the alias already exists.
   """
   @spec add_alias(
@@ -19,7 +21,12 @@ defmodule Igniter.Project.TaskAliases do
           opts :: Keyword.t()
         ) :: Igniter.t()
   def add_alias(igniter, name, value, opts \\ []) do
-    alter = Keyword.get(opts, :if_exists, :ignore)
+    alter =
+      case Keyword.get(opts, :if_exists, :ignore) do
+        :append -> {:append, value}
+        :prepend -> {:prepend, value}
+        other -> other
+      end
 
     name =
       if is_binary(name) do
@@ -33,12 +40,12 @@ defmodule Igniter.Project.TaskAliases do
       case go_to_aliases(zipper) do
         {:ok, zipper} ->
           case alter do
-            prepend_or_append when prepend_or_append in [:prepend, :append] ->
+            {prepend_or_append, add_value} when prepend_or_append in [:prepend, :append] ->
               case Igniter.Code.Keyword.set_keyword_key(
                      zipper,
                      name,
                      value,
-                     &prepend_or_append(&1, value, prepend_or_append)
+                     &prepend_or_append(&1, add_value, prepend_or_append)
                    ) do
                 {:ok, zipper} ->
                   {:ok, zipper}
@@ -97,6 +104,39 @@ defmodule Igniter.Project.TaskAliases do
 
            Please manually modify your `mix.exs` file accordingly.
            """}
+      end
+    end)
+  end
+
+  @doc "Modifies an existing alias, doing nothing if it doesn't exist"
+  @spec modify_existing_alias(
+          Igniter.t(),
+          atom() | String.t(),
+          (Zippter.t() ->
+             {:ok, Zippter.t()} | :error)
+        ) :: Igniter.t()
+  def modify_existing_alias(igniter, name, updater) do
+    igniter
+    |> Igniter.update_elixir_file("mix.exs", fn zipper ->
+      name =
+        if is_binary(name) do
+          String.to_atom(name)
+        else
+          name
+        end
+
+      case go_to_aliases(zipper) do
+        {:ok, zipper} ->
+          case Igniter.Code.Keyword.get_key(zipper, name) do
+            {:ok, zipper} ->
+              updater.(zipper)
+
+            :error ->
+              zipper
+          end
+
+        :error ->
+          zipper
       end
     end)
   end
