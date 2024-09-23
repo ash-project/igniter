@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.41](https://github.com/ash-project/igniter/compare/v0.3.40...v0.3.41) (2024-09-23)
+
+
+
+
+### Improvements:
+
+* add `Igniter.Project.TaskAliases.add_alias/3-4`
+
 ## [v0.3.40](https://github.com/ash-project/igniter/compare/v0.3.39...v0.3.40) (2024-09-23)
 
 
