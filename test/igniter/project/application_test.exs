@@ -77,6 +77,28 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
 
+    test "using `after: fn _ -> true end` with tuples in the list" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child({Foo, a: :b})
+      |> Igniter.Project.Application.add_new_child(Something)
+      |> Igniter.Project.Application.add_new_child(SomethingAtTheEnd, after: fn _ -> true end)
+      |> assert_creates("lib/test/application.ex", """
+      defmodule Test.Application do
+        @moduledoc false
+
+        use Application
+
+        @impl true
+        def start(_type, _args) do
+          children = [Something, {Foo, [a: :b]}, SomethingAtTheEnd]
+
+          opts = [strategy: :one_for_one, name: Test.Supervisor]
+          Supervisor.start_link(children, opts)
+        end
+      end
+      """)
+    end
+
     test "supports taking code as the second argument" do
       test_project()
       |> Igniter.Project.Application.add_new_child(

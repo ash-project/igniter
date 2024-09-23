@@ -224,48 +224,40 @@ defmodule Igniter.Project.Application do
   end
 
   def skip_after(zipper, opts) do
-    zipper
-    |> then(fn zipper ->
-      if opts[:nested?] do
-        Zipper.right(zipper)
+    Igniter.Code.List.do_move_to_list_item(zipper, fn item ->
+      with {:is_tuple, true} <- {:is_tuple, Igniter.Code.Tuple.tuple?(item)},
+           {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
+           item <- Igniter.Code.Common.expand_alias(item),
+           module when is_atom(module) <- alias_to_mod(item.node),
+           true <- opts[:after].(module) do
+        true
       else
-        zipper
-      end
-    end)
-    |> case do
-      nil ->
-        {:ok, zipper}
-
-      right_zipper ->
-        Igniter.Code.Common.move_right(right_zipper, fn item ->
-          with {:is_tuple, true} <- {:is_tuple, Igniter.Code.Tuple.tuple?(item)},
-               {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
-               item <- Igniter.Code.Common.expand_alias(item),
+        {:is_tuple, false} ->
+          with item <- Igniter.Code.Common.expand_alias(item),
                module when is_atom(module) <- alias_to_mod(item.node),
                true <- opts[:after].(module) do
             true
           else
-            {:is_tuple, false} ->
-              with item <- Igniter.Code.Common.expand_alias(item),
-                   module when is_atom(module) <- alias_to_mod(item.node),
-                   true <- opts[:after].(module) do
-                true
-              else
-                _ ->
-                  false
-              end
-
             _ ->
               false
           end
-        end)
-    end
+
+        _ ->
+          false
+      end
+    end)
     |> case do
       {:ok, zipper} ->
-        skip_after(zipper, Keyword.put(opts, :nested?, true))
+        case Zipper.right(zipper) do
+          nil ->
+            {:after, zipper}
+
+          zipper ->
+            skip_after(zipper, Keyword.put(opts, :nested?, true))
+        end
 
       :error ->
-        if opts[:nested?] do
+        if Keyword.get(opts, :nested?) do
           {:after, zipper}
         else
           {:before, zipper}

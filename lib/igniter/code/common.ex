@@ -41,6 +41,24 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Moves to the last node before the node that matches the predicate, going upwards.
+  """
+  @spec move_upwards_until(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
+  def move_upwards_until(zipper, pred) do
+    if pred.(zipper) do
+      {:ok, Zipper.down(zipper) || zipper}
+    else
+      case Zipper.up(zipper) do
+        nil ->
+          {:ok, zipper}
+
+        next ->
+          move_upwards(next, pred)
+      end
+    end
+  end
+
+  @doc """
   Removes any nodes matching the provided pattern, until there are no matches left.
   """
   @spec remove(Zipper.t(), (Zipper.t() -> boolean)) :: Zipper.t()
@@ -377,6 +395,8 @@ defmodule Igniter.Code.Common do
     Zipper.replace(zipper, code)
   end
 
+  def extendable_block?(%Zipper{node: node}), do: extendable_block?(node)
+
   def extendable_block?({:__block__, meta, contents}) when is_list(contents) do
     !meta[:token] && !meta[:format] && !meta[:delimiter]
   end
@@ -485,24 +505,29 @@ defmodule Igniter.Code.Common do
   def maybe_move_to_single_child_block(nil), do: nil
 
   def maybe_move_to_single_child_block(zipper) do
+    if single_child_block?(zipper) do
+      zipper
+      |> Zipper.down()
+      |> case do
+        nil ->
+          zipper
+
+        zipper ->
+          maybe_move_to_single_child_block(zipper)
+      end
+    else
+      zipper
+    end
+  end
+
+  @spec single_child_block?(Zipper.t()) :: boolean()
+  def single_child_block?(zipper) do
     case zipper.node do
       {:__block__, _, [_]} = block ->
-        if extendable_block?(block) do
-          zipper
-          |> Zipper.down()
-          |> case do
-            nil ->
-              zipper
-
-            zipper ->
-              maybe_move_to_single_child_block(zipper)
-          end
-        else
-          zipper
-        end
+        extendable_block?(block)
 
       _ ->
-        zipper
+        false
     end
   end
 
@@ -604,10 +629,6 @@ defmodule Igniter.Code.Common do
     |> maybe_move_to_single_child_block()
   end
 
-  defp multi_child_block?(zipper) do
-    node_matches_pattern?(zipper, {:__block__, _, [_, _ | _]})
-  end
-
   @doc """
   Moves rightwards, entering blocks (and exiting them if no match is found), until the provided predicate returns `true`.
 
@@ -624,7 +645,7 @@ defmodule Igniter.Code.Common do
       pred.(zipper_in_single_child_block) ->
         {:ok, zipper_in_single_child_block}
 
-      multi_child_block?(zipper) ->
+      extendable_block?(zipper) && length(elem(zipper.node, 2)) > 1 ->
         zipper
         |> Zipper.down()
         |> case do

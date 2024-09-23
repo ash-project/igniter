@@ -8,6 +8,8 @@ defmodule Igniter.Code.Tuple do
   @doc "Returns `true` if the zipper is at a literal tuple, `false` if not."
   @spec tuple?(Zipper.t()) :: boolean()
   def tuple?(item) do
+    item = Igniter.Code.Common.maybe_move_to_single_child_block(item)
+
     case item.node do
       {:{}, _, _} -> true
       {_, _} -> true

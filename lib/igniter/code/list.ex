@@ -191,7 +191,24 @@ defmodule Igniter.Code.List do
         :error
 
       zipper ->
-        Common.move_right(zipper, pred)
+        do_move_to_list_item(zipper, pred)
+    end
+  end
+
+  @doc "Moves to the list item matching the given predicate, assuming you are currently inside the list"
+  def do_move_to_list_item(zipper, pred) do
+    if pred.(zipper) do
+      {:ok, zipper}
+    else
+      zipper
+      |> Zipper.right()
+      |> case do
+        nil ->
+          :error
+
+        right ->
+          do_move_to_list_item(right, pred)
+      end
     end
   end
 
