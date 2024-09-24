@@ -387,7 +387,7 @@ defmodule Igniter.Code.Common do
   end
 
   def replace_code(zipper, code) when is_binary(code) do
-    add_code(zipper, Sourceror.parse_string!(code))
+    replace_code(zipper, Sourceror.parse_string!(code))
   end
 
   def replace_code(zipper, code) do
