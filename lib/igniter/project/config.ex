@@ -46,7 +46,7 @@ defmodule Igniter.Project.Config do
       """
 
     igniter
-    |> Igniter.create_or_update_file("config/runtime.exs", default_runtime, &{:ok, &1})
+    |> Igniter.create_or_update_elixir_file("config/runtime.exs", default_runtime, &{:ok, &1})
     |> Igniter.update_elixir_file("config/runtime.exs", fn zipper ->
       patterns = [
         """
