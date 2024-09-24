@@ -195,6 +195,7 @@ defmodule Igniter do
     |> Enum.reduce(igniter, fn {:ok, source}, igniter ->
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
     end)
+    |> format(paths)
   end
 
   @doc """
@@ -310,10 +311,8 @@ defmodule Igniter do
   @spec update_elixir_file(t(), Path.t(), zipper_updater()) :: Igniter.t()
   def update_elixir_file(igniter, path, func) do
     if Rewrite.has_source?(igniter.rewrite, path) do
-      source = Rewrite.source!(igniter.rewrite, path)
-
       igniter
-      |> apply_func_with_zipper(source, func)
+      |> apply_func_with_zipper(path, func)
       |> format(path)
     else
       if exists?(igniter, path) do
@@ -321,7 +320,8 @@ defmodule Igniter do
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> format(path)
-        |> apply_func_with_zipper(source, func)
+        |> apply_func_with_zipper(path, func)
+        |> format(path)
       else
         add_issue(igniter, "Required #{path} but it did not exist")
       end
@@ -350,24 +350,20 @@ defmodule Igniter do
   def update_file(igniter, path, updater, opts \\ []) do
     source_handler = source_handler(path, opts)
 
-    if source_handler == Rewrite.Source.Ex do
-      update_elixir_file(igniter, path, updater)
+    if Rewrite.has_source?(igniter.rewrite, path) do
+      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
     else
-      if Rewrite.has_source?(igniter.rewrite, path) do
-        %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
-      else
-        if exists?(igniter, path) do
-          source = read_source!(igniter, path, source_handler)
+      if exists?(igniter, path) do
+        source = read_source!(igniter, path, source_handler)
 
-          %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-          |> maybe_format(path, true, Keyword.put(opts, :source_handler, source_handler))
-          |> Map.update!(:rewrite, fn rewrite ->
-            source = Rewrite.source!(rewrite, path)
-            Rewrite.update!(rewrite, path, updater.(source))
-          end)
-        else
-          add_issue(igniter, "Required #{path} but it did not exist")
-        end
+        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+        |> maybe_format(path, true, Keyword.put(opts, :source_handler, source_handler))
+        |> Map.update!(:rewrite, fn rewrite ->
+          source = Rewrite.source!(rewrite, path)
+          Rewrite.update!(rewrite, path, updater.(source))
+        end)
+      else
+        add_issue(igniter, "Required #{path} but it did not exist")
       end
     end
   end
@@ -1227,7 +1223,8 @@ defmodule Igniter do
     opts
   end
 
-  defp apply_func_with_zipper(igniter, source, func) do
+  defp apply_func_with_zipper(igniter, path, func) do
+    source = Rewrite.source!(igniter.rewrite, path)
     quoted = Rewrite.Source.get(source, :quoted)
     zipper = Sourceror.Zipper.zip(quoted)
 
