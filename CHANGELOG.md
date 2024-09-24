@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.44](https://github.com/ash-project/igniter/compare/v0.3.43...v0.3.44) (2024-09-24)
+
+
+
+
+### Bug Fixes:
+
+* properly create or update config files
+
+* format files after reading so formatter_opts is set before later writes
+
+* remove incorrect call to `add_code` from `replace_code`
+
 ## [v0.3.43](https://github.com/ash-project/igniter/compare/v0.3.42...v0.3.43) (2024-09-23)
 
 
