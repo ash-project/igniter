@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.45](https://github.com/ash-project/igniter/compare/v0.3.44...v0.3.45) (2024-09-25)
+
+
+
+
+### Bug Fixes:
+
+* use `ensure_all_started` without a list for backwards compatibility
+
+### Improvements:
+
+* Yn -> y/n to represent a lack of a default
+
 ## [v0.3.44](https://github.com/ash-project/igniter/compare/v0.3.43...v0.3.44) (2024-09-24)
 
 
