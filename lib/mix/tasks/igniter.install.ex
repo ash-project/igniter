@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Igniter.Install do
       raise ArgumentError, "must provide at least one package to install"
     end
 
-    Application.ensure_all_started([:rewrite])
+    Application.ensure_all_started(:rewrite)
 
     Igniter.Util.Install.install(Enum.join(packages, ","), argv)
   end

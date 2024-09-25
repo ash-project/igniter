@@ -106,7 +106,7 @@ defmodule Igniter.Mix.Task do
           """
         end
 
-        Application.ensure_all_started([:rewrite])
+        Application.ensure_all_started(:rewrite)
 
         global_options = Info.global_options()
 
