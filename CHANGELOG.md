@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.46](https://github.com/ash-project/igniter/compare/v0.3.45...v0.3.46) (2024-10-03)
+
+
+
+
+### Bug Fixes:
+
+* fix message in task name warning
+
 ## [v0.3.45](https://github.com/ash-project/igniter/compare/v0.3.44...v0.3.45) (2024-09-25)
 
 
