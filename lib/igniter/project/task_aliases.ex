@@ -71,7 +71,7 @@ defmodule Igniter.Project.TaskAliases do
                     :warn ->
                       {:warning,
                        """
-                       Could not add alias for `name` in `mix.exs` because it already exists. Attempted to alias it to:
+                       Could not add alias for `#{name}` in `mix.exs` because it already exists. Attempted to alias it to:
 
                           #{Sourceror.to_string(value)}
                        """}
