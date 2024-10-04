@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.48](https://github.com/ash-project/igniter/compare/v0.3.47...v0.3.48) (2024-10-04)
+
+
+
+
+### Improvements:
+
+* add `opts_updater` option to `add_new_child`
+
+* add `Igniter.Libs.Ecto.gen_migration`
+
+* implement various deprecations
+
+* add `Igniter.Libs.Ecto` for listing/selecting repos
+
+* add `defaults` key to `Info{}`
+
 ## [v0.3.47](https://github.com/ash-project/igniter/compare/v0.3.46...v0.3.47) (2024-10-04)
 
 
