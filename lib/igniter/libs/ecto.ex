@@ -1,12 +1,55 @@
 defmodule Igniter.Libs.Ecto do
   @moduledoc "Codemods & utilities for working with Ecto"
 
+  import Macro, only: [camelize: 1, underscore: 1]
+
   @known_repos [
     Ecto.Repo,
     AshPostgres.Repo,
     AshSqlite.Repo,
     AshMysql.Repo
   ]
+
+  @doc """
+  Generates a new migration file for the given repo.
+
+  ## Options
+
+  - `:body` - the body of the migration
+  - `:timestamp` - the timestamp to use for the migration.
+     Primarily useful for testing so you know what the filename will be.
+  """
+  @spec gen_migration(Igniter.t(), repo :: module(), name :: String.t(), opts :: Keyword.t()) ::
+          Igniter.t()
+  def gen_migration(igniter, repo, name, opts \\ []) do
+    # getting the repos configuration will be a bit harder here
+    # we'd need to look in config files or in the repos init or in the repo function?
+    # not worth it for now
+    path =
+      Path.join(
+        "priv/#{repo |> Module.split() |> List.last() |> Macro.underscore()}",
+        "migrations"
+      )
+
+    base_name = "#{underscore(name)}.exs"
+    file = Path.join(path, "#{opts[:timestamp] || timestamp()}_#{base_name}")
+
+    body =
+      opts[:body] ||
+        """
+        def change do
+          # your migration here
+        end
+        """
+
+    Igniter.create_new_file(igniter, file, """
+    defmodule #{inspect(Module.concat([repo, Migrations, camelize(name)]))} do
+      use Ecto.Migration
+
+      #{body}
+    end
+    """)
+  end
 
   @doc """
   Selects a repo module from the list of available repos.
@@ -50,4 +93,12 @@ defmodule Igniter.Libs.Ecto do
       end)
     end)
   end
+
+  defp timestamp do
+    {{y, m, d}, {hh, mm, ss}} = :calendar.universal_time()
+    "#{y}#{pad(m)}#{pad(d)}#{pad(hh)}#{pad(mm)}#{pad(ss)}"
+  end
+
+  defp pad(i) when i < 10, do: <<?0, ?0 + i>>
+  defp pad(i), do: to_string(i)
 end
