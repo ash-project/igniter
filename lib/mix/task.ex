@@ -16,6 +16,7 @@ defmodule Igniter.Mix.Task do
     ## Configurable Keys
 
     * `schema` - The option schema for this task, in the format given to `OptionParser`, i.e `[name: :string]`
+    * `defaults` - Default values for options in the schema.
     * `positional` - A list of positional arguments that this task accepts. A list of atoms, or a keyword list with the option and config.
       See the positional arguments section for more.
     * `aliases` - A map of aliases to the schema keys.
@@ -49,6 +50,7 @@ defmodule Igniter.Mix.Task do
     ]
 
     defstruct schema: [],
+              defaults: [],
               aliases: [],
               composes: [],
               only: nil,
@@ -60,6 +62,7 @@ defmodule Igniter.Mix.Task do
 
     @type t :: %__MODULE__{
             schema: Keyword.t(),
+            defaults: Keyword.t(),
             aliases: Keyword.t(),
             composes: [String.t()],
             only: [atom()] | nil,
@@ -153,8 +156,9 @@ defmodule Igniter.Mix.Task do
       task_name = Mix.Task.task_name(__MODULE__)
 
       info = info(argv, task_name)
+
       {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
-      parsed
+      Keyword.merge(info.defaults, parsed)
     end
   end
 

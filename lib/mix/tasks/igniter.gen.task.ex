@@ -23,7 +23,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       example: @example,
       positional: [:task_name],
       schema: [optional: :boolean],
-      aliases: [o: :optional]
+      aliases: [o: :optional],
+      defaults: [optional: false]
     }
   end
 
@@ -96,8 +97,10 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           composes: [],
           # `OptionParser` schema
           schema: [],
+          # Default values for the options in the `schema`.
+          defaults: [],
           # CLI aliases
-          aliases: []
+          aliases: [],
         }
       end
 
@@ -164,6 +167,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             composes: [],
             # `OptionParser` schema
             schema: [],
+            # Default values for the options in the `schema`.
+            defaults: [],
             # CLI aliases
             aliases: []
           }
