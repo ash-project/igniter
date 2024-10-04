@@ -23,6 +23,9 @@ defmodule Igniter.Util.Version do
     |> pad_zeroes()
     |> Version.parse()
     |> case do
+      {:ok, %Version{major: major, minor: minor, patch: patch, pre: pre}} when pre != [] ->
+        {:ok, "~> #{major}.#{minor}.#{patch}-#{Enum.join(pre, ".")}"}
+
       {:ok, %Version{major: 0, minor: minor}} ->
         {:ok, "~> 0.#{minor}"}
 

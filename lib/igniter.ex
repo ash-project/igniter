@@ -274,10 +274,14 @@ defmodule Igniter do
       if is_function(fallback) do
         fallback.(igniter, argv)
       else
-        add_issue(
-          igniter,
-          "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
-        )
+        # we don't warn because not all packages know about igniter, but they may have their own installers
+        # we can't assume that we should call them because they may have required arguments.
+
+        # add_issue(
+        #   igniter,
+        #   "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
+        # )
+        igniter
       end
     end
   end
@@ -644,11 +648,12 @@ defmodule Igniter do
           display_diff([source], opts)
 
           message =
-            if opts[:error_on_abort?] do
-              "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            else
-              "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            end
+            opts[:message] ||
+              if opts[:error_on_abort?] do
+                "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
+              else
+                "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
+              end
 
           if opts[:yes] || Igniter.Util.IO.yes?(message) do
             rewrite =
@@ -657,12 +662,17 @@ defmodule Igniter do
                 {:error, error} -> raise error
               end
 
-            Igniter.Util.Install.get_deps!()
-
             source = Rewrite.source!(rewrite, "mix.exs")
             source = Rewrite.Source.update(source, :quoted, quoted)
 
-            %{igniter | rewrite: Rewrite.update!(rewrite, source)}
+            igniter =
+              %{igniter | rewrite: Rewrite.update!(rewrite, source)}
+
+            if Keyword.get(opts, :fetch?, true) do
+              Igniter.Util.Install.get_deps!(igniter, opts)
+            else
+              igniter
+            end
           else
             if opts[:error_on_abort?] do
               raise "Aborted by the user."
@@ -691,7 +701,8 @@ defmodule Igniter do
                 {:error, error} -> raise error
               end
 
-            Igniter.Util.Install.get_deps!()
+            igniter =
+              Igniter.Util.Install.get_deps!(igniter, opts)
 
             %{igniter | rewrite: rewrite}
           else
@@ -1119,6 +1130,7 @@ defmodule Igniter do
         to_set =
           {:__block__, [], contents}
           |> Sourceror.Zipper.zip()
+          # replace with nil
           |> Igniter.Code.Common.remove(
             &Igniter.Code.Function.function_call?(&1, :import_config, 1)
           )

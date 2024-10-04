@@ -24,7 +24,7 @@ defmodule Igniter.Util.Info do
           )
           |> Igniter.apply_and_fetch_dependencies(opts)
 
-        {igniter, Enum.map(Enum.uniq(acc), &"#{&1}.install"), validate!(argv, schema, task_name)}
+        {igniter, Enum.uniq(acc), validate!(argv, schema, task_name)}
 
       installs ->
         schema = %{schema | installs: []}
@@ -87,7 +87,7 @@ defmodule Igniter.Util.Info do
           Igniter.Project.Deps.add_dep(
             igniter,
             dependency,
-            Keyword.put(opts, :notify_on_present?, true)
+            Keyword.merge(opts, notify_on_present?: true, yes?: !!opts[:yes])
           )
       end
     end)

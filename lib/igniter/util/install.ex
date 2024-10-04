@@ -73,7 +73,7 @@ defmodule Igniter.Util.Install do
       """
     end
 
-    {igniter, desired_tasks, {options, _}} =
+    {igniter, installing, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
         igniter,
         argv,
@@ -91,7 +91,7 @@ defmodule Igniter.Util.Install do
     igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
 
     {available_tasks, available_task_sources} =
-      Enum.zip(desired_tasks, Enum.map(desired_tasks, &Mix.Task.get/1))
+      Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
       |> Enum.unzip()
 
@@ -118,7 +118,8 @@ defmodule Igniter.Util.Install do
         )
     end
 
-    desired_tasks
+    installing
+    |> Enum.map(&"#{&1}.install")
     |> Enum.filter(&(&1 not in available_tasks))
     |> Enum.map(&String.trim_trailing(&1, ".install"))
     |> case do
@@ -156,13 +157,16 @@ defmodule Igniter.Util.Install do
               case Jason.decode(body) do
                 {:ok,
                  %{
-                   "releases" => [
-                     %{"version" => version}
-                     | _
-                   ]
-                 }} ->
-                  {String.to_atom(package),
-                   Igniter.Util.Version.version_string_to_general_requirement!(version)}
+                   "releases" => releases
+                 } = body} ->
+                  case first_non_rc_version_or_first_version(releases, body) do
+                    %{"version" => version} ->
+                      {String.to_atom(package),
+                       Igniter.Util.Version.version_string_to_general_requirement!(version)}
+
+                    _ ->
+                      :error
+                  end
 
                 _ ->
                   :error
@@ -181,7 +185,7 @@ defmodule Igniter.Util.Install do
             if String.contains?(requirement, "@") do
               case String.split(requirement, ["@"], trim: true) do
                 [url, ref] ->
-                  [git: url, ref: ref]
+                  [git: url, ref: ref, override: true]
 
                 _ ->
                   :error
@@ -194,7 +198,7 @@ defmodule Igniter.Util.Install do
             if String.contains?(requirement, "@") do
               case String.split(requirement, ["/", "@"], trim: true) do
                 [org, project, ref] ->
-                  [github: "#{org}/#{project}", ref: ref]
+                  [github: "#{org}/#{project}", ref: ref, override: true]
 
                 _ ->
                   :error
@@ -231,11 +235,27 @@ defmodule Igniter.Util.Install do
     end
   end
 
-  def get_deps! do
+  defp first_non_rc_version_or_first_version(releases, body) do
+    releases = Enum.reject(releases, &body["retirements"][&1["version"]])
+
+    Enum.find(releases, Enum.at(releases, 0), fn release ->
+      !rc?(release["version"])
+    end)
+  end
+
+  # This just actually checks if there is any pre-release metadata
+  defp rc?(version) do
+    version
+    |> Version.parse!()
+    |> Map.get(:pre)
+    |> Enum.any?()
+  end
+
+  def get_deps!(igniter, opts) do
     Mix.shell().info("running mix deps.get")
 
-    case Mix.shell().cmd("mix deps.get") do
-      0 ->
+    case System.cmd("mix", ["deps.get"], stderr_to_stdout: true) do
+      {_output, 0} ->
         Mix.Project.clear_deps_cache()
         Mix.Project.pop()
         Mix.Dep.clear_cached()
@@ -245,11 +265,162 @@ defmodule Igniter.Util.Install do
         |> Code.eval_string([], file: Path.expand("mix.exs"))
 
         Igniter.Util.DepsCompile.run(recompile_igniter?: true)
+        igniter
 
-      exit_code ->
-        Mix.shell().info("""
-        mix deps.get returned exited with code: `#{exit_code}`
-        """)
+      {output, exit_code} ->
+        case handle_error(output, exit_code, igniter, opts) do
+          {:ok, igniter} ->
+            get_deps!(igniter, opts)
+
+          :error ->
+            Mix.shell().info("""
+            mix deps.get returned exited with code: `#{exit_code}`
+            """)
+
+            raise output
+        end
     end
   end
+
+  defp handle_error(output, _exit_code, igniter, opts) do
+    if String.contains?(output, "Dependencies have diverged") do
+      handle_diverged_dependencies(output, igniter, opts)
+    else
+      :error
+    end
+  end
+
+  defp handle_diverged_dependencies(rest, igniter, opts) do
+    with [_, dep] <-
+           String.split(rest, "the :only option for dependency ", parts: 2, trim: true),
+         [dep, rest] <- String.split(dep, ["\n", " "], parts: 2, trim: true),
+         [_, source1] <- String.split(rest, "> In ", parts: 2, trim: true),
+         [source1, rest] <- String.split(source1, ":", parts: 2, trim: true),
+         [declaration1, rest] <-
+           String.split(rest, "does not match the :only option calculated for",
+             parts: 2,
+             trim: true
+           ),
+         [_, source2] <- String.split(rest, "> In ", parts: 2, trim: true),
+         [source2, rest] <- String.split(source2, ":", parts: 2, trim: true),
+         [declaration2, _] <-
+           String.split(rest, "\n\n", parts: 2, trim: true) do
+      dep = String.to_atom(dep)
+      source1 = parse_source(source1)
+      source2 = parse_source(source2)
+      # This is hacky :(
+      {declaration1, _} = Code.eval_string(String.replace(declaration1, ", ...", ""))
+      {declaration2, _} = Code.eval_string(String.replace(declaration2, ", ...", ""))
+
+      with {^dep, req, opts1} <- declaration1,
+           {^dep, _, opts2} <- declaration2 do
+        opts1 = Keyword.put_new(opts1, :only, [:dev, :test, :prod])
+        opts2 = Keyword.put_new(opts2, :only, [:dev, :test, :prod])
+        only = List.wrap(opts1[:only]) ++ List.wrap(opts2[:only])
+
+        igniter =
+          case Igniter.Project.Deps.get_dependency_declaration(igniter, dep) do
+            nil ->
+              Igniter.Project.Deps.add_dep(igniter, {dep, req, Keyword.put(opts1, :only, only)},
+                yes?: true
+              )
+
+            string ->
+              {existing_statement, _} = Code.eval_string(string)
+
+              case existing_statement do
+                {dep, requirement} when is_binary(requirement) ->
+                  if only == [:dev, :test, :prod] do
+                    Igniter.Project.Deps.add_dep(igniter, {dep, requirement}, yes?: true)
+                  else
+                    Igniter.Project.Deps.add_dep(igniter, {dep, requirement, [only: only]},
+                      yes?: true
+                    )
+                  end
+
+                {dep, opts} when is_list(opts) ->
+                  if only == [:dev, :test, :prod] do
+                    Igniter.Project.Deps.add_dep(igniter, {dep, Keyword.delete(opts, :only)},
+                      yes?: true
+                    )
+                  else
+                    Igniter.Project.Deps.add_dep(igniter, {dep, Keyword.put(opts, :only, only)},
+                      yes?: true
+                    )
+                  end
+
+                {dep, requirement, opts} ->
+                  if only == [:dev, :test, :prod] do
+                    Igniter.Project.Deps.add_dep(
+                      igniter,
+                      {dep, requirement, Keyword.put(opts, :only, only)},
+                      yes?: true
+                    )
+                  else
+                    case Keyword.delete(opts, :only) do
+                      [] ->
+                        Igniter.Project.Deps.add_dep(
+                          igniter,
+                          {dep, requirement},
+                          yes?: true
+                        )
+
+                      new_opts ->
+                        Igniter.Project.Deps.add_dep(
+                          igniter,
+                          {dep, requirement, new_opts},
+                          yes?: true
+                        )
+                    end
+                  end
+
+                _ ->
+                  :error
+              end
+          end
+
+        case igniter do
+          :error ->
+            :error
+
+          igniter ->
+            message = """
+            There is a conflict in the `only` option for the dependency #{inspect(dep)}, between #{source1} and #{source2}.
+
+            This change includes an update to the `only` option to include all requisite envs. This is normal, and only
+            means that the package is used in one or more environments than it originally was.
+            """
+
+            {:ok,
+             Igniter.apply_and_fetch_dependencies(
+               igniter,
+               Keyword.merge(opts, message: message, error_on_abort?: true)
+             )}
+        end
+      else
+        _ ->
+          :error
+      end
+    else
+      _ ->
+        :error
+    end
+  rescue
+    _e ->
+      :error
+  end
+
+  defp parse_source("mix.exs"), do: "your application"
+
+  defp parse_source("deps/" <> dep) do
+    case String.split(dep, "/", parts: 2, trim: true) |> Enum.at(0) do
+      nil ->
+        "deps/#{dep}"
+
+      dep ->
+        "the :#{dep} dependency"
+    end
+  end
+
+  defp parse_source(dep), do: "\"#{dep}\""
 end
