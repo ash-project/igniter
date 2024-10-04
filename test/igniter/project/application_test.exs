@@ -77,6 +77,36 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
 
+    test "supports updating options using `opts_updater`" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child({Foo, a: :b})
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child(Foo,
+        opts_updater: fn zipper ->
+          Igniter.Code.Keyword.set_keyword_key(zipper, :c, :d)
+        end
+      )
+      |> assert_has_patch("lib/test/application.ex", """
+      8 - |    children = [{Foo, [a: :b]}]
+      8 + |    children = [{Foo, [a: :b, c: :d]}]
+      """)
+    end
+
+    test "will set opts to an empty list if using `opts_updater`" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child(Foo,
+        opts_updater: fn zipper ->
+          Igniter.Code.Keyword.set_keyword_key(zipper, :c, :d)
+        end
+      )
+      |> assert_has_patch("lib/test/application.ex", """
+      8 - |    children = [Foo]
+      8 + |    children = [{Foo, [c: :d]}]
+      """)
+    end
+
     test "using `after: fn _ -> true end` with tuples in the list" do
       test_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: :b})

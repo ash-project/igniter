@@ -96,11 +96,15 @@ defmodule Igniter.Project.Application do
 
   - `after` - A list of other modules that this supervisor should appear after,
      or a function that takes a module and returns `true` if this module should be placed after it.
+  - `opts_updater` - A function that takes the current options (second element of the child tuple),
+     and returns a new value. If the existing value of the module is not a tuple, the value passed into
+     your function will be `[]`. Your function *must* return `{:ok, zipper}` or
+     `{:error | :warning, "error_or_warning"}`.
 
   ## Ordering
 
   We will put the new child as the earliest item in the list that we can, skipping any modules
-  in `after`.
+  in the `after` option.
   """
   @spec add_new_child(
           Igniter.t(),
@@ -176,41 +180,56 @@ defmodule Igniter.Project.Application do
                end
              ),
            {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1) do
-        if Igniter.Code.List.find_list_item_index(zipper, fn item ->
-             if Igniter.Code.Tuple.tuple?(item) do
-               with {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
-                    item <- Igniter.Code.Common.expand_alias(item) do
-                 Igniter.Code.Common.nodes_equal?(item, to_supervise_module)
+        case Igniter.Code.List.move_to_list_item(zipper, fn item ->
+               if Igniter.Code.Tuple.tuple?(item) do
+                 with {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
+                      item <- Igniter.Code.Common.expand_alias(item) do
+                   Igniter.Code.Common.nodes_equal?(item, to_supervise_module)
+                 else
+                   _ -> false
+                 end
                else
-                 _ -> false
+                 item
+                 |> Igniter.Code.Common.expand_alias()
+                 |> Igniter.Code.Common.nodes_equal?(to_supervise_module)
                end
-             else
-               item
-               |> Igniter.Code.Common.expand_alias()
-               |> Igniter.Code.Common.nodes_equal?(to_supervise_module)
-             end
-           end) do
-          {:ok, zipper}
-        else
-          zipper
-          |> Zipper.down()
-          |> then(fn zipper ->
-            case Zipper.down(zipper) do
-              nil ->
-                Zipper.insert_child(zipper, to_supervise)
-
-              zipper ->
-                zipper
-                |> skip_after(opts)
-                |> case do
-                  {:after, zipper} ->
-                    Zipper.insert_right(zipper, to_supervise)
-
-                  {:before, zipper} ->
-                    Zipper.insert_left(zipper, to_supervise)
+             end) do
+          {:ok, zipper} ->
+            if updater = opts[:opts_updater] do
+              zipper =
+                if Igniter.Code.Tuple.tuple?(zipper) do
+                  zipper
+                else
+                  Zipper.replace(zipper, {zipper.node, []})
                 end
+
+              {:ok, zipper} = Igniter.Code.Tuple.tuple_elem(zipper, 1)
+
+              updater.(zipper)
+            else
+              {:ok, zipper}
             end
-          end)
+
+          :error ->
+            zipper
+            |> Zipper.down()
+            |> then(fn zipper ->
+              case Zipper.down(zipper) do
+                nil ->
+                  Zipper.insert_child(zipper, to_supervise)
+
+                zipper ->
+                  zipper
+                  |> skip_after(opts)
+                  |> case do
+                    {:after, zipper} ->
+                      Zipper.insert_right(zipper, to_supervise)
+
+                    {:before, zipper} ->
+                      Zipper.insert_left(zipper, to_supervise)
+                  end
+              end
+            end)
         end
       else
         _ ->

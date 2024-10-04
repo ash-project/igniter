@@ -154,10 +154,11 @@ defmodule Igniter.Code.Keyword do
           Zipper.t(),
           atom(),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error)
+          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
         ) ::
           {:ok, Zipper.t()} | :error
-  def set_keyword_key(zipper, key, value, updater) do
+  def set_keyword_key(zipper, key, value, updater \\ nil) do
+    updater = updater || (&{:ok, &1})
     zipper = Common.maybe_move_to_single_child_block(zipper)
 
     if Igniter.Code.List.list?(zipper) do
