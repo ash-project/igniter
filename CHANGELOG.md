@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.47](https://github.com/ash-project/igniter/compare/v0.3.46...v0.3.47) (2024-10-04)
+
+
+
+
+### Bug Fixes:
+
+* prompt users to handle diverged environment issues
+
+* display installer output in `IO.stream()`
+
+* honor --yes properly when adding nested deps
+
+* don't install revoked versions of packages
+
+* install non-rc packages, or the rc package if there is none
+
 ## [v0.3.46](https://github.com/ash-project/igniter/compare/v0.3.45...v0.3.46) (2024-10-03)
 
 
