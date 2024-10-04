@@ -1,6 +1,8 @@
 defmodule Igniter.Mix.Task do
   @moduledoc "A behaviour for implementing a Mix task that is enriched to be composable with other Igniter tasks."
 
+  alias Igniter.Mix.Task.Info
+
   @doc """
   Whether or not it supports being run in the root of an umbrella project
 
@@ -9,72 +11,6 @@ defmodule Igniter.Mix.Task do
   @callback supports_umbrella?() :: boolean()
   @doc "All the generator behavior happens here, you take an igniter and task arguments, and return an igniter."
   @callback igniter(igniter :: Igniter.t(), argv :: list(String.t())) :: Igniter.t()
-  defmodule Info do
-    @moduledoc """
-    Info for an `Igniter.Mix.Task`, returned from the `info/2` callback
-
-    ## Configurable Keys
-
-    * `schema` - The option schema for this task, in the format given to `OptionParser`, i.e `[name: :string]`
-    * `defaults` - Default values for options in the schema.
-    * `positional` - A list of positional arguments that this task accepts. A list of atoms, or a keyword list with the option and config.
-      See the positional arguments section for more.
-    * `aliases` - A map of aliases to the schema keys.
-    * `composes` - A list of tasks that this task might compose.
-    * `installs` - A list of dependencies that should be installed before continuing.
-    * `adds_deps` - A list of dependencies that should be added to the `mix.exs`, but do not need to be installed before continuing.
-    * `extra_args?` - Whether or not to allow extra arguments. This forces all tasks that compose this task to allow extra args as well.
-    * `example` - An example usage of the task. This is used in the help output.
-
-    Your task should *always* use `switches` and not `strict` to validate provided options!
-
-    ## Positonal Arguments
-
-    Each positional argument can provide the following options:
-
-    * `:optional` - Whether or not the argument is optional. Defaults to `false`.
-    * `:rest` - Whether or not the argument consumes the rest of the positional arguments. Defaults to `false`.
-                The value will be converted to a list automatically.
-
-    """
-
-    @global_options [
-      switches: [
-        dry_run: :boolean,
-        yes: :boolean,
-        only: :keep,
-        check: :boolean
-      ],
-      # no aliases for global options!
-      aliases: []
-    ]
-
-    defstruct schema: [],
-              defaults: [],
-              aliases: [],
-              composes: [],
-              only: nil,
-              installs: [],
-              adds_deps: [],
-              positional: [],
-              example: nil,
-              extra_args?: false
-
-    @type t :: %__MODULE__{
-            schema: Keyword.t(),
-            defaults: Keyword.t(),
-            aliases: Keyword.t(),
-            composes: [String.t()],
-            only: [atom()] | nil,
-            positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
-            installs: [{atom(), String.t()}],
-            adds_deps: [{atom(), String.t()}],
-            example: String.t() | nil,
-            extra_args?: boolean()
-          }
-
-    def global_options, do: @global_options
-  end
 
   @doc """
   Returns an `Igniter.Mix.Task.Info` struct, with information used when running the igniter task.

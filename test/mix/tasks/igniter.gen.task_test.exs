@@ -51,6 +51,8 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
               composes: [],
               # `OptionParser` schema
               schema: [],
+              # Default values for the options in the `schema`.
+              defaults: [],
               # CLI aliases
               aliases: []
             }
@@ -124,6 +126,8 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
                 composes: [],
                 # `OptionParser` schema
                 schema: [],
+                # Default values for the options in the `schema`.
+                defaults: [],
                 # CLI aliases
                 aliases: []
               }
