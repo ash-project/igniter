@@ -34,7 +34,7 @@ defmodule Igniter.Code.ModuleTest do
           end
         end
       """)
-      |> Igniter.Code.Module.find_and_update_or_create_module(
+      |> Igniter.Project.Module.find_and_update_or_create_module(
         Foo.Bar.Baz,
         """
         20
@@ -65,7 +65,7 @@ defmodule Igniter.Code.ModuleTest do
       defmodule Foo.Bar do
       end
       """)
-      |> Igniter.Code.Module.find_and_update_or_create_module(
+      |> Igniter.Project.Module.find_and_update_or_create_module(
         Foo.Bar.Baz,
         """
         20
@@ -97,7 +97,7 @@ defmodule Igniter.Code.ModuleTest do
       defmodule Foo.Bar.Something do
       end
       """)
-      |> Igniter.Code.Module.find_and_update_or_create_module(
+      |> Igniter.Project.Module.find_and_update_or_create_module(
         Foo.Bar,
         """
         20
@@ -124,14 +124,14 @@ defmodule Igniter.Code.ModuleTest do
     test "finds all elixir files but ignores all other files" do
       igniter =
         test_project()
-        |> Igniter.Code.Module.create_module(Foo, """
+        |> Igniter.Project.Module.create_module(Foo, """
         defmodule Foo do
         end
         """)
         |> Igniter.create_new_file("test.txt", "Foo")
 
       assert {_igniter, [Foo, Test, TestTest]} =
-               Igniter.Code.Module.find_all_matching_modules(igniter, fn _module, _zipper ->
+               Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, _zipper ->
                  true
                end)
     end

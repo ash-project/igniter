@@ -166,7 +166,14 @@ defmodule Igniter.Project.Module do
   end
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
+  @deprecated "Use `module_exists/2` instead."
   def module_exists?(igniter, module_name) do
+    module_exists(igniter, module_name)
+  end
+
+  @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
+  @spec module_exists(Igniter.t(), module()) :: {boolean(), Igniter.t()}
+  def module_exists(igniter, module_name) do
     case find_module(igniter, module_name) do
       {:ok, {igniter, _, _}} -> {true, igniter}
       {:error, igniter} -> {false, igniter}

@@ -26,7 +26,7 @@ defmodule Igniter.Code.Module do
 
   @doc "The module name prefix based on the mix project's module name"
   @spec module_name_prefix(Igniter.t()) :: module()
-  # TODO: deprecate
+  @deprecated "Use `Igniter.Project.Module.module_name_prefix/1` instead"
   def module_name_prefix(igniter) do
     Igniter.Project.Module.module_name_prefix(igniter)
   end
@@ -131,7 +131,7 @@ defmodule Igniter.Code.Module do
 
   - `:path` - Path where to create the module, relative to the project root. Default: `nil` (uses `:kind` to determine the path).
   """
-  # TODO: Deprecate
+  @deprecated "Use `Igniter.Project.Module.find_and_update_or_create_module/5` instead"
   def find_and_update_or_create_module(igniter, module_name, contents, updater, opts \\ []) do
     Igniter.Project.Module.find_and_update_or_create_module(
       igniter,
@@ -162,18 +162,18 @@ defmodule Igniter.Code.Module do
   end
 
   @doc "Creates a new file & module in its appropriate location."
-  # TODO: deprecate
+  @deprecated "Use `Igniter.Project.Module.create_module/4` instead"
   def create_module(igniter, module_name, contents, opts \\ []) do
     Igniter.Project.Module.create_module(igniter, module_name, contents, opts)
   end
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
-  # TODO: Deprecate
+  @deprecated "Use `Igniter.Project.Module.module_exists/2` instead"
   def module_exists?(igniter, module_name) do
-    Igniter.Project.Module.module_exists?(igniter, module_name)
+    Igniter.Project.Module.module_exists(igniter, module_name)
   end
 
-  # TODO: deprecate
+  @deprecated "Use `Igniter.Project.Module.find_and_update_module!/3` instead"
   def find_and_update_module!(igniter, module_name, updater) do
     Igniter.Project.Module.find_and_update_module!(igniter, module_name, updater)
   end
@@ -181,7 +181,7 @@ defmodule Igniter.Code.Module do
   @doc "Finds a module and updates its contents. Returns `{:error, igniter}` if the module could not be found. Do not discard this igniter."
   @spec find_and_update_module(Igniter.t(), module(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
           {:ok, Igniter.t()} | {:error, Igniter.t()}
-  # TODO: deprecate
+  @deprecated "Use `Igniter.Project.Module.find_and_update_module/3` instead"
   def find_and_update_module(igniter, module_name, updater) do
     Igniter.Project.Module.find_and_update_module(igniter, module_name, updater)
   end
@@ -194,7 +194,7 @@ defmodule Igniter.Code.Module do
   """
   @spec find_module(Igniter.t(), module()) ::
           {:ok, {Igniter.t(), Rewrite.Source.t(), Zipper.t()}} | {:error, Igniter.t()}
-  # TODO deprecate
+  @deprecated "Use `Igniter.Project.Module.find_module/2` instead"
   def find_module(igniter, module_name) do
     Igniter.Project.Module.find_module(igniter, module_name)
   end
@@ -206,14 +206,14 @@ defmodule Igniter.Code.Module do
   """
   @spec find_module!(Igniter.t(), module()) ::
           {Igniter.t(), Rewrite.Source.t(), Zipper.t()} | no_return
-  # TODO deprecate
+  @deprecated "Use `Igniter.Project.Module.find_module!/2` instead"
   def find_module!(igniter, module_name) do
     Igniter.Project.Module.find_module!(igniter, module_name)
   end
 
   @spec find_all_matching_modules(igniter :: Igniter.t(), (module(), Zipper.t() -> boolean)) ::
           {Igniter.t(), [module()]}
-  # TODO: deprecate
+  @deprecated "Use `Igniter.Project.Module.find_all_matching_modules/2` instead"
   def find_all_matching_modules(igniter, predicate) do
     Igniter.Project.Module.find_all_matching_modules(igniter, predicate)
   end
@@ -227,7 +227,7 @@ defmodule Igniter.Code.Module do
 
   @doc "Given a suffix, returns a module name with the prefix of the current project."
   @spec module_name(Igniter.t(), String.t()) :: module()
-  # TODO: deprecate
+  @deprecated "Use `Igniter.Project.Module.module_name/2` instead."
   def module_name(igniter, suffix) do
     Igniter.Project.Module.module_name(igniter, suffix)
   end

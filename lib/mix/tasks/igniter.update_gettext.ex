@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
 
   defp rewrite_imports(igniter, rewriting_module) do
     {igniter, modules} =
-      Igniter.Code.Module.find_all_matching_modules(igniter, fn _module, zipper ->
+      Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, zipper ->
         match?(
           {:ok, _},
           Igniter.Code.Common.move_to(zipper, fn zipper ->
@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
       end)
 
     Enum.reduce(modules, igniter, fn module, igniter ->
-      Igniter.Code.Module.find_and_update_module!(igniter, module, fn zipper ->
+      Igniter.Project.Module.find_and_update_module!(igniter, module, fn zipper ->
         Igniter.Code.Common.update_all_matches(zipper, &import?(&1, rewriting_module), fn _ ->
           {:code,
            quote do
@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
   end
 
   defp find_use_gettext_modules(igniter) do
-    Igniter.Code.Module.find_all_matching_modules(igniter, fn _module, zipper ->
+    Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, zipper ->
       case Igniter.Code.Module.move_to_use(zipper, Gettext) do
         {:ok, _zipper} -> true
         _ -> false
@@ -63,7 +63,7 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
   end
 
   defp use_gettext_backend(igniter, module) do
-    Igniter.Code.Module.find_and_update_module!(igniter, module, fn zipper ->
+    Igniter.Project.Module.find_and_update_module!(igniter, module, fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_use(zipper, Gettext),
            {:ok, zipper} <-
              Igniter.Code.Function.update_nth_argument(zipper, 0, fn zipper ->

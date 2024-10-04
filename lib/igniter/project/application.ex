@@ -111,7 +111,7 @@ defmodule Igniter.Project.Application do
   def add_new_child(igniter, to_supervise, opts \\ []) do
     to_perform =
       case app_module(igniter) do
-        nil -> {:create_an_app, Igniter.Code.Module.module_name(igniter, "Application")}
+        nil -> {:create_an_app, Igniter.Project.Module.module_name(igniter, "Application")}
         {mod, _} -> {:modify, mod}
         mod -> {:modify, mod}
       end
@@ -267,7 +267,7 @@ defmodule Igniter.Project.Application do
 
   def create_application_file(igniter, application) do
     path = Igniter.Project.Module.proper_location(igniter, application)
-    supervisor = Igniter.Code.Module.module_name(igniter, "Supervisor")
+    supervisor = Igniter.Project.Module.module_name(igniter, "Supervisor")
 
     contents = """
     defmodule #{inspect(application)} do

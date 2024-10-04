@@ -76,7 +76,7 @@ defmodule Igniter.Extensions.Phoenix do
         potential_controller_module =
           Module.concat([base | rest] ++ [type <> "Controller"])
 
-        {exists?, _} = Igniter.Code.Module.module_exists?(igniter, potential_controller_module)
+        {exists?, _} = Igniter.Project.Module.module_exists(igniter, potential_controller_module)
 
         if List.last(split) == "ErrorHTML" ||
              (exists? && Igniter.Libs.Phoenix.controller?(igniter, potential_controller_module)) do
@@ -132,7 +132,7 @@ defmodule Igniter.Extensions.Phoenix do
         potential_controller_module =
           Module.concat([base | rest] ++ [type <> "Controller"])
 
-        {exists?, _} = Igniter.Code.Module.module_exists?(igniter, potential_controller_module)
+        {exists?, _} = Igniter.Project.Module.module_exists(igniter, potential_controller_module)
 
         if List.last(split) == "ErrorJSON" ||
              (exists? && Igniter.Libs.Phoenix.controller?(igniter, potential_controller_module)) do

@@ -7,7 +7,7 @@ defmodule Igniter.Libs.Phoenix do
   @spec web_module_name() :: module()
   @deprecated "Use `web_module/0` instead."
   def web_module_name do
-    Module.concat([inspect(Igniter.Code.Module.module_name_prefix(Igniter.new())) <> "Web"])
+    Module.concat([inspect(Igniter.Project.Module.module_name_prefix(Igniter.new())) <> "Web"])
   end
 
   @doc """
@@ -15,13 +15,13 @@ defmodule Igniter.Libs.Phoenix do
   """
   @spec web_module(Igniter.t()) :: module()
   def web_module(igniter) do
-    Module.concat([inspect(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web"])
+    Module.concat([inspect(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
   @doc "Returns `true` if the module is a Phoenix HTML module"
   @spec html?(Igniter.t(), module()) :: boolean()
   def html?(igniter, module) do
-    zipper = elem(Igniter.Code.Module.find_module!(igniter, module), 2)
+    zipper = elem(Igniter.Project.Module.find_module!(igniter, module), 2)
 
     case Igniter.Code.Common.move_to(zipper, fn zipper ->
            if Igniter.Code.Function.function_call?(zipper, :use, 2) do
@@ -42,7 +42,7 @@ defmodule Igniter.Libs.Phoenix do
   @doc "Returns `true` if the module is a Phoenix controller"
   @spec controller?(Igniter.t(), module()) :: boolean()
   def controller?(igniter, module) do
-    zipper = elem(Igniter.Code.Module.find_module!(igniter, module), 2)
+    zipper = elem(Igniter.Project.Module.find_module!(igniter, module), 2)
 
     case Igniter.Code.Common.move_to(zipper, fn zipper ->
            if Igniter.Code.Function.function_call?(zipper, :use, 2) do
@@ -66,7 +66,10 @@ defmodule Igniter.Libs.Phoenix do
   @spec web_module_name(String.t()) :: module()
   @deprecated "Use `web_module_name/2` instead."
   def web_module_name(suffix) do
-    Module.concat(inspect(Igniter.Code.Module.module_name_prefix(Igniter.new())) <> "Web", suffix)
+    Module.concat(
+      inspect(Igniter.Project.Module.module_name_prefix(Igniter.new())) <> "Web",
+      suffix
+    )
   end
 
   @doc """
@@ -74,14 +77,14 @@ defmodule Igniter.Libs.Phoenix do
   """
   @spec web_module_name(Igniter.t(), String.t()) :: module()
   def web_module_name(igniter, suffix) do
-    Module.concat(inspect(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web", suffix)
+    Module.concat(inspect(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web", suffix)
   end
 
   @doc "Gets the list of endpoints that use a given router"
   @spec endpoints_for_router(igniter :: Igniter.t(), router :: module()) ::
           {Igniter.t(), list(module())}
   def endpoints_for_router(igniter, router) do
-    Igniter.Code.Module.find_all_matching_modules(igniter, fn _module, zipper ->
+    Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, zipper ->
       with {:ok, _} <- Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint),
            {:ok, _} <-
              Igniter.Code.Function.move_to_function_call_in_current_scope(
@@ -135,7 +138,7 @@ defmodule Igniter.Libs.Phoenix do
       end
 
     if router do
-      Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
         case move_to_scope_location(igniter, zipper) do
           {:ok, zipper, append_or_prepend} ->
             {:ok, Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)}
@@ -217,7 +220,7 @@ defmodule Igniter.Libs.Phoenix do
       end
 
     if router do
-      Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
         case move_to_matching_scope(zipper, route, opts) do
           {:ok, zipper} ->
             {:ok, Igniter.Code.Common.add_code(zipper, contents)}
@@ -272,7 +275,7 @@ defmodule Igniter.Libs.Phoenix do
     """
 
     if router do
-      Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
         Igniter.Code.Function.move_to_function_call_in_current_scope(
           zipper,
           :pipeline,
@@ -350,7 +353,7 @@ defmodule Igniter.Libs.Phoenix do
     """
 
     if router do
-      Igniter.Code.Module.find_and_update_module!(igniter, router, fn zipper ->
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
         Igniter.Code.Function.move_to_function_call(zipper, :pipeline, 2, fn zipper ->
           Igniter.Code.Function.argument_equals?(
             zipper,
@@ -412,36 +415,14 @@ defmodule Igniter.Libs.Phoenix do
         {igniter, router}
 
       {igniter, routers} ->
-        router_numbers =
-          routers
-          |> Enum.with_index()
-          |> Enum.map_join("\n", fn {router, index} ->
-            "#{index}. #{inspect(router)}"
-          end)
-
-        case String.trim(
-               Mix.shell().prompt(label <> "\n" <> router_numbers <> "\nInput router number ❯ ")
-             ) do
-          "" ->
-            select_router(igniter, label)
-
-          router ->
-            case Integer.parse(router) do
-              {int, ""} ->
-                {igniter, Enum.at(routers, int)}
-
-              _ ->
-                Mix.shell().info("Expected a number, got: #{router}")
-                select_router(igniter, label)
-            end
-        end
+        {igniter, Igniter.Util.IO.select(label, routers, display: &inspect/1)}
     end
   end
 
   @doc "Lists all routers found in the project."
   @spec list_routers(Igniter.t()) :: {Igniter.t(), [module()]}
   def list_routers(igniter) do
-    Igniter.Code.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
+    Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
       move_to_router_use(igniter, zipper) != :error
     end)
   end
@@ -520,7 +501,7 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   defp router_using(igniter) do
-    Module.concat([to_string(Igniter.Code.Module.module_name_prefix(igniter)) <> "Web"])
+    Module.concat([to_string(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
   defp using_a_webbish_module?(zipper) do
