@@ -143,7 +143,8 @@ defmodule Igniter.Code.Function do
   If an `{module, atom}` is provided, it matches functions called on the given module,
   taking into account any imports or aliases.
   """
-  @spec function_call?(Zipper.t(), atom | {module, atom}, arity :: integer | :any) :: boolean()
+  @spec function_call?(Zipper.t(), atom | {module, atom}, arity :: integer | :any | list(integer)) ::
+          boolean()
   def function_call?(zipper, name, arity \\ :any)
 
   def function_call?(%Zipper{} = zipper, name, arity) when is_atom(name) do
