@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.49](https://github.com/ash-project/igniter/compare/v0.3.48...v0.3.49) (2024-10-06)
+
+
+
+
+### Bug Fixes:
+
+* fix dialyzer spec
+
 ## [v0.3.48](https://github.com/ash-project/igniter/compare/v0.3.47...v0.3.48) (2024-10-04)
 
 
