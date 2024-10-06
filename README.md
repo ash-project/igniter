@@ -9,7 +9,7 @@
 
 Igniter is a code generation and project patching framework.
 
-For library authors, this is a tool kit for writing smarter generators that can semantically modify existing files, and all sorts of useful tools for doing so.
+For library authors, this is a tool kit for writing smarter generators that can semantically modify existing files.
 
 For end-users, this means `mix igniter.install <package>`, which will _add it to your mix.exs automatically_ and then run that library's installer if it has one. Even when libraries don't have an installer, or use igniter, this behavior makes it useful to keep around.
 
