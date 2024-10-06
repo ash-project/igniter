@@ -13,13 +13,9 @@ For library authors, this is a tool kit for writing smarter generators that can 
 
 For end-users, this means `mix igniter.install <package>`, which will _add it to your mix.exs automatically_ and then run that library's installer if it has one. Even when libraries don't have an installer, or use igniter, this behavior makes it useful to keep around.
 
-## State of the project
-
-This project is in early beta. There is _so much to add_! There are lots of DX/UX things to improve, but it does already provide some great utility. Contributions welcome!
-
 ## Limitations
 
-Right now, all files that are touched are formatted in their entirety. This may be a deal breaker for some users. I believe that we can solve this without changing the fundemental design of the project, but it is not a high priority in the early stages.
+Right now, all files that are touched are formatted in their entirety. This may be a deal breaker for some users. I believe that we can solve this without changing the fundemental design of the project, but it is not a high priority.
 
 ## Installation
 
