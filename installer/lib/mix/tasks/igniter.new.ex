@@ -164,7 +164,9 @@ defmodule Mix.Tasks.Igniter.New do
       install_args =
         Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
 
-      System.cmd("mix", ["igniter.install" | install_args], into: IO.stream())
+      Code.eval_file("mix.exs")
+
+      Mix.Task.run("igniter.install", install_args)
     end
 
     :ok
