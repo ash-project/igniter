@@ -6,10 +6,14 @@ defmodule Mix.Tasks.Igniter.New do
 
   All options are passed through to `mix new`, except for:
 
-  * `--install` - A comma-separated list of dependencies to install using `mix igniter.install` after creating the project.
+  * `--install` - A comma-separated list of dependencies to install using
+                  `mix igniter.install` after creating the project.
   * `--example` - Request example code to be added to the project when installing packages.
   * `--with` - The command to use instead of `new`, i.e `phx.new`
   * `--with-args` - Additional arguments to pass to the installer provided in `--with`
+  * `--yes` or `-y` - Skips confirmations during installers. The `-y` option cannot be applied
+                      to the `--with` command, as it may or may not support it. Use `--with-args`
+                      to provide arguments to that command.
 
   ## Options for `mix.new`
 
@@ -26,7 +30,7 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version Mix.Project.config()[:version]
+  @igniter_version "~> 0.3"
 
   @impl Mix.Task
   def run(argv) do
@@ -128,7 +132,7 @@ defmodule Mix.Tasks.Igniter.New do
         local = Path.join(["..", Path.relative_to_cwd(options[:local])])
         "path: #{inspect(local)}, override: true"
       else
-        inspect(version_requirement())
+        inspect(@igniter_version)
       end
 
     File.cd!(name)
@@ -161,8 +165,13 @@ defmodule Mix.Tasks.Igniter.New do
           "--example"
         end
 
+      yes =
+        if "--yes" in argv or "-y" in argv do
+          "--yes"
+        end
+
       install_args =
-        Enum.filter([Enum.join(install, ","), "--yes", example], & &1)
+        Enum.filter([Enum.join(install, ","), example, yes], & &1)
 
       Code.eval_file("mix.exs")
 
@@ -186,17 +195,5 @@ defmodule Mix.Tasks.Igniter.New do
       "start_permanent: Mix.env() == :prod,\n",
       "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
     )
-  end
-
-  defp version_requirement do
-    @igniter_version
-    |> Version.parse!()
-    |> case do
-      %Version{major: 0, minor: minor} ->
-        "~> 0.#{minor}"
-
-      %Version{major: major} ->
-        "~> #{major}.0"
-    end
   end
 end
