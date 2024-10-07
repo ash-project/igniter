@@ -910,7 +910,7 @@ defmodule Igniter do
               {"", _} ->
                 Igniter.assign(igniter, :prompt_on_git_changes?, false)
 
-              {"fatal: not a git repository", 128} ->
+              {"fatal: not a git repository" <> _, 128} ->
                 Igniter.assign(igniter, :prompt_on_git_changes?, false)
 
               {output, 0} ->
@@ -951,7 +951,7 @@ defmodule Igniter do
               {"", _} ->
                 message
 
-              {"fatal: not a git repository", 128} ->
+              {"fatal: not a git repository" <> _, 128} ->
                 message
 
               {output, 0} ->
