@@ -803,7 +803,7 @@ defmodule Igniter do
           result_of_dry_run
         else
           if opts[:yes] ||
-               Igniter.Util.IO.yes?(opts[:confirmation_message] || "Proceed with changes?") do
+               Igniter.Util.IO.yes?(message_with_git_warning(igniter, opts)) do
             igniter.rewrite
             |> Enum.any?(fn source ->
               Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
@@ -906,12 +906,23 @@ defmodule Igniter do
             igniter
 
           {_git, _} ->
-            case System.cmd("git", ["status", "-s", "--porcelain"]) do
+            case System.cmd("git", ["status", "-s", "--porcelain"], stderr_to_stdout: true) do
               {"", _} ->
                 Igniter.assign(igniter, :prompt_on_git_changes?, false)
 
-              _ ->
-                if Igniter.Util.IO.yes?("Uncommitted changes detected in the project. Continue?") do
+              {"fatal: not a git repository", 128} ->
+                Igniter.assign(igniter, :prompt_on_git_changes?, false)
+
+              {output, 0} ->
+                if Igniter.Util.IO.yes?("""
+                   #{IO.ANSI.red()} Uncommitted changes detected in the project. #{IO.ANSI.reset()}
+
+                   Output of `git status -s --porcelain`:
+
+                   #{output}
+
+                   Continue? You will be prompted again to accept the above changes.
+                   """) do
                   Igniter.assign(igniter, :prompt_on_git_changes?, false)
                 else
                   exit({:shutdown, 1})
@@ -920,6 +931,43 @@ defmodule Igniter do
         end
       else
         igniter
+      end
+    end
+  end
+
+  defp message_with_git_warning(igniter, opts) do
+    message = opts[:message] || "Proceed with changes?"
+
+    if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
+      message
+    else
+      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
+        case System.cmd("which", ["git"]) do
+          {"", _} ->
+            message
+
+          {_git, _} ->
+            case System.cmd("git", ["status", "-s", "--porcelain"], stderr_to_stdout: true) do
+              {"", _} ->
+                message
+
+              {"fatal: not a git repository", 128} ->
+                message
+
+              {output, 0} ->
+                """
+                #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
+
+                Output of `git status -s --porcelain`:
+
+                #{output}
+
+                #{message}
+                """
+            end
+        end
+      else
+        message
       end
     end
   end
