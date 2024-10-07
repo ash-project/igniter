@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.50](https://github.com/ash-project/igniter/compare/v0.3.49...v0.3.50) (2024-10-07)
+
+
+
+
+### Improvements:
+
+* don't warn on missing installers that aren't actually missing
+
 ## [v0.3.49](https://github.com/ash-project/igniter/compare/v0.3.48...v0.3.49) (2024-10-06)
 
 
