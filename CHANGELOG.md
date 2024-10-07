@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.52](https://github.com/ash-project/igniter/compare/v0.3.51...v0.3.52) (2024-10-07)
+
+
+
+
+### Improvements:
+
+* properly warn on git changes before committing
+
 ## [v0.3.51](https://github.com/ash-project/igniter/compare/v0.3.50...v0.3.51) (2024-10-07)
 
 
