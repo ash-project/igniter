@@ -38,18 +38,23 @@ defmodule Mix.Tasks.Igniter.New do
           name
 
         _ ->
-          raise ArgumentError, """
+          Mix.shell().error("""
           Required positional argument missing: project_name.
 
           Usage:
 
               mix igniter.new project_name [options]
-          """
+          """)
+
+          exit({:shutdown, 1})
       end
 
     if String.starts_with?(name, "-") do
-      raise ArgumentError,
-            "The first positional argument must be a project name that starts with a dash, got: #{name}"
+      Mix.shell().error("""
+      The first positional argument must be a project name that starts with a dash, got: #{name}
+      """)
+
+      exit({:shutdown, 1})
     end
 
     {options, _argv, _errors} =
@@ -70,7 +75,9 @@ defmodule Mix.Tasks.Igniter.New do
     install_with = options[:with] || "new"
 
     if String.match?(install_with, ~r/\s/) do
-      raise ArgumentError, "The --with option must not contain any spaces, got: #{install_with}"
+      Mix.shell().error("The --with option must not contain any spaces, got: #{install_with}")
+
+      exit({:shutdown, 1})
     end
 
     install =

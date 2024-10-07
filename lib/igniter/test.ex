@@ -138,6 +138,13 @@ defmodule Igniter.Test do
       compare_patch =
         Igniter.Test.sanitize_diff(patch, diff)
 
+      compare_diff =
+        if Igniter.Test.has_line_numbers?(compare_patch) do
+          compare_diff
+        else
+          Igniter.Test.remove_line_numbers(compare_diff)
+        end
+
       assert String.contains?(compare_diff, compare_patch),
              """
              Expected `#{path}` to contain the following patch:
@@ -181,6 +188,30 @@ defmodule Igniter.Test do
 
       igniter
     end
+  end
+
+  @doc false
+  def has_line_numbers?(patch) do
+    patch
+    |> String.split("\n")
+    |> Enum.any?(fn line ->
+      case Integer.parse(String.trim(line)) do
+        :error ->
+          false
+
+        _ ->
+          true
+      end
+    end)
+  end
+
+  @doc false
+  def remove_line_numbers(diff) do
+    diff
+    |> String.split("\n")
+    |> Enum.map_join("\n", fn line ->
+      String.replace(String.trim(line), ~r/^\d+/, "")
+    end)
   end
 
   @doc false
