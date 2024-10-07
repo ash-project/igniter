@@ -119,9 +119,7 @@ defmodule Igniter.Util.Install do
     end
 
     installing
-    |> Enum.map(&"#{&1}.install")
     |> Enum.filter(&(&1 not in available_tasks))
-    |> Enum.map(&String.trim_trailing(&1, ".install"))
     |> case do
       [] ->
         :ok

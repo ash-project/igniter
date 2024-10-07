@@ -31,7 +31,13 @@ defmodule Mix.Tasks.Igniter.Install do
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
     Mix.Task.run("compile")
-    {packages, argv} = Enum.split_while(argv, fn arg -> !String.starts_with?(arg, "-") end)
+
+    {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+
+    packages =
+      positional
+      |> Enum.join(",")
+      |> String.split(",", trim: true)
 
     if Enum.empty?(packages) do
       raise ArgumentError, "must provide at least one package to install"
