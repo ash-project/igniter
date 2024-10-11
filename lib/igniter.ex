@@ -951,9 +951,6 @@ defmodule Igniter do
               {"", _} ->
                 message
 
-              {"fatal: not a git repository" <> _, 128} ->
-                message
-
               {output, 0} ->
                 """
                 #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
@@ -964,6 +961,9 @@ defmodule Igniter do
 
                 #{message}
                 """
+
+              _ ->
+                message
             end
         end
       else
