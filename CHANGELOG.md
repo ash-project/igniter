@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.56](https://github.com/ash-project/igniter/compare/v0.3.55...v0.3.56) (2024-10-11)
+
+
+
+
+### Improvements:
+
+* support required arguments in the info schema
+
 ## [v0.3.55](https://github.com/ash-project/igniter/compare/v0.3.54...v0.3.55) (2024-10-11)
 
 
