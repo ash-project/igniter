@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
   """
 
   def info(_argv, _source) do
-    %Igniter.Mix.Task.Info{}
+    %Igniter.Mix.Task.Info{group: :igniter}
   end
 
   def igniter(igniter, _argv) do

@@ -20,6 +20,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
   def info(_argv, _source) do
     %Igniter.Mix.Task.Info{
+      group: :igniter,
       example: @example,
       positional: [:task_name],
       schema: [optional: :boolean],
@@ -34,11 +35,13 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
     module_name = Module.concat(Mix.Tasks, Mix.Utils.command_to_module_name(to_string(task_name)))
 
+    app_name = Igniter.Project.Application.app_name(igniter)
+
     contents =
       if options[:optional] do
-        optional_template(module_name, task_name)
+        optional_template(module_name, task_name, app_name)
       else
-        template(module_name, task_name)
+        template(module_name, task_name, app_name)
       end
 
     file = "lib/mix/tasks/#{task_name}.ex"
@@ -53,7 +56,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
     end
   end
 
-  defp template(module_name, task_name) do
+  defp template(module_name, task_name, app_name) do
     """
     defmodule #{inspect(module_name)} do
       use Igniter.Mix.Task
@@ -79,6 +82,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
       def info(_argv, _composing_task) do
         %Igniter.Mix.Task.Info{
+          # Groups allow for overlapping arguments for tasks by the same author
+          # See the installers guide for more.
+          group: #{inspect(app_name)},
           # dependencies to add
           adds_deps: [],
           # dependencies to add and call their associated installers, if they exist
@@ -120,7 +126,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
     """
   end
 
-  defp optional_template(module_name, task_name) do
+  defp optional_template(module_name, task_name, app_name) do
     """
     defmodule #{inspect(module_name)} do
       @example "mix #{task_name} --example arg"
@@ -151,6 +157,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
         def info(_argv, _composing_task) do
           %Igniter.Mix.Task.Info{
+            # Groups allow for overlapping arguments for tasks by the same author
+            # See the installers guide for more.
+            group: #{inspect(app_name)},
             # dependencies to add
             adds_deps: [],
             # dependencies to add and call their associated installers, if they exist

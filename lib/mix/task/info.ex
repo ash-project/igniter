@@ -43,26 +43,34 @@ defmodule Igniter.Mix.Task.Info do
             defaults: [],
             required: [],
             aliases: [],
+            group: nil,
             composes: [],
             only: nil,
             installs: [],
             adds_deps: [],
             positional: [],
             example: nil,
-            extra_args?: false
+            extra_args?: false,
+            # Used internally
+            flag_conflicts: %{},
+            alias_conflicts: %{}
 
   @type t :: %__MODULE__{
           schema: Keyword.t(),
           defaults: Keyword.t(),
           required: [atom()],
           aliases: Keyword.t(),
+          group: atom | nil,
           composes: [String.t()],
           only: [atom()] | nil,
           positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
           installs: [{atom(), String.t()}],
           adds_deps: [{atom(), String.t()}],
           example: String.t() | nil,
-          extra_args?: boolean()
+          extra_args?: boolean(),
+          # used internally
+          flag_conflicts: %{optional(atom) => list(String.t())},
+          alias_conflicts: %{optional(atom) => list(String.t())}
         }
 
   def global_options, do: @global_options

@@ -12,6 +12,12 @@ defmodule Igniter.Util.Info do
         opts,
         acc \\ []
       ) do
+    schema = %{
+      schema
+      | flag_conflicts: flag_groups(schema, task_name),
+        alias_conflicts: alias_groups(schema, task_name)
+    }
+
     schema = recursively_compose_schema(schema, argv, task_name, opts)
 
     case schema.installs do
@@ -23,6 +29,8 @@ defmodule Igniter.Util.Info do
             opts
           )
           |> Igniter.apply_and_fetch_dependencies(opts)
+
+        raise_on_conflicts!(schema, argv)
 
         {igniter, Enum.uniq(acc), validate!(argv, schema, task_name)}
 
@@ -49,6 +57,75 @@ defmodule Igniter.Util.Info do
           Keyword.delete(opts, :only),
           acc ++ install_names
         )
+    end
+  end
+
+  defp raise_on_conflicts!(schema, argv) do
+    flag_conflicts =
+      schema.flag_conflicts
+      |> Map.drop(Keyword.keys(Igniter.Mix.Task.Info.global_options()[:switches]))
+      |> Enum.filter(fn {_, list} ->
+        Enum.count(list) > 1
+      end)
+      |> Map.new(fn {k, v} ->
+        {"--" <> String.replace(to_string(k), "_", "-"), v}
+      end)
+
+    alias_conflicts =
+      schema.alias_conflicts
+      |> Map.drop(Keyword.keys(Igniter.Mix.Task.Info.global_options()[:aliases]))
+      |> Enum.flat_map(fn {k, list} ->
+        case Enum.uniq_by(list, &elem(&1, 0)) do
+          [] -> []
+          [_] -> []
+          list -> [{k, Enum.uniq(Enum.map(list, &elem(&1, 1)))}]
+        end
+      end)
+      |> Map.new(fn {k, v} ->
+        {"-" <> String.replace(to_string(k), "_", "-"), v}
+      end)
+
+    if Enum.empty?(flag_conflicts) and Enum.empty?(alias_conflicts) do
+      :ok
+    else
+      Enum.each(argv, fn arg ->
+        cond do
+          conflicting = flag_conflicts[arg] ->
+            Mix.shell().error("""
+            Ambiguous flag provided.
+
+            The tasks or task groups `#{Enum.join(conflicting, ", ")}` both define the flag `#{arg}`.
+
+            To disambiguate, provide the arg as `--<prefix>.#{String.trim_leading(arg, "--")}`,
+            where `<prefix>` is the task or task group name.
+
+            For example:
+
+            --#{Enum.at(conflicting, 0)}.#{String.trim_leading(arg, "--")}
+            """)
+
+            exit({:shutdown, 2})
+
+          conflicting = alias_conflicts[arg] ->
+            Mix.shell().error("""
+            Ambiguous flag provided.
+
+            The tasks or task groups `#{Enum.join(conflicting, ", ")}` both define the flag `#{arg}`.
+
+            To disambiguate, provide the arg as `-<prefix>.#{String.trim_leading(arg, "-")}`,
+            where `<prefix>` is the task or task group name.
+
+            For example:
+
+            --#{Enum.at(conflicting, 0)}.#{String.trim_leading(arg, "-")}
+            """)
+
+            exit({:shutdown, 2})
+
+          true ->
+            :ok
+        end
+      end)
     end
   end
 
@@ -97,6 +174,10 @@ defmodule Igniter.Util.Info do
   def validate!(_argv, nil, _task_name), do: {[], []}
 
   def validate!(argv, schema, task_name) do
+    group = group(schema, task_name)
+
+    argv = args_for_group(argv, group)
+
     merged_schema = recursively_compose_schema(schema, argv, task_name, [])
 
     options_key =
@@ -113,6 +194,43 @@ defmodule Igniter.Util.Info do
         {:aliases, merged_schema.aliases || []}
       ]
     )
+  end
+
+  @doc false
+  def args_for_group(argv, group) do
+    case argv do
+      ["-" <> ^group <> "." <> actual_arg, "-" <> v2 | rest] ->
+        ["-" <> actual_arg] ++ args_for_group(["-" <> v2 | rest], group)
+
+      ["--" <> ^group <> "." <> actual_arg, "-" <> v2 | rest] ->
+        ["--" <> actual_arg] ++ args_for_group(["-" <> v2 | rest], group)
+
+      ["-" <> ^group <> "." <> actual_arg, v2 | rest] ->
+        ["-" <> actual_arg, v2] ++ args_for_group(rest, group)
+
+      ["--" <> ^group <> "." <> actual_arg, v2 | rest] ->
+        ["--" <> actual_arg, v2] ++ args_for_group(rest, group)
+
+      ["-" <> v, "-" <> v2 | rest] ->
+        if String.contains?(v, ".") do
+          args_for_group(["-" <> v2 | rest], group)
+        else
+          ["-" <> v] ++ args_for_group(["-" <> v2 | rest], group)
+        end
+
+      [v, next | rest] ->
+        if String.contains?(v, ".") do
+          args_for_group(rest, group)
+        else
+          [v, next] ++ args_for_group(rest, group)
+        end
+
+      [v] ->
+        [v]
+
+      [] ->
+        []
+    end
   end
 
   defp recursively_compose_schema(%Info{composes: []} = schema, _argv, _parent, _opts), do: schema
@@ -136,17 +254,15 @@ defmodule Igniter.Util.Info do
           | schema:
               merge_schemas(
                 schema.schema,
-                composing_schema.schema,
-                parent,
-                composing_task_name
+                composing_schema.schema
               ),
             aliases:
               merge_aliases(
                 schema.aliases,
-                composing_schema.aliases,
-                parent,
-                composing_task_name
+                composing_schema.aliases
               ),
+            flag_conflicts: flag_conflicts(schema, composing_schema, composing_task_name),
+            alias_conflicts: alias_conflicts(schema, composing_schema, composing_task_name),
             composes: rest,
             extra_args?: schema.extra_args? || composing_schema.extra_args?,
             installs: Keyword.merge(composing_schema.installs, schema.installs),
@@ -169,39 +285,53 @@ defmodule Igniter.Util.Info do
     end
   end
 
-  defp merge_schemas(schema, composing_schema, task, composing_task) do
+  defp flag_conflicts(schema, composing_schema, composing_task_name) do
+    Map.merge(
+      schema.flag_conflicts,
+      flag_groups(composing_schema, composing_task_name),
+      fn _key, schema_value, composing_value ->
+        Enum.uniq(schema_value ++ composing_value)
+      end
+    )
+  end
+
+  defp alias_conflicts(schema, composing_schema, composing_task_name) do
+    Map.merge(
+      schema.alias_conflicts,
+      alias_groups(composing_schema, composing_task_name),
+      fn _key, schema_value, composing_value ->
+        Enum.uniq(schema_value ++ composing_value)
+      end
+    )
+  end
+
+  @doc false
+  def group(%{group: group}, _task_name) when not is_nil(group), do: to_string(group)
+  def group(_, task_name), do: String.replace(task_name, "_", "-")
+
+  defp merge_schemas(schema, composing_schema) do
     schema = schema || []
     composing_schema = composing_schema || []
 
-    Keyword.merge(composing_schema, schema, fn key, composing_value, schema_value ->
-      if composing_value != schema_value do
-        Logger.warning("""
-        #{composing_task} has a different configuration for argument: #{key}. Using #{task}'s configuration.
-
-        #{composing_task}: #{composing_value}
-        #{task}: #{schema_value}
-        """)
-      end
-
-      schema_value
-    end)
+    Keyword.merge(composing_schema, schema)
   end
 
-  defp merge_aliases(aliases, composing_aliases, task, composing_task) do
+  defp merge_aliases(aliases, composing_aliases) do
     aliases = aliases || []
     composing_aliases = composing_aliases || []
 
-    Keyword.merge(composing_aliases, aliases, fn key, composing_value, schema_value ->
-      if composing_value != schema_value do
-        Logger.warning("""
-        #{composing_task} has a different configuration for alias: #{key}. Using #{task}'s configuration.
+    Keyword.merge(composing_aliases, aliases)
+  end
 
-        #{composing_task}: #{composing_value}
-        #{task}: #{schema_value}
-        """)
-      end
+  defp flag_groups(schema, task_name) do
+    Map.new(schema.schema, fn {k, _} ->
+      {k, [group(schema, task_name)]}
+    end)
+  end
 
-      schema_value
+  defp alias_groups(schema, task_name) do
+    Map.new(schema.aliases, fn {k, v} ->
+      {k, [{v, group(schema, task_name)}]}
     end)
   end
 end

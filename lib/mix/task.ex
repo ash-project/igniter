@@ -31,6 +31,8 @@ defmodule Igniter.Mix.Task do
   @callback info(argv :: list(String.t()), composing_task :: nil | String.t()) ::
               Info.t()
 
+  @callback installer?() :: boolean()
+
   defmacro __using__(_opts) do
     quote do
       use Mix.Task
@@ -62,24 +64,18 @@ defmodule Igniter.Mix.Task do
         |> Igniter.do_or_dry_run(opts)
       end
 
+      @impl true
+      def installer?, do: __MODULE__ |> Mix.Task.task_name() |> String.ends_with?(".install")
+
       @impl Igniter.Mix.Task
       def supports_umbrella?, do: false
 
       @impl Igniter.Mix.Task
       def info(argv, source) do
-        require Logger
-
-        if source && source != "igniter.install" do
-          Logger.warning("""
-          The task #{Mix.Task.task_name(__MODULE__)} is being composed by #{source}, but it does not declare an option schema.
-          Therefore, all options will be allowed. Tasks that may be composed should define `info/2`.
-          """)
-        end
-
         %Info{extra_args?: true}
       end
 
-      defoverridable supports_umbrella?: 0, info: 2
+      defoverridable supports_umbrella?: 0, info: 2, installer?: 0
     end
   end
 
@@ -92,6 +88,8 @@ defmodule Igniter.Mix.Task do
       task_name = Mix.Task.task_name(__MODULE__)
 
       info = info(argv, task_name)
+
+      argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
 
       {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
       with_defaults = Keyword.merge(info.defaults, parsed)

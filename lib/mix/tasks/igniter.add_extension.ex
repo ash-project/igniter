@@ -20,6 +20,7 @@ defmodule Mix.Tasks.Igniter.AddExtension do
 
   def info(_argv, _composing_task) do
     %Igniter.Mix.Task.Info{
+      group: :igniter,
       example: @example,
       positional: [:extension]
     }
