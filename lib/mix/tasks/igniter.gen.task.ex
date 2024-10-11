@@ -101,6 +101,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           defaults: [],
           # CLI aliases
           aliases: [],
+          # A list of options in the schema that are required
+          required: []
         }
       end
 
@@ -170,7 +172,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             # Default values for the options in the `schema`.
             defaults: [],
             # CLI aliases
-            aliases: []
+            aliases: [],
+            # A list of options in the schema that are required
+            required: []
           }
         end
 

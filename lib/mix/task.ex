@@ -94,7 +94,17 @@ defmodule Igniter.Mix.Task do
       info = info(argv, task_name)
 
       {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
-      Keyword.merge(info.defaults, parsed)
+      with_defaults = Keyword.merge(info.defaults, parsed)
+
+      Enum.each(info.required, fn option ->
+        if !with_defaults[option] do
+          Mix.shell().error(
+            "Missing required flag #{String.replace(to_string(option), "_", "-")} "
+          )
+        end
+      end)
+
+      with_defaults
     end
   end
 

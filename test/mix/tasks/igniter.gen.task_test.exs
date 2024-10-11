@@ -54,7 +54,9 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
               # Default values for the options in the `schema`.
               defaults: [],
               # CLI aliases
-              aliases: []
+              aliases: [],
+              # A list of options in the schema that are required
+              required: []
             }
           end
 
@@ -129,7 +131,9 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
                 # Default values for the options in the `schema`.
                 defaults: [],
                 # CLI aliases
-                aliases: []
+                aliases: [],
+                # A list of options in the schema that are required
+                required: []
               }
             end
 
