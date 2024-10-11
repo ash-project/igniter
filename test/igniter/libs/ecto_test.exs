@@ -65,5 +65,47 @@ defmodule Igniter.Libs.EctoTest do
       end
       """)
     end
+
+    test "it increments duplicates" do
+      test_project()
+      |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
+        body: """
+        def up do
+          "up"
+        end
+
+        def down do
+          "down"
+        end
+        """,
+        timestamp: 00
+      )
+      |> apply_igniter!()
+      |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
+        body: """
+        def up do
+          "up"
+        end
+
+        def down do
+          "down"
+        end
+        """,
+        timestamp: 00
+      )
+      |> assert_creates("priv/repo/migrations/0_create_users_1.exs", """
+      defmodule Example.Repo.Migrations.CreateUsers1 do
+        use Ecto.Migration
+
+        def up do
+          "up"
+        end
+
+        def down do
+          "down"
+        end
+      end
+      """)
+    end
   end
 end

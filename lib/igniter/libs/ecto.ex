@@ -18,6 +18,12 @@ defmodule Igniter.Libs.Ecto do
   - `:body` - the body of the migration
   - `:timestamp` - the timestamp to use for the migration.
      Primarily useful for testing so you know what the filename will be.
+  - `:on_exists` - what to do if the migration *module* already exists. Options are:
+    - `:increment` - Calls this function again, but with an increasing number at the end, until it finds a free name. (default)
+    - `:skip` - do nothing
+    - `:overwrite` - overwrites the file
+    - `{:error, error}` - adds an issue to the igniter that prevents writing and displays to the user
+    - `{:warning, warning}` - adds a warning to the igniter that allows writing but displays to the user
   """
   @spec gen_migration(Igniter.t(), repo :: module(), name :: String.t(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -34,6 +40,8 @@ defmodule Igniter.Libs.Ecto do
     base_name = "#{underscore(name)}.exs"
     file = Path.join(path, "#{opts[:timestamp] || timestamp()}_#{base_name}")
 
+    igniter = Igniter.include_glob(igniter, Path.join(path, "**/*.exs"))
+
     body =
       opts[:body] ||
         """
@@ -42,13 +50,57 @@ defmodule Igniter.Libs.Ecto do
         end
         """
 
-    Igniter.create_new_file(igniter, file, """
-    defmodule #{inspect(Module.concat([repo, Migrations, camelize(name)]))} do
-      use Ecto.Migration
+    module = Module.concat([repo, Migrations, camelize(name)])
 
-      #{body}
+    case Igniter.Project.Module.module_exists(igniter, module) do
+      {true, igniter} ->
+        case Keyword.get(opts, :on_exists, :increment) do
+          :skip ->
+            igniter
+
+          :increment ->
+            name
+            |> String.split("_", trim: true)
+            |> List.last()
+            |> Integer.parse()
+            |> case do
+              {integer, ""} when is_integer(integer) ->
+                gen_migration(igniter, repo, name <> "_#{integer + 1}", opts)
+
+              _ ->
+                gen_migration(igniter, repo, name <> "_1", opts)
+            end
+
+          :ovewrwrite ->
+            Igniter.create_new_file(
+              igniter,
+              file,
+              """
+              defmodule #{inspect(module)} do
+                use Ecto.Migration
+
+                #{body}
+              end
+              """,
+              on_exists: :overwrite
+            )
+
+          {:error, error} ->
+            Igniter.add_issue(igniter, error)
+
+          {:warning, error} ->
+            Igniter.add_warning(igniter, error)
+        end
+
+      {false, igniter} ->
+        Igniter.create_new_file(igniter, file, """
+        defmodule #{inspect(module)} do
+          use Ecto.Migration
+
+          #{body}
+        end
+        """)
     end
-    """)
   end
 
   @doc """
