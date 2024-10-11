@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.53](https://github.com/ash-project/igniter/compare/v0.3.52...v0.3.53) (2024-10-11)
+
+
+
+
+### Improvements:
+
+* add `on_exists` handling to `Igniter.Libs.Ecto.gen_migration`
+
 ## [v0.3.52](https://github.com/ash-project/igniter/compare/v0.3.51...v0.3.52) (2024-10-07)
 
 
