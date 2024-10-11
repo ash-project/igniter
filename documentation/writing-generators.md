@@ -55,6 +55,46 @@ igniter
 
 Igniter will look for a mix task called `your_library.install` when a user runs `mix igniter.install your_library`. As long as it has the correct name, it will be run automatically as part of installation!
 
+## Task Groups
+
+Igniter allows for _composing_ tasks, which means that many igniter tasks can be run in tandem. This happens automatically when using `mix igniter.install`, for example:
+`mix igniter.install package1 package2`. You can also do this manually by using `Igniter.compose_task/3`. See the example above.
+
+However, composing tasks means that sometimes a flag from one task may conflict with a flag from another task. Igniter will alert users when this happens, and ask them to
+prefix the option with your task name. For example, the user may see an error like this:
+
+```sh
+Ambiguous flag provided `--option`.
+
+The task or task groups `package1, package2` all define the flag `--option`.
+
+To disambiguate, provide the arg as `--<prefix>.option`,
+where `<prefix>` is the task or task group name.
+
+For example:
+
+`--package1.option`
+```
+
+It is not possible to prevent this from happening for all combinations of invocations of your task, but you can help by using a `group`.
+
+```elixir
+%Igniter.Mix.Task.Info{
+  group: :your_package,
+  ...
+}
+```
+
+Setting this group performs two functions:
+
+1. any tasks that share a group with eachother will be assumed that the same flag has the same meaning. That way,
+   users don't have to disambiguate when calling `mix igniter.install yourthing1 yourthing2 --option`, because it is assumed
+   to have the same meaning.
+2. it can provide a shorter/semantic name to type, i.e instead of `--ash-authentication-phoenix.install.domain` it could be just `--ash.domain`.
+
+By default the group name is the _full task name_. We suggest setting a group for all of your tasks.
+You should _not_ use a group name that is used by someone else, just like you should not use a module prefix used by someone else in general.
+
 ## Navigating the Igniter Codebase
 
 A large part of writing generators with igniter is leveraging our built-in suite of tools for working with zippers and AST, as well as our off-the-shelf patchers for making project modifications. The codebase is split up into four primary divisions:

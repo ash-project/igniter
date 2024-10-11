@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
           def info(_argv, _composing_task) do
             %Igniter.Mix.Task.Info{
               # Groups allow for overlapping arguments for tasks by the same author
-              # See the installers guide for more.
+              # See the generators guide for more.
               group: :test,
               # dependencies to add
               adds_deps: [],
@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
             def info(_argv, _composing_task) do
               %Igniter.Mix.Task.Info{
                 # Groups allow for overlapping arguments for tasks by the same author
-                # See the installers guide for more.
+                # See the generators guide for more.
                 group: :test,
                 # dependencies to add
                 adds_deps: [],

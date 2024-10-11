@@ -92,32 +92,32 @@ defmodule Igniter.Util.Info do
         cond do
           conflicting = flag_conflicts[arg] ->
             Mix.shell().error("""
-            Ambiguous flag provided.
+            Ambiguous flag provided: `#{arg}`
 
-            The tasks or task groups `#{Enum.join(conflicting, ", ")}` both define the flag `#{arg}`.
+            The tasks or task groups `#{Enum.join(conflicting, ", ")}` all define the flag `#{arg}`.
 
             To disambiguate, provide the arg as `--<prefix>.#{String.trim_leading(arg, "--")}`,
             where `<prefix>` is the task or task group name.
 
             For example:
 
-            --#{Enum.at(conflicting, 0)}.#{String.trim_leading(arg, "--")}
+            `--#{Enum.at(conflicting, 0)}.#{String.trim_leading(arg, "--")}`
             """)
 
             exit({:shutdown, 2})
 
           conflicting = alias_conflicts[arg] ->
             Mix.shell().error("""
-            Ambiguous flag provided.
+            Ambiguous flag provided: `#{arg}`
 
-            The tasks or task groups `#{Enum.join(conflicting, ", ")}` both define the flag `#{arg}`.
+            The tasks or task groups `#{Enum.join(conflicting, ", ")}` all define the flag `#{arg}`.
 
             To disambiguate, provide the arg as `-<prefix>.#{String.trim_leading(arg, "-")}`,
             where `<prefix>` is the task or task group name.
 
             For example:
 
-            --#{Enum.at(conflicting, 0)}.#{String.trim_leading(arg, "-")}
+            `--#{Enum.at(conflicting, 0)}.#{String.trim_leading(arg, "-")}`
             """)
 
             exit({:shutdown, 2})
