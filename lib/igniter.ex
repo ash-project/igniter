@@ -910,9 +910,6 @@ defmodule Igniter do
               {"", _} ->
                 Igniter.assign(igniter, :prompt_on_git_changes?, false)
 
-              {"fatal: not a git repository" <> _, 128} ->
-                Igniter.assign(igniter, :prompt_on_git_changes?, false)
-
               {output, 0} ->
                 if Igniter.Util.IO.yes?("""
                    #{IO.ANSI.red()} Uncommitted changes detected in the project. #{IO.ANSI.reset()}
@@ -927,6 +924,9 @@ defmodule Igniter do
                 else
                   exit({:shutdown, 1})
                 end
+
+              _ ->
+                Igniter.assign(igniter, :prompt_on_git_changes?, false)
             end
         end
       else
