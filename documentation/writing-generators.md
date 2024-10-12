@@ -87,7 +87,7 @@ It is not possible to prevent this from happening for all combinations of invoca
 
 Setting this group performs two functions:
 
-1. any tasks that share a group with eachother will be assumed that the same flag has the same meaning. That way,
+1. any tasks that share a group with each other will be assumed that the same flag has the same meaning. That way,
    users don't have to disambiguate when calling `mix igniter.install yourthing1 yourthing2 --option`, because it is assumed
    to have the same meaning.
 2. it can provide a shorter/semantic name to type, i.e instead of `--ash-authentication-phoenix.install.domain` it could be just `--ash.domain`.

@@ -47,7 +47,7 @@ mix igniter.new app_name --install ash --with phx.new --no-ecto
 
 ## Patterns
 
-Mix tasks built with igniter are both individually callable, _and_ composable. This means that tasks can call eachother, and also end users can create and customize their own generators composing existing tasks.
+Mix tasks built with igniter are both individually callable, _and_ composable. This means that tasks can call each other, and also end users can create and customize their own generators composing existing tasks.
 
 ### Installers
 
