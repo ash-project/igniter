@@ -901,33 +901,24 @@ defmodule Igniter do
       igniter
     else
       if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
-        case System.cmd("which", ["git"]) do
-          {"", _} ->
-            igniter
+        case check_git_status() do
+          {:dirty, output} ->
+            if Igniter.Util.IO.yes?("""
+               #{IO.ANSI.red()} Uncommitted changes detected in the project. #{IO.ANSI.reset()}
 
-          {_git, _} ->
-            case System.cmd("git", ["status", "-s", "--porcelain"], stderr_to_stdout: true) do
-              {"", _} ->
-                Igniter.assign(igniter, :prompt_on_git_changes?, false)
+               Output of `git status -s --porcelain`:
 
-              {output, 0} ->
-                if Igniter.Util.IO.yes?("""
-                   #{IO.ANSI.red()} Uncommitted changes detected in the project. #{IO.ANSI.reset()}
+               #{output}
 
-                   Output of `git status -s --porcelain`:
-
-                   #{output}
-
-                   Continue? You will be prompted again to accept the above changes.
-                   """) do
-                  Igniter.assign(igniter, :prompt_on_git_changes?, false)
-                else
-                  exit({:shutdown, 1})
-                end
-
-              _ ->
-                Igniter.assign(igniter, :prompt_on_git_changes?, false)
+               Continue? You will be prompted again to accept the above changes.
+               """) do
+              Igniter.assign(igniter, :prompt_on_git_changes?, false)
+            else
+              exit({:shutdown, 1})
             end
+
+          _ ->
+            Igniter.assign(igniter, :prompt_on_git_changes?, false)
         end
       else
         igniter
@@ -942,32 +933,23 @@ defmodule Igniter do
       message
     else
       if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
-        case System.cmd("which", ["git"]) do
-          {"", _} ->
+        case check_git_status() do
+          {:dirty, output} ->
+            """
+            #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
+
+            Output of `git status -s --porcelain`:
+
+            #{output}
+
+            #{message}
+            """
+
+          _ ->
             message
-
-          {_git, _} ->
-            case System.cmd("git", ["status", "-s", "--porcelain"], stderr_to_stdout: true) do
-              {"", _} ->
-                message
-
-              {output, 0} ->
-                """
-                #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
-
-                Output of `git status -s --porcelain`:
-
-                #{output}
-
-                #{message}
-                """
-
-              _ ->
-                message
-            end
         end
       else
-        message
+        igniter
       end
     end
   end
@@ -1539,5 +1521,21 @@ defmodule Igniter do
       #{Enum.map_join(igniter.tasks, "\n", fn {task, args} -> "* #{IO.ANSI.red()}#{task}#{IO.ANSI.yellow()} #{Enum.join(args, " ")}#{IO.ANSI.reset()}" end)}
       """)
     end
+  end
+
+  defp check_git_status do
+    case System.cmd("git", ["status", "-s", "--porcelain"], stderr_to_stdout: true) do
+      {"", _} ->
+        :clean
+
+      {output, 0} ->
+        {:dirty, output}
+
+      _ ->
+        :error
+    end
+  rescue
+    _ ->
+      :unavailable
   end
 end
