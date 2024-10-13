@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.58](https://github.com/ash-project/igniter/compare/v0.3.57...v0.3.58) (2024-10-13)
+
+
+
+
+### Bug Fixes:
+
+* don't assume the availabilit of `which`
+
 ## [v0.3.57](https://github.com/ash-project/igniter/compare/v0.3.56...v0.3.57) (2024-10-11)
 
 
