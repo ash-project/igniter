@@ -7,13 +7,13 @@ defmodule Mix.Tasks.Igniter.New do
   All options are passed through to `mix new`, except for:
 
   * `--install` - A comma-separated list of dependencies to install using
-                  `mix igniter.install` after creating the project.
+    `mix igniter.install` after creating the project.
   * `--example` - Request example code to be added to the project when installing packages.
   * `--with` - The command to use instead of `new`, i.e `phx.new`
   * `--with-args` - Additional arguments to pass to the installer provided in `--with`
   * `--yes` or `-y` - Skips confirmations during installers. The `-y` option cannot be applied
-                      to the `--with` command, as it may or may not support it. Use `--with-args`
-                      to provide arguments to that command.
+    to the `--with` command, as it may or may not support it. Use `--with-args`
+    to provide arguments to that command.
 
   ## Options for `mix.new`
 

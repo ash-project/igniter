@@ -29,7 +29,7 @@ defmodule Igniter.New.MixProject do
 
   def deps do
     [
-      {:ex_doc, "~> 0.24", only: :dev}
+      {:ex_doc, "~> 0.24", only: [:dev, :test], runtime: false}
     ]
   end
 
