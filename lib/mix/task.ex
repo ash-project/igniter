@@ -91,7 +91,54 @@ defmodule Igniter.Mix.Task do
 
       argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
 
+      schema =
+        Enum.map(info.schema, fn
+          {k, :csv} ->
+            {k, :keep}
+
+          {k, v} ->
+            {k, v}
+        end)
+
       {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
+
+      parsed =
+        info.schema
+        |> Enum.filter(fn {_, type} ->
+          type == :keep
+        end)
+        |> Enum.reduce(parsed, fn {k, _}, parsed ->
+          parsed_without = Keyword.delete(parsed, k)
+
+          values =
+            parsed
+            |> Keyword.get_values(k)
+            |> List.wrap()
+
+          Keyword.put(parsed_without, k, values)
+        end)
+
+      parsed =
+        info.schema
+        |> Enum.reduce(parsed, fn
+          {k, :csv}, parsed ->
+            case Keyword.fetch(parsed, k) do
+              {:ok, value} ->
+                value
+                |> List.wrap()
+                |> Enum.flat_map(&String.split(&1, ",", trim: true))
+                |> then(fn v ->
+                  Keyword.put(parsed, k, v)
+                end)
+
+              :error ->
+                parsed
+            end
+
+          _, parsed ->
+            parsed
+        end)
+
       with_defaults = Keyword.merge(info.defaults, parsed)
 
       Enum.each(info.required, fn option ->

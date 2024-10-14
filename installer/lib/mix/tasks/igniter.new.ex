@@ -85,7 +85,8 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     install =
-      options[:install]
+      options
+      |> Keyword.get_values(:install)
       |> List.wrap()
       |> Enum.join(",")
       |> String.split(",", trim: true)

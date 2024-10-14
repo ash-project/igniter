@@ -4,7 +4,7 @@ defmodule Igniter.Mix.Task.Info do
 
   ## Configurable Keys
 
-  * `schema` - The option schema for this task, in the format given to `OptionParser`, i.e `[name: :string]`
+  * `schema` - The option schema for this task, in the format given to `OptionParser`, i.e `[name: :string]`. See the schema section for more.
   * `defaults` - Default values for options in the schema.
   * `required` - A list of flags that are required for this task to run.
   * `positional` - A list of positional arguments that this task accepts. A list of atoms, or a keyword list with the option and config.
@@ -18,14 +18,35 @@ defmodule Igniter.Mix.Task.Info do
 
   Your task should *always* use `switches` and not `strict` to validate provided options!
 
-  ## Positonal Arguments
+  ## Options and Arguments
+
+  To get the options (values for flags specified by the schema), use the `positional_args!/1` and `options!/` macros,
+  like so:
+
+  ```elixir
+  def igniter(igniter, argv) do
+    {arguments, argv} = positional_args!(argv)
+    options = options!(argv)
+    ...
+  end
+  ```
+
+  ## Options
+
+  The schema is an option parser schema, and `OptionParser` is used to parse the options, with
+  a few noteable differences.
+
+  - The defaults from the `defaults` option in your task info are applied.
+  - The `:keep` type is automatically aggregated into a list.
+  - The `:csv` option automatically splits the value on commas, and allows it to be specified multiple times.
+
+  ## Positional Arguments
 
   Each positional argument can provide the following options:
 
   * `:optional` - Whether or not the argument is optional. Defaults to `false`.
   * `:rest` - Whether or not the argument consumes the rest of the positional arguments. Defaults to `false`.
               The value will be converted to a list automatically.
-
   """
 
   @global_options [
