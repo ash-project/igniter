@@ -949,7 +949,7 @@ defmodule Igniter do
             message
         end
       else
-        igniter
+        message
       end
     end
   end
