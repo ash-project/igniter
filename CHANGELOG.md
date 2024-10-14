@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.60](https://github.com/ash-project/igniter/compare/v0.3.59...v0.3.60) (2024-10-14)
+
+
+
+
+### Improvements:
+
+* don't rely on elixir 1.16+ features
+
 ## [v0.3.59](https://github.com/ash-project/igniter/compare/v0.3.58...v0.3.59) (2024-10-14)
 
 
