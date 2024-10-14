@@ -100,7 +100,7 @@ defmodule Igniter.Mix.Task do
             {k, v}
         end)
 
-      {parsed, _} = OptionParser.parse!(argv, switches: info.schema, aliases: info.aliases)
+      {parsed, _} = OptionParser.parse!(argv, switches: schema, aliases: info.aliases)
 
       parsed =
         info.schema
@@ -132,8 +132,11 @@ defmodule Igniter.Mix.Task do
                 end)
 
               :error ->
-                parsed
+                Keyword.put(parsed, k, [])
             end
+
+          {k, :keep}, parsed ->
+            Keyword.put_new(parsed, k, [])
 
           _, parsed ->
             parsed
@@ -146,6 +149,8 @@ defmodule Igniter.Mix.Task do
           Mix.shell().error(
             "Missing required flag #{String.replace(to_string(option), "_", "-")} "
           )
+
+          exit({:shutdown, 1})
         end
       end)
 

@@ -190,10 +190,20 @@ defmodule Igniter.Util.Info do
     OptionParser.parse!(
       argv,
       [
-        {options_key, merged_schema.schema || []},
+        {options_key, clean_csv(merged_schema.schema || [])},
         {:aliases, merged_schema.aliases || []}
       ]
     )
+  end
+
+  defp clean_csv(schema) do
+    Enum.map(schema, fn
+      {k, :csv} ->
+        {k, :keep}
+
+      {k, v} ->
+        {k, v}
+    end)
   end
 
   @doc false
