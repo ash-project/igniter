@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.59](https://github.com/ash-project/igniter/compare/v0.3.58...v0.3.59) (2024-10-14)
+
+
+
+
+### Bug Fixes:
+
+* don't return igniter from message function
+
 ## [v0.3.58](https://github.com/ash-project/igniter/compare/v0.3.57...v0.3.58) (2024-10-13)
 
 
