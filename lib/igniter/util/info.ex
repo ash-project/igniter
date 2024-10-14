@@ -199,34 +199,68 @@ defmodule Igniter.Util.Info do
   @doc false
   def args_for_group(argv, group) do
     case argv do
-      ["-" <> ^group <> "." <> actual_arg, "-" <> v2 | rest] ->
-        ["-" <> actual_arg] ++ args_for_group(["-" <> v2 | rest], group)
-
-      ["--" <> ^group <> "." <> actual_arg, "-" <> v2 | rest] ->
-        ["--" <> actual_arg] ++ args_for_group(["-" <> v2 | rest], group)
-
-      ["-" <> ^group <> "." <> actual_arg, v2 | rest] ->
-        ["-" <> actual_arg, v2] ++ args_for_group(rest, group)
-
-      ["--" <> ^group <> "." <> actual_arg, v2 | rest] ->
-        ["--" <> actual_arg, v2] ++ args_for_group(rest, group)
-
-      ["-" <> v, "-" <> v2 | rest] ->
-        if String.contains?(v, ".") do
-          args_for_group(["-" <> v2 | rest], group)
+      ["--" <> arg, "-" <> v2 | rest] ->
+        with true <- String.starts_with?(arg, "#{group}."),
+             [_, actual_arg] <- String.split(arg, "#{group}.", parts: 2) do
+          ["--" <> actual_arg] ++ args_for_group(["-" <> v2 | rest], group)
         else
-          ["-" <> v] ++ args_for_group(["-" <> v2 | rest], group)
+          _ ->
+            rest_args = args_for_group(["-" <> v2 | rest], group)
+
+            if String.contains?(arg, ".") do
+              rest_args
+            else
+              ["--#{arg}"] ++ rest_args
+            end
         end
 
-      [v, next | rest] ->
-        if String.contains?(v, ".") do
-          args_for_group(rest, group)
+      ["-" <> arg, "-" <> v2 | rest] ->
+        with true <- String.starts_with?(arg, "#{group}."),
+             [_, actual_arg] <- String.split(arg, "#{group}.", parts: 2) do
+          ["-" <> actual_arg] ++ args_for_group(["-" <> v2 | rest], group)
         else
-          [v, next] ++ args_for_group(rest, group)
+          _ ->
+            rest_args = args_for_group(["-" <> v2 | rest], group)
+
+            if String.contains?(arg, ".") do
+              rest_args
+            else
+              ["-#{arg}"] ++ rest_args
+            end
         end
 
-      [v] ->
-        [v]
+      ["--" <> arg | rest] ->
+        with true <- String.starts_with?(arg, "#{group}."),
+             [_, actual_arg] <- String.split(arg, "#{group}.", parts: 2) do
+          ["--" <> actual_arg] ++ args_for_group(rest, group)
+        else
+          _ ->
+            rest_args = args_for_group(rest, group)
+
+            if String.contains?(arg, ".") do
+              rest_args
+            else
+              ["--#{arg}"] ++ rest_args
+            end
+        end
+
+      ["-" <> arg | rest] ->
+        with true <- String.starts_with?(arg, "#{group}."),
+             [_, actual_arg] <- String.split(arg, "#{group}.", parts: 2) do
+          ["-" <> actual_arg] ++ args_for_group(rest, group)
+        else
+          _ ->
+            rest_args = args_for_group(rest, group)
+
+            if String.contains?(arg, ".") do
+              rest_args
+            else
+              ["-#{arg}"] ++ rest_args
+            end
+        end
+
+      [v1 | rest] ->
+        [v1] ++ args_for_group(rest, group)
 
       [] ->
         []
