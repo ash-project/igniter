@@ -1,7 +1,7 @@
 defmodule Igniter.New.MixProject do
   use Mix.Project
 
-  @version "0.4.2"
+  @version "0.4.3"
   @scm_url "https://github.com/ash-project/igniter"
 
   def project do
