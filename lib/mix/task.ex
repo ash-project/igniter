@@ -103,7 +103,7 @@ defmodule Igniter.Mix.Task do
       {parsed, _} = OptionParser.parse!(argv, switches: schema, aliases: info.aliases)
 
       parsed =
-        info.schema
+        schema
         |> Enum.filter(fn {_, type} ->
           type == :keep
         end)
