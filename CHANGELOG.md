@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.63](https://github.com/ash-project/igniter/compare/v0.3.62...v0.3.63) (2024-10-15)
+
+
+
+
+### Bug Fixes:
+
+* properly collect csv options into lists
+
 ## [v0.3.62](https://github.com/ash-project/igniter/compare/v0.3.61...v0.3.62) (2024-10-14)
 
 
