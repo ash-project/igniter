@@ -242,7 +242,7 @@ defmodule Igniter.Code.Common do
             Enum.split(upwards_code, index)
           end
 
-        Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ tail})
+        Zipper.replace(upwards, {:__block__, elem(upwards.node, 1), head ++ to_insert ++ tail})
 
       super_upwards && extendable_block?(super_upwards.node) ->
         {:__block__, _, upwards_code} = super_upwards.node
@@ -264,7 +264,10 @@ defmodule Igniter.Code.Common do
           end
 
         new_super_upwards =
-          Zipper.replace(super_upwards, {:__block__, [], head ++ to_insert ++ tail})
+          Zipper.replace(
+            super_upwards,
+            {:__block__, elem(super_upwards.node, 1), head ++ to_insert ++ tail}
+          )
 
         if placement == :after do
           %{
@@ -305,7 +308,7 @@ defmodule Igniter.Code.Common do
               new_stuff ++ stuff
             end
 
-          Zipper.replace(zipper, {:__block__, [], new_stuff})
+          Zipper.replace(zipper, {:__block__, elem(zipper.node, 1), new_stuff})
         else
           if extendable_block?(zipper.node) do
             {:__block__, _, stuff} = zipper.node
@@ -317,8 +320,17 @@ defmodule Igniter.Code.Common do
                 [new_code] ++ stuff
               end
 
-            Zipper.replace(zipper, {:__block__, [], new_stuff})
+            Zipper.replace(zipper, {:__block__, elem(zipper.node, 1), new_stuff})
           else
+            meta =
+              case zipper.node do
+                {:__block__, meta, _} ->
+                  Keyword.take(meta, [:igniter])
+
+                _ ->
+                  []
+              end
+
             code =
               if extendable_block?(new_code) do
                 {:__block__, _, new_stuff} = new_code
@@ -336,7 +348,7 @@ defmodule Igniter.Code.Common do
                 end
               end
 
-            Zipper.replace(zipper, {:__block__, [], code})
+            Zipper.replace(zipper, {:__block__, meta, code})
           end
         end
     end
@@ -357,11 +369,28 @@ defmodule Igniter.Code.Common do
           {:ok, Zipper.t()} | {:warning | :error, term()}
   def update_all_matches(zipper, pred, fun) do
     within(zipper, fn zipper ->
-      case move_to(zipper, pred) do
+      case move_to(zipper, fn zipper ->
+             case zipper.node do
+               {:__ignored_block__, _, _} ->
+                 false
+
+               _ ->
+                 with upwards when not is_nil(upwards) <- Zipper.up(zipper),
+                      {:__ignored_block__, _, _} <- upwards.node do
+                   false
+                 else
+                   _ ->
+                     pred.(zipper)
+                 end
+             end
+           end) do
         {:ok, zipper} ->
           case fun.(zipper) do
             {:code, new_code} ->
               {:ok, replace_code(zipper, new_code)}
+
+            {:ok, ^zipper} ->
+              {:ok, Zipper.replace(zipper, {:__ignored_block__, [], [zipper.node]})}
 
             {:ok, new_zipper} ->
               {:ok, replace_code(zipper, new_zipper.node)}
@@ -382,8 +411,19 @@ defmodule Igniter.Code.Common do
         {:ok, zipper}
     end
   catch
-    :done -> {:ok, zipper}
-    v -> v
+    :done ->
+      Zipper.traverse(zipper, fn zipper ->
+        case zipper.node do
+          {:__ignored_block__, _, [node]} ->
+            Zipper.replace(zipper, node)
+
+          _ ->
+            zipper
+        end
+      end)
+
+    v ->
+      v
   end
 
   def replace_code(zipper, code) when is_binary(code) do
@@ -636,6 +676,19 @@ defmodule Igniter.Code.Common do
   """
   @spec move_right(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
   def move_right(%Zipper{} = zipper, pred) do
+    zipper =
+      case zipper.node do
+        {:__block__, meta, child} ->
+          if meta[:igniter] do
+            Zipper.down(zipper)
+          else
+            zipper
+          end
+
+        _ ->
+          zipper
+      end
+
     zipper_in_single_child_block = maybe_move_to_single_child_block(zipper)
 
     cond do
@@ -747,27 +800,38 @@ defmodule Igniter.Code.Common do
   expanded environment. Currently used for properly working with aliases.
   """
   def current_env(zipper) do
-    Process.put(:elixir_code_diagnostics, {[], false})
+    igniter =
+      case Zipper.topmost_root(zipper) do
+        {:__block__, meta, _children} ->
+          meta[:igniter]
 
-    zipper
-    |> do_add_code({:__cursor__, [], []}, :after, false)
-    |> Zipper.topmost_root()
-    |> Sourceror.to_string()
-    |> String.split("__cursor__()", parts: 2)
-    |> List.first()
-    |> Spitfire.container_cursor_to_quoted()
-    |> then(fn {:ok, ast} ->
-      ast
-    end)
-    |> Spitfire.Env.expand("file.ex")
-    |> then(fn {_ast, _final_state, _final_env, cursor_env} ->
-      {:ok, struct(Macro.Env, cursor_env)}
-    end)
-  rescue
-    e ->
-      {:error, e}
-  after
-    Process.delete(:elixir_code_diagnostics)
+        _ ->
+          nil
+      end
+
+    try do
+      Process.put(:elixir_code_diagnostics, {[], false})
+
+      zipper
+      |> do_add_code({:__cursor__, [], []}, :after, false)
+      |> Zipper.topmost_root()
+      |> Sourceror.to_string()
+      |> String.split("__cursor__()", parts: 2)
+      |> List.first()
+      |> Spitfire.container_cursor_to_quoted()
+      |> then(fn {:ok, ast} ->
+        ast
+      end)
+      |> Spitfire.Env.expand("file.ex")
+      |> then(fn {_ast, _final_state, _final_env, cursor_env} ->
+        {:ok, struct(Macro.Env, cursor_env)}
+      end)
+    rescue
+      e ->
+        {:error, e}
+    after
+      Process.delete(:elixir_code_diagnostics)
+    end
   end
 
   @doc """
@@ -872,7 +936,10 @@ defmodule Igniter.Code.Common do
           {:ok, env} ->
             case do_expand_alias(env, [], parts) do
               {:alias, value} ->
-                Zipper.replace(zipper, {:__aliases__, [], Module.split(value)})
+                Zipper.replace(
+                  zipper,
+                  {:__aliases__, [], Enum.map(Module.split(value), &String.to_atom/1)}
+                )
 
               _ ->
                 zipper
@@ -920,6 +987,35 @@ defmodule Igniter.Code.Common do
 
   defp equal_modules?(_left, _right) do
     false
+  end
+
+  @doc false
+  def topmost_root(zipper) do
+    case Zipper.topmost_root(zipper) do
+      {:__block__, meta, [child]} ->
+        if Keyword.has_key?(meta, :igniter) do
+          child
+        else
+          {:__block__, meta, [child]}
+        end
+
+      {:__block__, meta, children} ->
+        {:__block__, Keyword.delete(meta, :igniter), children}
+
+      other ->
+        other
+    end
+  end
+
+  @doc false
+  def zipper_with_igniter(zipper, igniter) do
+    case zipper.supertree do
+      nil ->
+        Zipper.replace(zipper, {:__block__, [igniter: igniter], [zipper.node]})
+
+      zipper ->
+        %{zipper | supertree: zipper_with_igniter(zipper.supertree, igniter)}
+    end
   end
 
   @compile {:inline, into: 2}

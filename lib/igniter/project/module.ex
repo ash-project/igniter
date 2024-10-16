@@ -196,14 +196,15 @@ defmodule Igniter.Project.Module do
   def find_and_update_module(igniter, module_name, updater) do
     case find_module(igniter, module_name) do
       {:ok, {igniter, source, zipper}} ->
+        zipper = Common.zipper_with_igniter(zipper, igniter)
+
         case Common.move_to_do_block(zipper) do
           {:ok, zipper} ->
             case updater.(zipper) do
               {:ok, zipper} ->
                 new_quoted =
                   zipper
-                  |> Zipper.topmost()
-                  |> Zipper.node()
+                  |> Common.topmost_root()
 
                 new_source = Rewrite.Source.update(source, :quoted, new_quoted)
                 {:ok, %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}}

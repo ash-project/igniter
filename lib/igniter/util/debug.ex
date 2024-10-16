@@ -7,14 +7,14 @@ defmodule Igniter.Util.Debug do
     zipper
     |> Zipper.node()
     |> Sourceror.to_string()
-    |> then(&"==code==\n{:ok, #{&1}}\n==code==\n")
+    |> then(&"==code==\n{:ok, #{&1}}\n==!code==\n")
     |> IO.puts()
 
     {:ok, zipper}
   end
 
   def puts_code_at_node(:error) do
-    IO.puts("==code==\n:error\n==code==\n")
+    IO.puts("==code==\n:error\n==!code==\n")
 
     :error
   end
@@ -23,7 +23,7 @@ defmodule Igniter.Util.Debug do
     zipper
     |> Zipper.node()
     |> Sourceror.to_string()
-    |> then(&"==code==\n#{&1}\n==code==\n")
+    |> then(&"==code==\n#{&1}\n==!code==\n")
     |> IO.puts()
 
     zipper
@@ -40,7 +40,7 @@ defmodule Igniter.Util.Debug do
   def puts_ast_at_node(zipper) do
     zipper
     |> Zipper.node()
-    |> then(&"==ast==\n#{inspect(&1, pretty: true)}\n==ast==\n")
+    |> then(&"==ast==\n#{inspect(&1, pretty: true)}\n==!ast==\n")
     |> IO.puts()
 
     zipper

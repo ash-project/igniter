@@ -184,7 +184,7 @@ defmodule Igniter.Util.DepsCompile do
   # is (for some reason) resulting in the process
   # simply existing with no information
   defp reenable_tasks do
-    ["compile.elixir", "compile", "compile.all"]
+    ["compile.elixir", "compile", "compile.all", "loadpaths", "compile.app"]
     |> Enum.each(&Mix.Task.reenable/1)
   end
 
