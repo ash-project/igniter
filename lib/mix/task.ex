@@ -47,6 +47,8 @@ defmodule Igniter.Mix.Task do
           """
         end
 
+        Mix.Task.run("compile", ["--no-compile"])
+
         Application.ensure_all_started(:rewrite)
 
         global_options = Info.global_options()
