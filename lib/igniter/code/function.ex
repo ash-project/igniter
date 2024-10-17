@@ -178,9 +178,9 @@ defmodule Igniter.Code.Function do
 
     split = module |> Module.split() |> Enum.map(&String.to_atom/1)
 
-    case Igniter.Code.Common.current_env(zipper) do
-      {:ok, env} ->
-        imported? =
+    imported? =
+      case Igniter.Code.Common.current_env(zipper) do
+        {:ok, env} ->
           Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
             imported_module == module &&
               Enum.any?(funcs, fn {imported_name, imported_arity} ->
@@ -188,72 +188,47 @@ defmodule Igniter.Code.Function do
               end)
           end)
 
-        case node do
-          {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args} ->
-            arity == :any || Enum.count(args) == arity
+        _ ->
+          false
+      end
 
-          {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
-          when is_atom(context) ->
-            arity == :any || Enum.count(args) == arity
+    case node do
+      {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args} ->
+        arity == :any || Enum.count(args) == arity
 
-          {:|>, _,
-           [
-             _,
-             {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
-           ]} ->
-            arity == :any || Enum.count(args) == arity - 1
+      {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+      when is_atom(context) ->
+        arity == :any || Enum.count(args) == arity
 
-          {:|>, _,
-           [
-             _,
-             {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
-           ]}
-          when is_atom(context) ->
-            arity == :any || Enum.count(args) == arity - 1
+      {:|>, _,
+       [
+         _,
+         {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+       ]} ->
+        arity == :any || Enum.count(args) == arity - 1
 
-          {^name, _, args} ->
-            imported? && (arity == :any || Enum.count(args) == arity)
+      {:|>, _,
+       [
+         _,
+         {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+       ]}
+      when is_atom(context) ->
+        arity == :any || Enum.count(args) == arity - 1
 
-          {{^name, _, context}, _, args} when is_atom(context) ->
-            imported? && (arity == :any || Enum.count(args) == arity)
+      {^name, _, args} when imported? ->
+        arity == :any || Enum.count(args) == arity
 
-          {:|>, _, [{^name, _, context} | rest]} when is_atom(context) ->
-            imported? && (arity == :any || Enum.count(rest) == arity - 1)
+      {{^name, _, context}, _, args} when is_atom(context) and imported? ->
+        arity == :any || Enum.count(args) == arity
 
-          {:|>, _, [^name | rest]} ->
-            imported? && (arity == :any || Enum.count(rest) == arity - 1)
+      {:|>, _, [{^name, _, context} | rest]} when is_atom(context) and imported? ->
+        arity == :any || Enum.count(rest) == arity - 1
 
-          _ ->
-            false
-        end
+      {:|>, _, [^name | rest]} when imported? ->
+        arity == :any || Enum.count(rest) == arity - 1
 
       _ ->
-        case node do
-          {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args} ->
-            arity == :any || Enum.count(args) == arity
-
-          {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
-          when is_atom(context) ->
-            arity == :any || Enum.count(args) == arity
-
-          {:|>, _,
-           [
-             _,
-             {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
-           ]} ->
-            arity == :any || Enum.count(args) == arity - 1
-
-          {:|>, _,
-           [
-             _,
-             {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
-           ]}
-          when is_atom(context) ->
-            arity == :any || Enum.count(args) == arity - 1
-
-          _ ->
-            false
-        end
+        false
     end
   end
 

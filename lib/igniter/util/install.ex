@@ -26,7 +26,7 @@ defmodule Igniter.Util.Install do
   def install([head | _] = deps, argv, igniter, opts) when is_binary(head) do
     deps =
       Enum.map(deps, fn dep ->
-        case determine_dep_type_and_version(dep) do
+        case Igniter.Project.Deps.determine_dep_type_and_version(dep) do
           {install, requirement} ->
             {install, requirement}
 
@@ -142,118 +142,22 @@ defmodule Igniter.Util.Install do
     :ok
   end
 
-  defp determine_dep_type_and_version(requirement) do
-    case String.split(requirement, "@", trim: true, parts: 2) do
-      [package] ->
-        if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
-          :inets.start()
-          :ssl.start()
-          url = ~c"https://hex.pm/api/packages/#{package}"
-
-          case :httpc.request(:get, {url, [{~c"User-Agent", ~c"igniter-installer"}]}, [], []) do
-            {:ok, {{_version, _, _reason_phrase}, _headers, body}} ->
-              case Jason.decode(body) do
-                {:ok,
-                 %{
-                   "releases" => releases
-                 } = body} ->
-                  case first_non_rc_version_or_first_version(releases, body) do
-                    %{"version" => version} ->
-                      {String.to_atom(package),
-                       Igniter.Util.Version.version_string_to_general_requirement!(version)}
-
-                    _ ->
-                      :error
-                  end
-
-                _ ->
-                  :error
-              end
-
-            _ ->
-              :error
-          end
-        else
-          :error
-        end
-
-      [package, version] ->
-        case version do
-          "git:" <> requirement ->
-            if String.contains?(requirement, "@") do
-              case String.split(requirement, ["@"], trim: true) do
-                [url, ref] ->
-                  [git: url, ref: ref, override: true]
-
-                _ ->
-                  :error
-              end
-            else
-              [git: requirement, override: true]
-            end
-
-          "github:" <> requirement ->
-            if String.contains?(requirement, "@") do
-              case String.split(requirement, ["/", "@"], trim: true) do
-                [org, project, ref] ->
-                  [github: "#{org}/#{project}", ref: ref, override: true]
-
-                _ ->
-                  :error
-              end
-            else
-              [github: requirement, override: true]
-            end
-
-          "path:" <> requirement ->
-            [path: requirement, override: true]
-
-          version ->
-            case Version.parse(version) do
-              {:ok, version} ->
-                "== #{version}"
-
-              _ ->
-                case Igniter.Util.Version.version_string_to_general_requirement(version) do
-                  {:ok, requirement} ->
-                    requirement
-
-                  _ ->
-                    :error
-                end
-            end
-        end
-        |> case do
-          :error ->
-            :error
-
-          requirement ->
-            {String.to_atom(package), requirement}
-        end
-    end
-  end
-
-  defp first_non_rc_version_or_first_version(releases, body) do
-    releases = Enum.reject(releases, &body["retirements"][&1["version"]])
-
-    Enum.find(releases, Enum.at(releases, 0), fn release ->
-      !rc?(release["version"])
-    end)
-  end
-
-  # This just actually checks if there is any pre-release metadata
-  defp rc?(version) do
-    version
-    |> Version.parse!()
-    |> Map.get(:pre)
-    |> Enum.any?()
-  end
-
   def get_deps!(igniter, opts) do
     Mix.shell().info("running mix deps.get")
 
     case System.cmd("mix", ["deps.get"], stderr_to_stdout: true) do
       {_output, 0} ->
+        igniter =
+          case List.wrap(opts[:update_deps]) do
+            [] ->
+              igniter
+
+            to_update ->
+              System.cmd("mix", ["deps.update" | to_update])
+
+              %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+          end
+
         Mix.Project.clear_deps_cache()
         Mix.Project.pop()
         Mix.Dep.clear_cached()
@@ -262,7 +166,7 @@ defmodule Igniter.Util.Install do
         |> File.read!()
         |> Code.eval_string([], file: Path.expand("mix.exs"))
 
-        Igniter.Util.DepsCompile.run(recompile_igniter?: true)
+        Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
         igniter
 
       {output, exit_code} ->

@@ -357,14 +357,35 @@ defmodule Igniter.Code.Common do
           {:ok, Zipper.t()} | {:warning | :error, term()}
   def update_all_matches(zipper, pred, fun) do
     within(zipper, fn zipper ->
-      case move_to(zipper, pred) do
+      case move_to(zipper, fn zipper ->
+             case zipper.node do
+               {:__ignored_block__, _, _} ->
+                 false
+
+               _ ->
+                 with upwards when not is_nil(upwards) <- Zipper.up(zipper),
+                      {:__ignored_block__, _, _} <- upwards.node do
+                   false
+                 else
+                   _ ->
+                     pred.(zipper)
+                 end
+             end
+           end) do
         {:ok, zipper} ->
           case fun.(zipper) do
             {:code, new_code} ->
               {:ok, replace_code(zipper, new_code)}
 
+            {:ok, ^zipper} ->
+              {:ok, Zipper.replace(zipper, {:__ignored_block__, [], [zipper.node]})}
+
             {:ok, new_zipper} ->
-              {:ok, replace_code(zipper, new_zipper.node)}
+              if new_zipper == Zipper.remove(zipper) do
+                {:ok, new_zipper}
+              else
+                {:ok, replace_code(zipper, new_zipper.node)}
+              end
 
             other ->
               throw(other)
@@ -382,8 +403,20 @@ defmodule Igniter.Code.Common do
         {:ok, zipper}
     end
   catch
-    :done -> {:ok, zipper}
-    v -> v
+    :done ->
+      {:ok,
+       Zipper.traverse(zipper, fn zipper ->
+         case zipper.node do
+           {:__ignored_block__, _, [node]} ->
+             Zipper.replace(zipper, node)
+
+           _ ->
+             zipper
+         end
+       end)}
+
+    v ->
+      v
   end
 
   def replace_code(zipper, code) when is_binary(code) do
@@ -872,7 +905,10 @@ defmodule Igniter.Code.Common do
           {:ok, env} ->
             case do_expand_alias(env, [], parts) do
               {:alias, value} ->
-                Zipper.replace(zipper, {:__aliases__, [], Module.split(value)})
+                Zipper.replace(
+                  zipper,
+                  {:__aliases__, [], Enum.map(Module.split(value), &String.to_atom/1)}
+                )
 
               _ ->
                 zipper

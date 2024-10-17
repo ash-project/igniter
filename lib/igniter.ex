@@ -220,7 +220,7 @@ defmodule Igniter do
     Enum.reduce(igniter.rewrite, igniter, fn source, igniter ->
       path = Rewrite.Source.get(source, :path)
 
-      if GlobEx.match?(glob, path) do
+      if GlobEx.match?(glob, Path.expand(path)) do
         update_elixir_file(igniter, path, func)
       else
         igniter
@@ -622,8 +622,9 @@ defmodule Igniter do
       raise "Cannot use `Igniter.apply_and_fetch_dependencies/1-2` in test mode"
     end
 
-    if !igniter.assigns[:private][:refused_fetch_dependencies?] &&
-         has_changes?(igniter, ["mix.exs"]) do
+    if opts[:force?] ||
+         (!igniter.assigns[:private][:refused_fetch_dependencies?] &&
+            has_changes?(igniter, ["mix.exs"])) do
       igniter = prompt_on_git_changes(igniter, opts)
       source = Rewrite.source!(igniter.rewrite, "mix.exs")
 
@@ -644,7 +645,7 @@ defmodule Igniter do
         source = Rewrite.Source.update(source, :quoted, quoted_with_only_deps_change)
         rewrite = Rewrite.update!(igniter.rewrite, source)
 
-        if changed?(source) do
+        if opts[:force?] || changed?(source) do
           display_diff([source], opts)
 
           message =
@@ -655,7 +656,7 @@ defmodule Igniter do
                 "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
               end
 
-          if opts[:yes] || Igniter.Util.IO.yes?(message) do
+          if opts[:yes] || !changed?(source) || Igniter.Util.IO.yes?(message) do
             rewrite =
               case Rewrite.write(rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -786,6 +787,8 @@ defmodule Igniter do
           else
             unless opts[:quiet_on_no_changes?] || opts[:yes] do
               Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
+
+              display_notices(igniter)
             end
 
             :dry_run_with_no_changes
@@ -1270,30 +1273,32 @@ defmodule Igniter do
     quoted = Rewrite.Source.get(source, :quoted)
     zipper = Sourceror.Zipper.zip(quoted)
 
-    case func.(zipper) do
-      {:ok, %Sourceror.Zipper{} = zipper} ->
-        Rewrite.update!(
-          igniter.rewrite,
-          Rewrite.Source.update(
-            source,
-            :configure,
-            :quoted,
-            Sourceror.Zipper.root(zipper)
-          )
-        )
-        |> then(&Map.put(igniter, :rewrite, &1))
+    res =
+      case func.(zipper) do
+        %Sourceror.Zipper{} = zipper ->
+          {:ok, zipper}
 
-      %Sourceror.Zipper{} = zipper ->
-        Rewrite.update!(
-          igniter.rewrite,
-          Rewrite.Source.update(
-            source,
-            :configure,
-            :quoted,
-            Sourceror.Zipper.root(zipper)
+        other ->
+          other
+      end
+
+    case res do
+      {:ok, %Sourceror.Zipper{} = zipper} ->
+        try do
+          Rewrite.update!(
+            igniter.rewrite,
+            Rewrite.Source.update(
+              source,
+              :configure,
+              :quoted,
+              Sourceror.Zipper.root(zipper)
+            )
           )
-        )
-        |> then(&Map.put(igniter, :rewrite, &1))
+          |> then(&Map.put(igniter, :rewrite, &1))
+        rescue
+          e ->
+            reraise e, __STACKTRACE__
+        end
 
       {:error, error} ->
         Rewrite.update!(
@@ -1485,13 +1490,18 @@ defmodule Igniter do
   end
 
   defp display_notices(igniter) do
-    notices =
-      igniter.notices
-      |> Enum.map_join("\n\n", fn notice ->
-        "#{IO.ANSI.green()}#{notice}#{IO.ANSI.reset()}"
-      end)
+    case igniter.notices do
+      [] ->
+        :ok
 
-    Mix.shell().info("\n" <> notices)
+      notices ->
+        notices =
+          Enum.map_join(notices, "\n\n", fn notice ->
+            "#{IO.ANSI.green()}#{notice}#{IO.ANSI.reset()}"
+          end)
+
+        Mix.shell().info("\n" <> notices)
+    end
   end
 
   defp display_moves(%{moves: moves}) when moves == %{}, do: :ok
