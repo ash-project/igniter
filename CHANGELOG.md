@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.64](https://github.com/ash-project/igniter/compare/v0.3.63...v0.3.64) (2024-10-17)
+
+
+
+
+### Bug Fixes:
+
+* don't infinitely recurse on update_all_matches
+
+* detect node removal in update_all_matches
+
+### Improvements:
+
+* add `Igniter.Code.String`
+
 ## [v0.3.63](https://github.com/ash-project/igniter/compare/v0.3.62...v0.3.63) (2024-10-15)
 
 
