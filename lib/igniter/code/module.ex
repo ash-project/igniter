@@ -224,6 +224,13 @@ defmodule Igniter.Code.Module do
     Igniter.Project.Module.module_name(igniter, suffix)
   end
 
+  @doc "Parses a string into a module name"
+  @deprecated "Use `Igniter.Project.Module.parse/1` instead."
+  @spec parse(String.t()) :: module()
+  def parse(module_name) do
+    Igniter.Project.Module.parse(module_name)
+  end
+
   @doc """
   Returns the idiomatic file location for a given module, starting with "lib/".
   """
