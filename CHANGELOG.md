@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.65](https://github.com/ash-project/igniter/compare/v0.3.64...v0.3.65) (2024-10-19)
+
+
+
+
+### Improvements:
+
+* add `mix igniter.upgrade`
+
+* add `mix igniter.refactor.rename_function`
+
 ## [v0.3.64](https://github.com/ash-project/igniter/compare/v0.3.63...v0.3.64) (2024-10-17)
 
 
