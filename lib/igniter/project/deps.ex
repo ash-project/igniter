@@ -212,9 +212,10 @@ defmodule Igniter.Project.Deps do
               {unquote(name), unquote(version), unquote(opts[:dep_opts])}
             end
           else
-            quote do
-              {unquote(name), unquote(version)}
-            end
+            {:__block__, [],
+             [
+               {{:__block__, [], [name]}, {:__block__, [], [version]}}
+             ]}
           end
 
         case match do

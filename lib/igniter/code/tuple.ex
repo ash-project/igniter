@@ -21,6 +21,8 @@ defmodule Igniter.Code.Tuple do
   @spec append_elem(Zipper.t(), quoted :: Macro.t()) :: {:ok, Zipper.t()} | :error
   def append_elem(zipper, quoted) do
     if tuple?(zipper) do
+      zipper = Igniter.Code.Common.maybe_move_to_single_child_block(zipper)
+
       case zipper.node do
         {l, r} ->
           {:ok, Zipper.replace(zipper, {:{}, [], [l, r, quoted]})}

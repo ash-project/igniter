@@ -132,8 +132,7 @@ defmodule Igniter.Refactors.RenameTest do
     """)
     |> assert_has_patch("lib/some_module.ex", """
     - |  def some_function(a, b), do: a + b
-    + |  def some_other_function(a, b),
-    + |    do: a + b
+    + |  def some_other_function(a, b), do: a + b
     """)
   end
 

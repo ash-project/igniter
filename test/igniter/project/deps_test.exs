@@ -13,6 +13,14 @@ defmodule Igniter.Project.DepsTest do
                "{:foobar, \"~> 2.0\"}"
     end
 
+    test "adds the provided dependency in a tuple format" do
+      test_project()
+      |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"})
+      |> assert_has_patch("mix.exs", "+ | {:foobar, \"~> 2.0\"}")
+      |> Igniter.Project.Deps.add_dep({:barfoo, "~> 1.0"})
+      |> assert_has_patch("mix.exs", "+ | {:barfoo, \"~> 1.0\"}")
+    end
+
     test "adds the provided dependency with options" do
       refute Igniter.Project.Deps.get_dependency_declaration(Igniter.new(), :foobar)
 
@@ -30,8 +38,8 @@ defmodule Igniter.Project.DepsTest do
       |> apply_igniter!()
       |> Igniter.Project.Deps.set_dep_option(:foobar, :only, :test)
       |> assert_has_patch("mix.exs", """
-      24 - |      foobar: "~> 2.0"
-      24 + |      {:foobar, "~> 2.0", only: :test}
+      - | {:foobar, "~> 2.0"}
+      + | {:foobar, "~> 2.0", only: :test}
       """)
     end
   end
