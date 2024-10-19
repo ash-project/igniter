@@ -14,5 +14,6 @@ jobs:
       spark-formatter: false
       spark-cheat-sheets: false
       sobelow: false
+      igniter-upgrade: false
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

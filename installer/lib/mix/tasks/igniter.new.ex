@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Igniter.New do
 
   ## Options
 
-  All options are passed through to `mix new`, except for:
+  All options are passed through to underlying installers, except for the following:
 
   * `--install` - A comma-separated list of dependencies to install using
     `mix igniter.install` after creating the project.
@@ -16,8 +16,6 @@ defmodule Mix.Tasks.Igniter.New do
     to provide arguments to that command.
 
   ## Options for `mix.new`
-
-  See `mix help new` for more information on the options available for `mix new`.
 
   * `--module` - The base module name to use for the project.
   * `--sup` - Generates an OTP application skeleton including a supervision tree.
@@ -61,7 +59,7 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
-    {options, _argv, _errors} =
+    {options, _, _} =
       OptionParser.parse(argv,
         strict: [
           install: :keep,
@@ -194,11 +192,63 @@ defmodule Mix.Tasks.Igniter.New do
         )
       end
 
-      Mix.Task.run("igniter.install", install_args)
+      rest_args =
+        try do
+          rest_args(argv)
+        rescue
+          _ -> []
+        end
+
+      Mix.Task.run("igniter.install", install_args ++ rest_args)
     end
 
     :ok
   end
+
+  @flags ~w(example sup umbrella)
+  @flags_with_values ~w(install local with with_args module)
+  @switches ~w(e)
+  @switches_with_values ~w(i l)
+
+  # I don't feel like I should have to do this
+  # seems like something missing in OptionParser
+  defp rest_args([]), do: []
+
+  defp rest_args(["--" <> flag, "-" <> next | rest])
+       when flag in @flags or flag in @flags_with_values do
+    rest_args(["-" <> next | rest])
+  end
+
+  defp rest_args(["--" <> flag, _value | rest]) when flag in @flags_with_values do
+    rest_args(rest)
+  end
+
+  defp rest_args(["-" <> flag, "-" <> next | rest])
+       when flag in @switches or flag in @switches_with_values do
+    rest_args(["-" <> next | rest])
+  end
+
+  defp rest_args(["-" <> flag, _value | rest]) when flag in @switches_with_values do
+    rest_args(rest)
+  end
+
+  defp rest_args(["-" <> flag, "-" <> next | rest]) do
+    ["-#{flag}" | rest_args(["-" <> next | rest])]
+  end
+
+  defp rest_args(["-" <> flag, next | rest]) do
+    ["-#{flag}", next | rest_args(rest)]
+  end
+
+  defp rest_args(["--" <> flag]) when flag in @flags or flag in @flags_with_values do
+    []
+  end
+
+  defp rest_args(["-" <> flag]) when flag in @switches or flag in @switches_with_values do
+    []
+  end
+
+  defp rest_args([other]), do: [other]
 
   defp add_igniter_dep(contents, version_requirement) do
     String.replace(
