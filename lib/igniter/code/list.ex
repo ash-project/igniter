@@ -195,6 +195,38 @@ defmodule Igniter.Code.List do
     end
   end
 
+  @doc "Moves to the list item matching the given predicate"
+  @spec map(Zipper.t(), (Zipper.t() -> {:ok, Zipper.t()})) :: {:ok, Zipper.t()} | :error
+  def map(zipper, fun) do
+    # go into first list item
+    zipper
+    |> Common.maybe_move_to_single_child_block()
+    |> Zipper.down()
+    |> case do
+      nil ->
+        :error
+
+      zipper ->
+        do_map(zipper, fun)
+    end
+  end
+
+  defp do_map(zipper, fun) do
+    case Igniter.Code.Common.within(zipper, fun) do
+      {:ok, zipper} ->
+        case Zipper.right(zipper) do
+          nil ->
+            {:ok, zipper}
+
+          right ->
+            do_map(right, fun)
+        end
+
+      :error ->
+        :error
+    end
+  end
+
   @doc "Moves to the list item matching the given predicate, assuming you are currently inside the list"
   def do_move_to_list_item(zipper, pred) do
     if pred.(zipper) do

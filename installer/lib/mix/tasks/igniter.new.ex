@@ -174,7 +174,7 @@ defmodule Mix.Tasks.Igniter.New do
       install_args =
         Enum.filter([Enum.join(install, ","), example, yes], & &1)
 
-      Code.eval_file("mix.exs")
+      Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
 
       Mix.Task.run("igniter.install", install_args)
     end

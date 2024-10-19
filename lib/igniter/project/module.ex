@@ -287,25 +287,43 @@ defmodule Igniter.Project.Module do
   def find_module(igniter, module_name) do
     igniter = Igniter.include_all_elixir_files(igniter)
 
-    igniter
-    |> Map.get(:rewrite)
-    |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
-    |> Task.async_stream(
-      fn source ->
-        {source
-         |> Rewrite.Source.get(:quoted)
-         |> Zipper.zip()
-         |> Igniter.Code.Module.move_to_defmodule(module_name), source}
-      end,
-      timeout: :infinity
-    )
-    |> Enum.find_value({:error, igniter}, fn
-      {:ok, {{:ok, zipper}, source}} ->
-        {:ok, {igniter, source, zipper}}
+    check_first =
+      if Code.ensure_loaded?(module_name) do
+        if source = module_name.module_info()[:compile][:source] do
+          Path.relative_to_cwd(List.to_string(source))
+        end
+      end
 
-      _other ->
-        false
-    end)
+    with check_first when not is_nil(check_first) <- check_first,
+         {:ok, source} <- Rewrite.source(igniter.rewrite, check_first),
+         {:ok, zipper} <-
+           source
+           |> Rewrite.Source.get(:quoted)
+           |> Zipper.zip()
+           |> Igniter.Code.Module.move_to_defmodule(module_name) do
+      {:ok, {igniter, source, zipper}}
+    else
+      _ ->
+        igniter
+        |> Map.get(:rewrite)
+        |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
+        |> Task.async_stream(
+          fn source ->
+            {source
+             |> Rewrite.Source.get(:quoted)
+             |> Zipper.zip()
+             |> Igniter.Code.Module.move_to_defmodule(module_name), source}
+          end,
+          timeout: :infinity
+        )
+        |> Enum.find_value({:error, igniter}, fn
+          {:ok, {{:ok, zipper}, source}} ->
+            {:ok, {igniter, source, zipper}}
+
+          _other ->
+            false
+        end)
+    end
   end
 
   @doc false

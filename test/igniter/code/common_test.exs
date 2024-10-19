@@ -1,4 +1,5 @@
 defmodule Igniter.Code.CommonTest do
+  alias Sourceror.Zipper
   use ExUnit.Case
   require Igniter.Code.Function
 
@@ -182,6 +183,98 @@ defmodule Igniter.Code.CommonTest do
         _ ->
           flunk("Should not reach this case")
       end
+    end
+  end
+
+  describe "update_all_matches" do
+    test "code can be removed" do
+      source =
+        """
+        attributes do
+          attribute :label, :string, required: true
+          attribute :key, :string, :last_arg_seems_to_stick
+          attribute :data, :villain
+          attribute :key, :string, :another_one_that_sticks
+          attribute :data, :villain
+        end
+        """
+
+      zipper =
+        source
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+
+      {:ok, zipper} =
+        Igniter.Code.Common.update_all_matches(
+          zipper,
+          fn z ->
+            Igniter.Code.Function.function_call?(z, :attribute, 2) &&
+              Igniter.Code.Function.argument_equals?(z, 1, :villain)
+          end,
+          fn zipper ->
+            zipper
+            |> Zipper.remove()
+            |> then(&{:ok, &1})
+          end
+        )
+
+      assert Sourceror.to_string(zipper.node) ==
+               """
+               attributes do
+                 attribute(:label, :string, required: true)
+                 attribute(:key, :string, :last_arg_seems_to_stick)
+                 attribute(:key, :string, :another_one_that_sticks)
+               end
+               """
+               |> String.trim_trailing()
+    end
+
+    test "code can be replaced" do
+      source =
+        """
+        attributes do
+          attribute :label, :string, required: true
+          attribute :key, :string, :last_arg_seems_to_stick
+          attribute :data, :villain
+          attribute :key, :string, :another_one_that_sticks
+          attribute :data, :villain
+        end
+        """
+
+      zipper =
+        source
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+
+      {:ok, zipper} =
+        Igniter.Code.Common.update_all_matches(
+          zipper,
+          fn z ->
+            Igniter.Code.Function.function_call?(z, :attribute, 2) &&
+              Igniter.Code.Function.argument_equals?(z, 1, :villain)
+          end,
+          fn zipper ->
+            {:ok,
+             Zipper.replace(
+               zipper,
+               quote do
+                 testing(:code_insertion)
+               end
+             )}
+          end
+        )
+
+      assert Sourceror.to_string(zipper.node) ==
+               """
+               attributes do
+                 attribute(:label, :string, required: true)
+                 attribute(:key, :string, :last_arg_seems_to_stick)
+                 testing(:code_insertion)
+                 attribute(:key, :string, :another_one_that_sticks)
+                 testing(:code_insertion)
+               end
+               """
+               |> String.trim_trailing()
     end
   end
 end

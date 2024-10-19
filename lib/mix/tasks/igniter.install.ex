@@ -30,7 +30,7 @@ defmodule Mix.Tasks.Igniter.Install do
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
-    Mix.Task.run("compile")
+    Mix.Task.run("compile", ["--no-compile"])
 
     {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
 

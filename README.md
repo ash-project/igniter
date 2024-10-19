@@ -9,13 +9,35 @@
 
 Igniter is a code generation and project patching framework.
 
-For library authors, this is a tool kit for writing smarter generators that can semantically modify existing files.
+## For library authors and platform teams
 
-For end-users, this means `mix igniter.install <package>`, which will _add it to your mix.exs automatically_ and then run that library's installer if it has one. Even when libraries don't have an installer, or use igniter, this behavior makes it useful to keep around.
+This is a tool kit for writing smarter generators that can semantically create and modify existing files.
 
-## Limitations
+## For end-users
 
-Right now, all files that are touched are formatted in their entirety. This may be a deal breaker for some users. I believe that we can solve this without changing the fundemental design of the project, but it is not a high priority.
+### Installers
+
+You can install new dependencies `mix igniter.install`, which will _add it to your mix.exs automatically_ and then run
+that library's installer if it has one. Even when libraries don't have an installer, or use igniter, this behavior
+makes it useful to keep around.
+
+### Upgraders
+
+You can upgrade dependencies with `mix igniter.upgrade`, as a drop on replacement for `mix deps.update`. This
+will update your dependencies and run any upgrade patchers defined in the target package (if there are any).
+
+See [upgrades guide](/documentation/upgrades.md) guide for more.
+
+### Refactors
+
+In addition to providing tools for library authors to patch your code, common operations are available to use as needed.
+
+- `mix igniter.refactor.rename_function` - Use this to rename a function in your application, along with all references to it.
+
+### Others
+
+- `mix igniter.update_gettext` - Use this to update gettext if your version is lower than 0.26.1 and you are seeing a compile warning
+  about gettext backends.
 
 ## Installation
 

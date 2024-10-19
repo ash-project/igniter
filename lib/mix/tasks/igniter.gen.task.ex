@@ -16,6 +16,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
   ## Options
 
   * `--optional` or `-o` - Whether or not to define the task to be compatible with igniter as an optional dependency.
+  * `--upgrade` or `-u` - Whether or not the task is an upgrade task. See the upgrades guide for more.
+  * `--private` or `-p` - Whether or not the task is a private task. This means it has no shortdoc or moduledoc.
+    Upgrade tasks are always private.
   """
 
   def info(_argv, _source) do
@@ -23,9 +26,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       group: :igniter,
       example: @example,
       positional: [:task_name],
-      schema: [optional: :boolean],
-      aliases: [o: :optional],
-      defaults: [optional: false]
+      schema: [optional: :boolean, upgrade: :boolean, private: :boolean],
+      aliases: [o: :optional, u: :upgrade, p: :private],
+      defaults: [optional: false, upgrade: false, private: false]
     }
   end
 
@@ -33,15 +36,22 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
     {%{task_name: task_name}, argv} = positional_args!(argv)
     options = options!(argv)
 
+    options =
+      if options[:upgrade] do
+        Keyword.put(options, :private, true)
+      else
+        options
+      end
+
     module_name = Module.concat(Mix.Tasks, Mix.Utils.command_to_module_name(to_string(task_name)))
 
     app_name = Igniter.Project.Application.app_name(igniter)
 
     contents =
       if options[:optional] do
-        optional_template(module_name, task_name, app_name)
+        optional_template(module_name, task_name, app_name, options)
       else
-        template(module_name, task_name, app_name)
+        template(module_name, task_name, app_name, options)
       end
 
     file = "lib/mix/tasks/#{task_name}.ex"
@@ -56,29 +66,38 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
     end
   end
 
-  defp template(module_name, task_name, app_name) do
+  defp template(module_name, task_name, app_name, opts) do
+    docs =
+      if opts[:private] do
+        "@moduledoc false"
+      else
+        """
+        @shortdoc "A short description of your task"
+        @moduledoc \"\"\"
+        \#{@shortdoc}
+
+        Longer explanation of your task
+
+        ## Example
+
+        ```bash
+        \#{@example}
+        ```
+
+        ## Options
+
+        * `--example-option` or `-e` - Docs for your option
+        \"\"\"
+        """
+      end
+
     """
     defmodule #{inspect(module_name)} do
       use Igniter.Mix.Task
 
       @example "mix #{task_name} --example arg"
 
-      @shortdoc "A short description of your task"
-      @moduledoc \"\"\"
-      \#{@shortdoc}
-
-      Longer explanation of your task
-
-      ## Example
-
-      ```bash
-      \#{@example}
-      ```
-
-      ## Options
-
-      * `--example-option` or `-e` - Docs for your option
-      \"\"\"
+      #{docs}
 
       def info(_argv, _composing_task) do
         %Igniter.Mix.Task.Info{
@@ -90,14 +109,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           # dependencies to add and call their associated installers, if they exist
           installs: [],
           # An example invocation
-          example: @example,
-          # Accept additional arguments that are not in your schema
-          # Does not guarantee that, when composed, the only options you get are the ones you define
-          extra_args?: false,
-          # A list of environments that this should be installed in, only relevant if this is an installer.
-          only: nil,
+          example: @example,#{only(opts, task_name)}
           # a list of positional arguments, i.e `[:file]`
-          positional: [],
+          positional: #{positional(opts)},
           # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
           # This ensures your option schema includes options from nested tasks
           composes: [],
@@ -118,39 +132,46 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
         # extract options according to `schema` and `aliases` above
         options = options!(argv)
 
-        # Do your work here and return an updated igniter
-        igniter
-        |> Igniter.add_warning("mix #{task_name} is not yet implemented")
+        #{execute(opts, task_name)}
       end
     end
     """
   end
 
-  defp optional_template(module_name, task_name, app_name) do
+  defp optional_template(module_name, task_name, app_name, opts) do
+    docs =
+      if opts[:private] do
+        "@moduledoc false"
+      else
+        """
+        @shortdoc "A short description of your task"
+        if !Code.ensure_loaded?(Igniter) do
+          @shortdoc "\#{@shortdoc} | Install `igniter` to use"
+        end
+
+        @moduledoc \"\"\"
+        \#{@shortdoc}
+
+        Longer explanation of your task
+
+        ## Example
+
+        ```bash
+        \#{@example}
+        ```
+
+        ## Options
+
+        * `--example-option` or `-e` - Docs for your option
+        \"\"\"
+        """
+      end
+
     """
     defmodule #{inspect(module_name)} do
       @example "mix #{task_name} --example arg"
 
-      @shortdoc "A short description of your task"
-      if !Code.ensure_loaded?(Igniter) do
-        @shortdoc "\#{@shortdoc} | Install `igniter` to use"
-      end
-
-      @moduledoc \"\"\"
-      \#{@shortdoc}
-
-      Longer explanation of your task
-
-      ## Example
-
-      ```bash
-      \#{@example}
-      ```
-
-      ## Options
-
-      * `--example-option` or `-e` - Docs for your option
-      \"\"\"
+      #{docs}
 
       if Code.ensure_loaded?(Igniter) do
         use Igniter.Mix.Task
@@ -165,14 +186,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             # dependencies to add and call their associated installers, if they exist
             installs: [],
             # An example invocation
-            example: @example,
-            # Accept additional arguments that are not in your schema
-            # Does not guarantee that, when composed, the only options you get are the ones you define
-            extra_args?: false,
-            # A list of environments that this should be installed in, only relevant if this is an installer.
-            only: nil,
+            example: @example,#{only(opts, task_name)}
             # a list of positional arguments, i.e `[:file]`
-            positional: [],
+            positional: #{positional(opts)},
             # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
             # This ensures your option schema includes options from nested tasks
             composes: [],
@@ -193,9 +209,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           # extract options according to `schema` and `aliases` above
           options = options!(argv)
 
-          # Do your work here and return an updated igniter
-          igniter
-          |> Igniter.add_warning("mix #{task_name} is not yet implemented")
+          #{execute(opts, task_name)}
         end
       else
         use Mix.Task
@@ -213,5 +227,45 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       end
     end
     """
+  end
+
+  defp only(opts, task_name) do
+    if !opts[:upgrade] && String.ends_with?(task_name, ".install") do
+      """
+      # A list of environments that this should be installed in.
+      only: nil,
+      """
+    else
+      ""
+    end
+  end
+
+  defp execute(opts, task_name) do
+    if opts[:upgrade] do
+      """
+      upgrades = %{
+        # "0.1.1" -> [&change_foo_to_bar/2]
+      }
+      # For each version that requires a change, add it to this map
+      # Each key is a version that points at a list of functions that take an
+      # igniter and options (i.e flags or other custom options).
+      # See the upgrades guide for more.
+      Igniter.Upgrades.run(igniter, arguments.from, arguments.to, upgrades, custom_opts: options)
+      """
+    else
+      """
+      # Do your work here and return an updated igniter
+      igniter
+      |> Igniter.add_warning("mix #{task_name} is not yet implemented")
+      """
+    end
+  end
+
+  defp positional(opts) do
+    if opts[:upgrade] do
+      "[:from, :to]"
+    else
+      "[]"
+    end
   end
 end

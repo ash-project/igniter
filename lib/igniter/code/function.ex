@@ -77,7 +77,7 @@ defmodule Igniter.Code.Function do
   @spec move_to_function_call_in_current_scope(
           Zipper.t(),
           atom,
-          non_neg_integer() | list(non_neg_integer())
+          non_neg_integer() | list(non_neg_integer()) | :any
         ) ::
           {:ok, Zipper.t()} | :error
   def move_to_function_call_in_current_scope(zipper, name, arity, predicate \\ fn _ -> true end)
@@ -158,10 +158,10 @@ defmodule Igniter.Code.Function do
       {{^name, _, context}, _, args} when is_atom(context) ->
         arity == :any || Enum.count(args) == arity
 
-      {:|>, _, [{^name, _, context} | rest]} when is_atom(context) ->
+      {:|>, _, [_, {^name, _, context} | rest]} when is_atom(context) ->
         arity == :any || Enum.count(rest) == arity - 1
 
-      {:|>, _, [^name | rest]} ->
+      {:|>, _, [_, ^name | rest]} ->
         arity == :any || Enum.count(rest) == arity - 1
 
       _ ->
@@ -184,7 +184,159 @@ defmodule Igniter.Code.Function do
           Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
             imported_module == module &&
               Enum.any?(funcs, fn {imported_name, imported_arity} ->
-                name == imported_name && (arity == :any || Enum.count(imported_arity) == arity)
+                name == imported_name && (arity == :any || imported_arity == arity)
+              end)
+          end)
+
+        _ ->
+          false
+      end
+
+    function_call_shape? =
+      case node do
+        {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+        when arity == :any or length(args) == arity ->
+          true
+
+        {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+        when is_atom(context) and (arity == :any or length(args) == arity) ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+         ]}
+        when arity == :any or length(args) == arity - 1 ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+         ]}
+        when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+          true
+
+        {^name, _, args} when imported? and (arity == :any or length(args) == arity) ->
+          true
+
+        {{^name, _, context}, _, args}
+        when is_atom(context) and imported? and (arity == :any or length(args) == arity) ->
+          true
+
+        {:|>, _, [_, {^name, _, context} | rest]}
+        when is_atom(context) and imported? and (arity == :any or length(rest) == arity - 1) ->
+          true
+
+        {:|>, _, [_, ^name | rest]}
+        when imported? and (arity == :any or length(rest) == arity - 1) ->
+          true
+
+        _ ->
+          false
+      end
+
+    if function_call_shape? do
+      case Zipper.up(zipper) do
+        %{node: {:&, _, _}} ->
+          false
+
+        _ ->
+          true
+      end
+    else
+      false
+    end
+  end
+
+  @doc """
+  Returns true if the value is a function literal.
+
+  Examples:
+    - `fn x -> x end`
+    - `&(&1 + &2)`
+    - `&SomeMod.fun/2`
+
+  To refine the check, you can use `name` and `arity`.
+
+  ## Names
+
+  - `:any` - matches any function literal, named or not
+  - `:any_named` - matches any named function literal
+  - `:anonymous` - matches any anonymous function literal
+  - `{module, name}` - matches a function literal with the given module and name
+  """
+  @spec function?(
+          Zipper.t(),
+          name :: :any | :any_named | {module(), atom()} | :anonymous,
+          arity :: :any | non_neg_integer() | [non_neg_integer()]
+        ) ::
+          boolean
+  def function?(zipper, name \\ :any, arity \\ :any)
+
+  def function?(zipper, name, arity) when is_list(arity) do
+    Enum.any?(arity, fn arity -> function?(zipper, name, arity) end)
+  end
+
+  def function?(%Zipper{}, name, _arity)
+      when is_atom(name) and name not in [:any, :any_named, :anonymous] do
+    raise ArgumentError,
+          "The name argument must be one of `:any`, `:any_named`, `:anonymous` or a `{module, name}` tuple."
+  end
+
+  def function?(%Zipper{} = zipper, :anonymous, arity) do
+    node =
+      zipper
+      |> Common.maybe_move_to_single_child_block()
+      |> Igniter.Code.Common.expand_aliases()
+      |> Zipper.node()
+
+    case node do
+      {:&, _, [{{:., _, [{:__aliases__, _, _}, _]}, _, _}]} ->
+        false
+
+      {:&, _, [{:&, _, _}]} ->
+        arity == :any or arity == 1
+
+      {:&, _, [{name, _, _}]} when is_atom(name) ->
+        false
+
+      {:&, _, [body]} ->
+        arity == :any or count_captures(body) == arity
+
+      {:fn, _, [{:->, _, [[{:when, _, args}], _body]} | _]}
+      when arity == :any or length(args) == arity ->
+        true
+
+      {:fn, _, [{:->, _, [args, _body]} | _]} when arity == :any or length(args) == arity ->
+        true
+
+      {:fn, _, _} ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  def function?(%Zipper{} = zipper, {module, name}, arity) do
+    node =
+      zipper
+      |> Common.maybe_move_to_single_child_block()
+      |> Igniter.Code.Common.expand_aliases()
+      |> Zipper.node()
+
+    split =
+      module |> Module.split() |> Enum.map(&String.to_atom/1)
+
+    imported? =
+      case Igniter.Code.Common.current_env(zipper) do
+        {:ok, env} ->
+          Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
+            imported_module == module &&
+              Enum.any?(funcs, fn {imported_name, imported_arity} ->
+                name == imported_name && (arity == :any || imported_arity == arity)
               end)
           end)
 
@@ -193,39 +345,191 @@ defmodule Igniter.Code.Function do
       end
 
     case node do
-      {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args} ->
-        arity == :any || Enum.count(args) == arity
+      {:&, _, [{:/, _, [{^name, _, context}, actual_arity]}]}
+      when is_atom(context) and imported? and (arity == :any or actual_arity == arity) ->
+        true
 
-      {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
-      when is_atom(context) ->
-        arity == :any || Enum.count(args) == arity
+      {:&, _, [{:/, _, [{^name, _, context}, {:__block__, _, [actual_arity]}]}]}
+      when is_atom(context) and imported? and (arity == :any or actual_arity == arity) ->
+        true
 
-      {:|>, _,
+      {:&, _, [{:/, _, [^name, actual_arity]}]}
+      when imported? and (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _, [{:/, _, [^name, {:__block__, _, [actual_arity]}]}]}
+      when imported? and (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _,
        [
-         _,
-         {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
-       ]} ->
-        arity == :any || Enum.count(args) == arity - 1
-
-      {:|>, _,
-       [
-         _,
-         {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+         {:/, _,
+          [
+            {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, _},
+            actual_arity
+          ]}
        ]}
-      when is_atom(context) ->
-        arity == :any || Enum.count(args) == arity - 1
+      when arity == :any or actual_arity == arity ->
+        true
 
-      {^name, _, args} when imported? ->
-        arity == :any || Enum.count(args) == arity
+      {:&, _,
+       [
+         {:/, _,
+          [
+            {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, _},
+            {:__block__, _, [actual_arity]}
+          ]}
+       ]}
+      when arity == :any or actual_arity == arity ->
+        true
 
-      {{^name, _, context}, _, args} when is_atom(context) and imported? ->
-        arity == :any || Enum.count(args) == arity
+      {:&, _, [call]} ->
+        case call do
+          {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+          when arity == :any or length(args) == arity ->
+            true
 
-      {:|>, _, [{^name, _, context} | rest]} when is_atom(context) and imported? ->
-        arity == :any || Enum.count(rest) == arity - 1
+          {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+          when is_atom(context) and (arity == :any or length(args) == arity) ->
+            true
 
-      {:|>, _, [^name | rest]} when imported? ->
-        arity == :any || Enum.count(rest) == arity - 1
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+           ]}
+          when arity == :any or length(args) == arity - 1 ->
+            true
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+           ]}
+          when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+            true
+
+          {^name, _, args} when imported? and (arity == :any or length(args) == arity) ->
+            true
+
+          {{^name, _, context}, _, args}
+          when is_atom(context) and imported? and (arity == :any or length(args) == arity) ->
+            true
+
+          {:|>, _, [_, {^name, _, context} | rest]}
+          when is_atom(context) and imported? and (arity == :any or length(rest) == arity - 1) ->
+            true
+
+          {:|>, _, [_, ^name | rest]}
+          when imported? and (arity == :any or length(rest) == arity - 1) ->
+            true
+
+          _ ->
+            false
+        end
+
+      _ ->
+        false
+    end
+  end
+
+  def function?(%Zipper{} = zipper, :any, arity) do
+    function?(zipper, :any_named, arity) or function?(zipper, :anonymous, arity)
+  end
+
+  def function(%Zipper{} = zipper, :any_named, arity) do
+    node =
+      zipper
+      |> Common.maybe_move_to_single_child_block()
+      |> Igniter.Code.Common.expand_aliases()
+      |> Zipper.node()
+
+    case node do
+      {:&, _, [{:/, _, [{name, _, context}, actual_arity]}]}
+      when is_atom(name) and is_atom(context) and
+             (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _, [{:/, _, [{name, _, context}, {:__block__, _, [actual_arity]}]}]}
+      when is_atom(name) and is_atom(context) and
+             (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _, [{:/, _, [name, actual_arity]}]}
+      when is_atom(name) and (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _, [{:/, _, [name, {:__block__, _, [actual_arity]}]}]}
+      when is_atom(name) and (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _,
+       [
+         {:/, _,
+          [
+            {{:., _, [{:__aliases__, _, _}, name]}, _, _},
+            actual_arity
+          ]}
+       ]}
+      when is_atom(name) and (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _,
+       [
+         {:/, _,
+          [
+            {{:., _, [{:__aliases__, _, _}, name]}, _, _},
+            {:__block__, _, [actual_arity]}
+          ]}
+       ]}
+      when is_atom(name) and (arity == :any or actual_arity == arity) ->
+        true
+
+      {:&, _, [call]} ->
+        case call do
+          {{:., _, [{:__aliases__, _, _}, name]}, _, args}
+          when is_atom(name) and (arity == :any or length(args) == arity) ->
+            true
+
+          {{:., _, [{:__aliases__, _, _}, {name, _, context}]}, _, args}
+          when is_atom(name) and is_atom(context) and (arity == :any or length(args) == arity) ->
+            true
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, _split}, name]}, _, args}
+           ]}
+          when is_atom(name) or (arity == :any or length(args) == arity - 1) ->
+            true
+
+          {:|>, _,
+           [
+             _,
+             {{:., _, [{:__aliases__, _, _}, {name, _, context}]}, _, args}
+           ]}
+          when is_atom(name) and is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+            true
+
+          {name, _, args} when is_atom(name) and (arity == :any or length(args) == arity) ->
+            true
+
+          {{name, _, context}, _, args}
+          when is_atom(name) and is_atom(context) and
+                 (arity == :any or length(args) == arity) ->
+            true
+
+          {:|>, _, [_, {name, _, context} | rest]}
+          when is_atom(name) and is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
+            true
+
+          {:|>, _, [_, name | rest]}
+          when is_atom(name) and (arity == :any or length(rest) == arity - 1) ->
+            true
+
+          _ ->
+            false
+        end
 
       _ ->
         false
@@ -559,5 +863,21 @@ defmodule Igniter.Code.Function do
       {:|>, _, _} -> true
       _ -> false
     end
+  end
+
+  # Counts up all the arguments and generates new unique arguments for them.
+  # Works around the caveat that each usage of a unique `&n` variable must only
+  # be counted once.
+  defp count_captures(args) do
+    Macro.prewalk(args, [], fn
+      {:&, _, [v]} = ast, acc when is_integer(v) ->
+        {ast, [v | acc]}
+
+      ast, acc ->
+        {ast, acc}
+    end)
+    |> elem(1)
+    |> Enum.uniq()
+    |> Enum.count()
   end
 end

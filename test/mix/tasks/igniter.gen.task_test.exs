@@ -42,11 +42,6 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
               installs: [],
               # An example invocation
               example: @example,
-              # Accept additional arguments that are not in your schema
-              # Does not guarantee that, when composed, the only options you get are the ones you define
-              extra_args?: false,
-              # A list of environments that this should be installed in, only relevant if this is an installer.
-              only: nil,
               # a list of positional arguments, i.e `[:file]`
               positional: [],
               # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
@@ -122,11 +117,6 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
                 installs: [],
                 # An example invocation
                 example: @example,
-                # Accept additional arguments that are not in your schema
-                # Does not guarantee that, when composed, the only options you get are the ones you define
-                extra_args?: false,
-                # A list of environments that this should be installed in, only relevant if this is an installer.
-                only: nil,
                 # a list of positional arguments, i.e `[:file]`
                 positional: [],
                 # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv

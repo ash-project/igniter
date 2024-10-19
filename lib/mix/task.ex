@@ -47,7 +47,9 @@ defmodule Igniter.Mix.Task do
           """
         end
 
-        Mix.Task.run("compile", ["--no-compile"])
+        if Mix.Task.task_name(__MODULE__) != "igniter.upgrade" do
+          Mix.Task.run("compile")
+        end
 
         Application.ensure_all_started(:rewrite)
 

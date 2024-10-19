@@ -9,16 +9,44 @@ defmodule Igniter.Code.Common do
   """
   @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
   def move_to(zipper, pred) do
-    if pred.(zipper) do
-      {:ok, zipper}
-    else
-      case Zipper.next(zipper) do
-        nil ->
-          :error
+    case Zipper.node(zipper) do
+      {:__halted_depth__, _, _} ->
+        :error
 
-        next ->
-          move_to(next, pred)
-      end
+      _ ->
+        if pred.(zipper) do
+          {:ok, zipper}
+        else
+          case Zipper.next(zipper) do
+            nil ->
+              :error
+
+            next ->
+              move_to(next, pred)
+          end
+        end
+    end
+  end
+
+  @doc """
+  Returns a list of `zippers` to each `node` that satisfies the `predicate` function, or
+  an empty list if none are found.
+
+  The optional second parameters specifies the `direction`, defaults to
+  `:next`.
+  """
+  @spec find_all(Zipper.t(), predicate :: (Zipper.t() -> boolean())) :: [Zipper.t()]
+  def find_all(%Zipper{} = zipper, predicate) when is_function(predicate, 1) do
+    do_find_all(zipper, predicate, [])
+  end
+
+  defp do_find_all(nil, _predicate, buffer), do: Enum.reverse(buffer)
+
+  defp do_find_all(%Zipper{} = zipper, predicate, buffer) do
+    if predicate.(zipper) do
+      zipper |> Zipper.next() |> do_find_all(predicate, [zipper | buffer])
+    else
+      zipper |> Zipper.next() |> do_find_all(predicate, buffer)
     end
   end
 
@@ -380,12 +408,11 @@ defmodule Igniter.Code.Common do
             {:ok, ^zipper} ->
               {:ok, Zipper.replace(zipper, {:__ignored_block__, [], [zipper.node]})}
 
+            {:halt_depth, zipper} ->
+              {:ok, Zipper.replace(zipper, {:__halted_depth__, [], [zipper.node]})}
+
             {:ok, new_zipper} ->
-              if new_zipper == Zipper.remove(zipper) do
-                {:ok, new_zipper}
-              else
-                {:ok, replace_code(zipper, new_zipper.node)}
-              end
+              {:ok, new_zipper}
 
             other ->
               throw(other)
@@ -408,6 +435,9 @@ defmodule Igniter.Code.Common do
        Zipper.traverse(zipper, fn zipper ->
          case zipper.node do
            {:__ignored_block__, _, [node]} ->
+             Zipper.replace(zipper, node)
+
+           {:__halted_depth__, _, [node]} ->
              Zipper.replace(zipper, node)
 
            _ ->
@@ -453,6 +483,44 @@ defmodule Igniter.Code.Common do
                 node
             end
 
+          {{:., _, [{:__aliases__, _, split}, name]}, _, args} = node ->
+            if imported?(env, split, name, Enum.count(args)) do
+              {name, [], args}
+            else
+              node
+            end
+
+          {{:., _, [{:__aliases__, _, split}, {name, _, context}]}, _, args} = node
+          when is_atom(context) ->
+            if imported?(env, split, name, Enum.count(args)) do
+              {name, [], args}
+            else
+              node
+            end
+
+          {:|>, _,
+           [
+             arg,
+             {{:., _, [{:__aliases__, _, split}, name]}, _, args}
+           ]} = node ->
+            if imported?(env, split, name, Enum.count(args) + 1) do
+              {:|>, [], [arg, {name, [], args}]}
+            else
+              node
+            end
+
+          {:|>, _,
+           [
+             arg,
+             {{:., _, [{:__aliases__, _, split}, {name, _, context}]}, _, args}
+           ]} = node
+          when is_atom(context) ->
+            if imported?(env, split, name, Enum.count(args) + 1) do
+              {:|>, [], [arg, {name, [], args}]}
+            else
+              node
+            end
+
           node ->
             node
         end)
@@ -460,6 +528,17 @@ defmodule Igniter.Code.Common do
       _ ->
         new_code
     end
+  end
+
+  defp imported?(env, split, name, arity) do
+    mod = Module.concat(split)
+
+    Enum.any?(env.functions, fn {imported_mod, funs} ->
+      mod == imported_mod &&
+        Enum.any?(funs, fn {fun_name, fun_arity} ->
+          fun_name == name and fun_arity == arity
+        end)
+    end)
   end
 
   defp use_alias(env, parts) do

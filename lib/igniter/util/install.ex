@@ -90,6 +90,8 @@ defmodule Igniter.Util.Install do
 
     igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
 
+    Mix.Task.run("compile")
+
     {available_tasks, available_task_sources} =
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
@@ -152,8 +154,12 @@ defmodule Igniter.Util.Install do
             [] ->
               igniter
 
+            [:all] ->
+              System.cmd("mix", ["deps.update", "--all" | opts[:update_deps_args] || []])
+              %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+
             to_update ->
-              System.cmd("mix", ["deps.update" | to_update])
+              System.cmd("mix", ["deps.update" | to_update] ++ (opts[:update_deps_args] || []))
 
               %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
           end
@@ -162,11 +168,10 @@ defmodule Igniter.Util.Install do
         Mix.Project.pop()
         Mix.Dep.clear_cached()
 
-        "mix.exs"
-        |> File.read!()
-        |> Code.eval_string([], file: Path.expand("mix.exs"))
+        Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
 
         Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
+
         igniter
 
       {output, exit_code} ->

@@ -33,6 +33,17 @@ defmodule Igniter.Code.Tuple do
     end
   end
 
+  @spec elem_equals?(Zipper.t(), elem :: non_neg_integer(), value :: term) :: boolean()
+  def elem_equals?(zipper, elem, value) do
+    case tuple_elem(zipper, elem) do
+      {:ok, zipper} ->
+        Igniter.Code.Common.nodes_equal?(zipper, value)
+
+      _ ->
+        false
+    end
+  end
+
   @doc "Returns a zipper at the tuple element at the given index, or `:error` if the index is out of bounds."
   @spec tuple_elem(Zipper.t(), elem :: non_neg_integer()) :: {:ok, Zipper.t()} | :error
   def tuple_elem(item, elem) do
