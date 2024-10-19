@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.67](https://github.com/ash-project/igniter/compare/v0.3.66...v0.3.67) (2024-10-19)
+
+
+
+
+### Bug Fixes:
+
+* ensure deps are always added in explicit tuple format
+
+* don't use the 2 arg version of config when the first key would be ugly
+
 ## [v0.3.66](https://github.com/ash-project/igniter/compare/v0.3.65...v0.3.66) (2024-10-19)
 
 
