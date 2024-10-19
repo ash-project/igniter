@@ -30,6 +30,11 @@ defmodule Igniter.Code.Function do
     do_move_to_def(zipper, fun, arity, :defp)
   end
 
+  @spec move_to_def(Zipper.t()) :: {:ok, Zipper.t()} | :error
+  def move_to_def(zipper) do
+    move_to_function_call(zipper, :def, :any)
+  end
+
   @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer)) ::
           {:ok, Zipper.t()} | :error
   def move_to_def(zipper, fun, arity) do
@@ -107,7 +112,11 @@ defmodule Igniter.Code.Function do
   end
 
   @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current or lower scope"
-  @spec move_to_function_call(Zipper.t(), atom | {atom, atom}, non_neg_integer()) ::
+  @spec move_to_function_call(
+          Zipper.t(),
+          atom | {atom, atom},
+          :any | non_neg_integer() | list(non_neg_integer())
+        ) ::
           {:ok, Zipper.t()} | :error
   def move_to_function_call(zipper, name, arity, predicate \\ fn _ -> true end)
 
@@ -173,65 +182,48 @@ defmodule Igniter.Code.Function do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
-      |> Igniter.Code.Common.expand_aliases()
       |> Zipper.node()
-
-    split = module |> Module.split() |> Enum.map(&String.to_atom/1)
-
-    imported? =
-      case Igniter.Code.Common.current_env(zipper) do
-        {:ok, env} ->
-          Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
-            imported_module == module &&
-              Enum.any?(funcs, fn {imported_name, imported_arity} ->
-                name == imported_name && (arity == :any || imported_arity == arity)
-              end)
-          end)
-
-        _ ->
-          false
-      end
 
     function_call_shape? =
       case node do
-        {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+        {{:., _, [{:__aliases__, _, _} = alias, ^name]}, _, args}
         when arity == :any or length(args) == arity ->
-          true
+          Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
-        {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+        {{:., _, [{:__aliases__, _, _} = alias, {^name, _, context}]}, _, args}
         when is_atom(context) and (arity == :any or length(args) == arity) ->
-          true
+          Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
         {:|>, _,
          [
            _,
-           {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+           {{:., _, [{:__aliases__, _, _} = alias, ^name]}, _, args}
          ]}
         when arity == :any or length(args) == arity - 1 ->
-          true
+          Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
         {:|>, _,
          [
            _,
-           {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+           {{:., _, [{:__aliases__, _, _} = alias, {^name, _, context}]}, _, args}
          ]}
         when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
-          true
+          Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
-        {^name, _, args} when imported? and (arity == :any or length(args) == arity) ->
-          true
+        {^name, _, args} when arity == :any or length(args) == arity ->
+          imported?(zipper, module, name, length(args))
 
         {{^name, _, context}, _, args}
-        when is_atom(context) and imported? and (arity == :any or length(args) == arity) ->
-          true
+        when is_atom(context) and (arity == :any or length(args) == arity) ->
+          imported?(zipper, module, name, length(args))
 
         {:|>, _, [_, {^name, _, context} | rest]}
-        when is_atom(context) and imported? and (arity == :any or length(rest) == arity - 1) ->
-          true
+        when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
+          imported?(zipper, module, name, length(rest) + 1)
 
         {:|>, _, [_, ^name | rest]}
-        when imported? and (arity == :any or length(rest) == arity - 1) ->
-          true
+        when arity == :any or length(rest) == arity - 1 ->
+          imported?(zipper, module, name, length(rest) + 1)
 
         _ ->
           false
@@ -247,6 +239,22 @@ defmodule Igniter.Code.Function do
       end
     else
       false
+    end
+  end
+
+  @doc false
+  def imported?(zipper, module, name, arity) do
+    case Igniter.Code.Common.current_env(zipper) do
+      {:ok, env} ->
+        Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
+          imported_module == module &&
+            Enum.any?(funcs, fn {imported_name, imported_arity} ->
+              name == imported_name && (arity == :any || imported_arity == arity)
+            end)
+        end)
+
+      _ ->
+        false
     end
   end
 
@@ -289,7 +297,6 @@ defmodule Igniter.Code.Function do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
-      |> Igniter.Code.Common.expand_aliases()
       |> Zipper.node()
 
     case node do
@@ -324,105 +331,87 @@ defmodule Igniter.Code.Function do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
-      |> Igniter.Code.Common.expand_aliases()
       |> Zipper.node()
-
-    split =
-      module |> Module.split() |> Enum.map(&String.to_atom/1)
-
-    imported? =
-      case Igniter.Code.Common.current_env(zipper) do
-        {:ok, env} ->
-          Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
-            imported_module == module &&
-              Enum.any?(funcs, fn {imported_name, imported_arity} ->
-                name == imported_name && (arity == :any || imported_arity == arity)
-              end)
-          end)
-
-        _ ->
-          false
-      end
 
     case node do
       {:&, _, [{:/, _, [{^name, _, context}, actual_arity]}]}
-      when is_atom(context) and imported? and (arity == :any or actual_arity == arity) ->
-        true
+      when is_atom(context) and (arity == :any or actual_arity == arity) ->
+        imported?(zipper, module, name, actual_arity)
 
       {:&, _, [{:/, _, [{^name, _, context}, {:__block__, _, [actual_arity]}]}]}
-      when is_atom(context) and imported? and (arity == :any or actual_arity == arity) ->
-        true
+      when is_atom(context) and (arity == :any or actual_arity == arity) ->
+        imported?(zipper, module, name, actual_arity)
 
       {:&, _, [{:/, _, [^name, actual_arity]}]}
-      when imported? and (arity == :any or actual_arity == arity) ->
-        true
+      when arity == :any or actual_arity == arity ->
+        imported?(zipper, module, name, actual_arity)
 
       {:&, _, [{:/, _, [^name, {:__block__, _, [actual_arity]}]}]}
-      when imported? and (arity == :any or actual_arity == arity) ->
-        true
+      when arity == :any or actual_arity == arity ->
+        imported?(zipper, module, name, actual_arity)
 
       {:&, _,
        [
          {:/, _,
           [
-            {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, _},
+            {{:., _, [{:__aliases__, _, _} = alias, ^name]}, _, _},
             actual_arity
           ]}
        ]}
       when arity == :any or actual_arity == arity ->
-        true
+        Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
       {:&, _,
        [
          {:/, _,
           [
-            {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, _},
+            {{:., _, [{:__aliases__, _, _} = alias, ^name]}, _, _},
             {:__block__, _, [actual_arity]}
           ]}
        ]}
       when arity == :any or actual_arity == arity ->
-        true
+        Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
       {:&, _, [call]} ->
         case call do
-          {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+          {{:., _, [{:__aliases__, _, _} = alias, ^name]}, _, args}
           when arity == :any or length(args) == arity ->
-            true
+            Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
-          {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+          {{:., _, [{:__aliases__, _, _} = alias, {^name, _, context}]}, _, args}
           when is_atom(context) and (arity == :any or length(args) == arity) ->
-            true
+            Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
           {:|>, _,
            [
              _,
-             {{:., _, [{:__aliases__, _, ^split}, ^name]}, _, args}
+             {{:., _, [{:__aliases__, _, _} = alias, ^name]}, _, args}
            ]}
           when arity == :any or length(args) == arity - 1 ->
-            true
+            Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
           {:|>, _,
            [
              _,
-             {{:., _, [{:__aliases__, _, ^split}, {^name, _, context}]}, _, args}
+             {{:., _, [{:__aliases__, _, _} = alias, {^name, _, context}]}, _, args}
            ]}
           when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
-            true
+            Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
-          {^name, _, args} when imported? and (arity == :any or length(args) == arity) ->
-            true
+          {^name, _, args} when arity == :any or length(args) == arity ->
+            imported?(zipper, module, name, length(args))
 
           {{^name, _, context}, _, args}
-          when is_atom(context) and imported? and (arity == :any or length(args) == arity) ->
-            true
+          when is_atom(context) and (arity == :any or length(args) == arity) ->
+            imported?(zipper, module, name, length(args))
 
           {:|>, _, [_, {^name, _, context} | rest]}
-          when is_atom(context) and imported? and (arity == :any or length(rest) == arity - 1) ->
-            true
+          when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
+            imported?(zipper, module, name, length(rest) + 1)
 
           {:|>, _, [_, ^name | rest]}
-          when imported? and (arity == :any or length(rest) == arity - 1) ->
-            true
+          when arity == :any or length(rest) == arity - 1 ->
+            imported?(zipper, module, name, length(rest) + 1)
 
           _ ->
             false
@@ -441,7 +430,6 @@ defmodule Igniter.Code.Function do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
-      |> Igniter.Code.Common.expand_aliases()
       |> Zipper.node()
 
     case node do

@@ -97,7 +97,7 @@ defmodule Mix.Tasks.Igniter.Refactor.RenameFunction do
          mod <- Enum.join(parts, "."),
          {fun, arity} <- fun_to_arity(fun),
          fun <- String.to_atom(fun),
-         mod <- Igniter.Code.Module.parse(mod) do
+         mod <- Igniter.Project.Module.parse(mod) do
       {mod, fun, arity}
     else
       _ ->

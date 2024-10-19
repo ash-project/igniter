@@ -236,11 +236,13 @@ defmodule Igniter.Refactors.Rename do
                     deprecation =
                       case deprecate do
                         :hard ->
-                          "@deprecate \"#{message}\""
+                          "@deprecated \"#{message}\""
 
                         :soft ->
                           "@doc deprecated: \"#{message}\""
                       end
+
+                    {:ok, zipper} = Igniter.Code.Function.move_to_def(zipper)
 
                     {:ok,
                      Igniter.Code.Common.add_code(
@@ -320,199 +322,238 @@ defmodule Igniter.Refactors.Rename do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
-      |> Igniter.Code.Common.expand_aliases()
       |> Zipper.node()
-
-    split = old_module |> Module.split() |> Enum.map(&String.to_atom/1)
-
-    imported? =
-      case Igniter.Code.Common.current_env(zipper) do
-        {:ok, env} ->
-          Enum.any?(env.functions ++ env.macros, fn {imported_module, funcs} ->
-            imported_module == old_module &&
-              Enum.any?(funcs, fn {imported_name, imported_arity} ->
-                old_function == imported_name &&
-                  (arity == :any || imported_arity == arity)
-              end)
-          end)
-
-        _ ->
-          false
-      end
 
     case node do
       {:&, _, [{:/, _, [{^old_function, [], context}, actual_arity]}]}
-      when is_atom(context) and imported? and (arity == :any or actual_arity == arity) ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:&, [], [{:/, [], [{new_function, [], context}, actual_arity]}]}
-        )
+      when is_atom(context) and (arity == :any or actual_arity == arity) ->
+        if Igniter.Code.Function.imported?(zipper, old_module, old_function, actual_arity) do
+          Igniter.Code.Common.replace_code(
+            zipper,
+            {:&, [], [{:/, [], [{new_function, [], context}, actual_arity]}]}
+          )
+        else
+          {:ok, zipper}
+        end
 
       {:&, _, [{:/, _, [{^old_function, _, context}, {:__block__, _, [actual_arity]}]}]}
-      when is_atom(context) and imported? and (arity == :any or actual_arity == arity) ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:&, [], [{:/, [], [{new_function, [], context}, {:__block__, [], [actual_arity]}]}]}
-        )
+      when is_atom(context) and (arity == :any or actual_arity == arity) ->
+        if Igniter.Code.Function.imported?(zipper, old_module, old_function, actual_arity) do
+          Igniter.Code.Common.replace_code(
+            zipper,
+            {:&, [], [{:/, [], [{new_function, [], context}, {:__block__, [], [actual_arity]}]}]}
+          )
+        else
+          {:ok, zipper}
+        end
 
       {:&, _, [{:/, _, [^old_function, actual_arity]}]}
-      when imported? and (arity == :any or actual_arity == arity) ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:&, [], [{:/, [], [new_function, actual_arity]}]}
-        )
+      when arity == :any or actual_arity == arity ->
+        if Igniter.Code.Function.imported?(zipper, old_module, old_function, actual_arity) do
+          Igniter.Code.Common.replace_code(
+            zipper,
+            {:&, [], [{:/, [], [new_function, actual_arity]}]}
+          )
+        else
+          {:ok, zipper}
+        end
 
       {:&, _, [{:/, _, [^old_function, {:__block__, _, [actual_arity]}]}]}
-      when imported? and (arity == :any or actual_arity == arity) ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:&, [], [{:/, [], [new_function, {:__block__, [], [actual_arity]}]}]}
-        )
+      when arity == :any or actual_arity == arity ->
+        if Igniter.Code.Function.imported?(zipper, old_module, old_function, actual_arity) do
+          Igniter.Code.Common.replace_code(
+            zipper,
+            {:&, [], [{:/, [], [new_function, {:__block__, [], [actual_arity]}]}]}
+          )
+        else
+          {:ok, zipper}
+        end
 
       {:&, _,
        [
          {:/, _,
           [
-            {{:., _, [{:__aliases__, _, ^split}, ^old_function]}, _, args},
+            {{:., _, [{:__aliases__, _, _} = alias, ^old_function]}, _, args},
             actual_arity
           ]}
        ]}
       when arity == :any or actual_arity == arity ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:&, [],
-           [
-             {:/, [],
-              [
-                {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
-                 args},
-                actual_arity
-              ]}
-           ]}
-        )
+        if Igniter.Code.Common.nodes_equal?(Zipper.replace(zipper, alias), old_module) do
+          Igniter.Code.Common.replace_code(
+            zipper,
+            {:&, [],
+             [
+               {:/, [],
+                [
+                  {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]},
+                   [], args},
+                  actual_arity
+                ]}
+             ]}
+          )
+        else
+          {:ok, zipper}
+        end
 
       {:&, _,
        [
          {:/, _,
           [
-            {{:., _, [{:__aliases__, _, ^split}, ^old_function]}, _, args},
+            {{:., _, [{:__aliases__, _, _} = alias, ^old_function]}, _, args},
             {:__block__, _, [actual_arity]}
           ]}
        ]}
       when arity == :any or actual_arity == arity ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:&, [],
-           [
-             {:/, [],
-              [
-                {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
-                 args},
-                {:__block__, [], [actual_arity]}
-              ]}
-           ]}
-        )
+        if Igniter.Code.Common.nodes_equal?(Zipper.replace(zipper, alias), old_module) do
+          Igniter.Code.Common.replace_code(
+            zipper,
+            {:&, [],
+             [
+               {:/, [],
+                [
+                  {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]},
+                   [], args},
+                  {:__block__, [], [actual_arity]}
+                ]}
+             ]}
+          )
+        else
+          {:ok, zipper}
+        end
 
       {:&, _, [call]} ->
         case call do
-          {{:., _, [{:__aliases__, _, ^split}, ^old_function]}, _, args}
+          {{:., _, [{:__aliases__, _, _} = alias, ^old_function]}, _, args}
           when arity == :any or length(args) == arity ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [],
-               [
-                 {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
-                  args}
-               ]}
-            )
+            if Igniter.Code.Common.nodes_equal?(Zipper.replace(zipper, alias), old_module) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [],
+                 [
+                   {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]},
+                    [], args}
+                 ]}
+              )
+            else
+              {:ok, zipper}
+            end
 
-          {{:., _, [{:__aliases__, _, ^split}, {^old_function, _, context}]}, _, args}
+          {{:., _, [{:__aliases__, _, _} = alias, {^old_function, _, context}]}, _, args}
           when is_atom(context) and (arity == :any or length(args) == arity) ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [],
-               [
-                 {{:., [],
-                   [
-                     {:__aliases__, [], split_and_atomize(new_module)},
-                     {new_function, [], context}
-                   ]}, [], args}
-               ]}
-            )
+            if Igniter.Code.Common.nodes_equal?(Zipper.replace(zipper, alias), old_module) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [],
+                 [
+                   {{:., [],
+                     [
+                       {:__aliases__, [], split_and_atomize(new_module)},
+                       {new_function, [], context}
+                     ]}, [], args}
+                 ]}
+              )
+            else
+              {:ok, zipper}
+            end
 
           {:|>, _,
            [
              first,
-             {{:., _, [{:__aliases__, _, ^split}, ^old_function]}, _, args}
+             {{:., _, [{:__aliases__, _, _} = alias, ^old_function]}, _, args}
            ]}
           when arity == :any or length(args) == arity - 1 ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [],
-               [
-                 {:|>, [],
-                  [
-                    first,
-                    {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]},
-                     [], args}
-                  ]}
-               ]}
-            )
+            if Igniter.Code.Common.nodes_equal?(Zipper.replace(zipper, alias), old_module) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [],
+                 [
+                   {:|>, [],
+                    [
+                      first,
+                      {{:., [],
+                        [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
+                       args}
+                    ]}
+                 ]}
+              )
+            else
+              {:ok, zipper}
+            end
 
           {:|>, _,
            [
              first,
-             {{:., _, [{:__aliases__, _, ^split}, {^old_function, _, context}]}, _, args}
+             {{:., _, [{:__aliases__, _, _} = alias, {^old_function, _, context}]}, _, args}
            ]}
           when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [],
-               [
-                 {:|>, [],
-                  [
-                    first,
-                    {{:., [],
-                      [
-                        {:__aliases__, [], split_and_atomize(new_module)},
-                        {new_function, [], context}
-                      ]}, [], args}
-                  ]}
-               ]}
-            )
+            if Igniter.Code.Common.nodes_equal?(Zipper.replace(zipper, alias), old_module) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [],
+                 [
+                   {:|>, [],
+                    [
+                      first,
+                      {{:., [],
+                        [
+                          {:__aliases__, [], split_and_atomize(new_module)},
+                          {new_function, [], context}
+                        ]}, [], args}
+                    ]}
+                 ]}
+              )
+            else
+              {:ok, zipper}
+            end
 
-          {^old_function, _, args} when imported? and (arity == :any or length(args) == arity) ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [], [{new_function, [], args}]}
-            )
+          {^old_function, _, args} when arity == :any or length(args) == arity ->
+            if Igniter.Code.Function.imported?(zipper, old_module, old_function, length(args)) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [], [{new_function, [], args}]}
+              )
+            else
+              {:ok, zipper}
+            end
 
           {{^old_function, _, context}, _, args}
-          when is_atom(context) and imported? and (arity == :any or length(args) == arity) ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [], [{{new_function, [], context}, [], args}]}
-            )
+          when is_atom(context) and (arity == :any or length(args) == arity) ->
+            if Igniter.Code.Function.imported?(zipper, old_module, old_function, length(args)) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [], [{{new_function, [], context}, [], args}]}
+              )
+            else
+              {:ok, zipper}
+            end
 
           {:|>, _, [first, {^old_function, _, context} | rest]}
-          when is_atom(context) and imported? and (arity == :any or length(rest) == arity - 1) ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [],
-               [
-                 {:|>, [], [first, {new_function, [], context} | rest]}
-               ]}
-            )
+          when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
+            if Igniter.Code.Function.imported?(zipper, old_module, old_function, length(rest) + 1) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [],
+                 [
+                   {:|>, [], [first, {new_function, [], context} | rest]}
+                 ]}
+              )
+            else
+              {:ok, zipper}
+            end
 
           {:|>, _, [first, ^old_function | rest]}
-          when imported? and (arity == :any or length(rest) == arity - 1) ->
-            Igniter.Code.Common.replace_code(
-              zipper,
-              {:&, [],
-               [
-                 {:|>, [], [first, new_function | rest]}
-               ]}
-            )
+          when arity == :any or length(rest) == arity - 1 ->
+            if Igniter.Code.Function.imported?(zipper, old_module, old_function, length(rest) + 1) do
+              Igniter.Code.Common.replace_code(
+                zipper,
+                {:&, [],
+                 [
+                   {:|>, [], [first, new_function | rest]}
+                 ]}
+              )
+            else
+              {:ok, zipper}
+            end
 
           _ ->
             false

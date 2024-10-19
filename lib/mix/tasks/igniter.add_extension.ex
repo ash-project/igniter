@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Igniter.AddExtension do
       if extension == "phoenix" do
         Igniter.Extensions.Phoenix
       else
-        Igniter.Code.Module.parse(extension)
+        Igniter.Project.Module.parse(extension)
       end
 
     igniter

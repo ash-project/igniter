@@ -6,14 +6,6 @@ defmodule Igniter.Code.Module do
 
   require Logger
 
-  @doc "Parses a string into a module name"
-  @spec parse(String.t()) :: module()
-  def parse(module_name) do
-    module_name
-    |> String.split(".")
-    |> Module.concat()
-  end
-
   @doc "The module name prefix based on the mix project's module name"
   @deprecated "Use `Igniter.Project.Module.module_name_prefix/1` instead"
   @spec module_name_prefix() :: module()

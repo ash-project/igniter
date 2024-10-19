@@ -602,4 +602,12 @@ defmodule Igniter.Project.Module do
     |> Enum.map(&to_string/1)
     |> Enum.map(&Macro.underscore/1)
   end
+
+  @doc "Parses a string into a module name"
+  @spec parse(String.t()) :: module()
+  def parse(module_name) do
+    module_name
+    |> String.split(".")
+    |> Module.concat()
+  end
 end

@@ -9,22 +9,16 @@ defmodule Igniter.Code.Common do
   """
   @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
   def move_to(zipper, pred) do
-    case Zipper.node(zipper) do
-      {:__halted_depth__, _, _} ->
-        :error
+    if pred.(zipper) do
+      {:ok, zipper}
+    else
+      case Zipper.next(zipper) do
+        nil ->
+          :error
 
-      _ ->
-        if pred.(zipper) do
-          {:ok, zipper}
-        else
-          case Zipper.next(zipper) do
-            nil ->
-              :error
-
-            next ->
-              move_to(next, pred)
-          end
-        end
+        next ->
+          move_to(next, pred)
+      end
     end
   end
 
@@ -384,68 +378,44 @@ defmodule Igniter.Code.Common do
         ) ::
           {:ok, Zipper.t()} | {:warning | :error, term()}
   def update_all_matches(zipper, pred, fun) do
-    within(zipper, fn zipper ->
-      case move_to(zipper, fn zipper ->
-             case zipper.node do
-               {:__ignored_block__, _, _} ->
-                 false
-
-               _ ->
-                 with upwards when not is_nil(upwards) <- Zipper.up(zipper),
-                      {:__ignored_block__, _, _} <- upwards.node do
-                   false
-                 else
-                   _ ->
-                     pred.(zipper)
-                 end
-             end
-           end) do
-        {:ok, zipper} ->
-          case fun.(zipper) do
-            {:code, new_code} ->
-              {:ok, replace_code(zipper, new_code)}
-
-            {:ok, ^zipper} ->
-              {:ok, Zipper.replace(zipper, {:__ignored_block__, [], [zipper.node]})}
-
-            {:halt_depth, zipper} ->
-              {:ok, Zipper.replace(zipper, {:__halted_depth__, [], [zipper.node]})}
-
-            {:ok, new_zipper} ->
-              {:ok, new_zipper}
-
-            other ->
-              throw(other)
-          end
-
-        _ ->
-          throw(:done)
-      end
-    end)
-    |> case do
-      {:ok, zipper} ->
-        update_all_matches(zipper, pred, fun)
-
+    # we check for a single match before traversing as an optimization
+    case move_to(zipper, pred) do
       :error ->
         {:ok, zipper}
+
+      {:ok, _} ->
+        Zipper.traverse(zipper, false, fn zipper, acc ->
+          if pred.(zipper) do
+            case fun.(zipper) do
+              {:code, new_code} ->
+                {replace_code(zipper, new_code), true}
+
+              {:ok, ^zipper} ->
+                {zipper, acc}
+
+              {:ok, zipper} ->
+                {zipper, true}
+
+              {:halt_depth, zipper} ->
+                {zipper, acc}
+
+              other ->
+                throw({:other_res, other})
+            end
+          else
+            {zipper, acc}
+          end
+        end)
+        |> case do
+          {zipper, false} ->
+            {:ok, zipper}
+
+          {zipper, true} ->
+            update_all_matches(zipper, pred, fun)
+        end
     end
   catch
-    :done ->
-      {:ok,
-       Zipper.traverse(zipper, fn zipper ->
-         case zipper.node do
-           {:__ignored_block__, _, [node]} ->
-             Zipper.replace(zipper, node)
-
-           {:__halted_depth__, _, [node]} ->
-             Zipper.replace(zipper, node)
-
-           _ ->
-             zipper
-         end
-       end)}
-
-    v ->
+    {:other_res, v} ->
       v
   end
 
