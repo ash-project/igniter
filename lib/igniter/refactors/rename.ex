@@ -209,11 +209,11 @@ defmodule Igniter.Refactors.Rename do
         fn zipper ->
           if !deprecate && old_module == new_module do
             case zipper.node do
-              {:def, _, [{^old_function, _, args}, body]} ->
+              {:def, def_meta, [{^old_function, meta, args}, body]} ->
                 {:ok,
                  Igniter.Code.Common.replace_code(
                    zipper,
-                   {:def, [], [{new_function, [], args}, body]}
+                   {:def, def_meta, [{new_function, meta, args}, body]}
                  )}
 
               _ ->

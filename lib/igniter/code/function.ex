@@ -210,7 +210,7 @@ defmodule Igniter.Code.Function do
         when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
           Common.nodes_equal?(Zipper.replace(zipper, alias), module)
 
-        {^name, _, args} when arity == :any or length(args) == arity ->
+        {^name, _, args} when is_list(args) and (arity == :any or length(args) == arity) ->
           imported?(zipper, module, name, length(args))
 
         {{^name, _, context}, _, args}
