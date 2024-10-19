@@ -48,6 +48,9 @@ defmodule Mix.Tasks.Igniter.Refactor.RenameFunction do
 
     deprecate =
       case options[:deprecate] do
+        nil ->
+          nil
+
         "hard" ->
           :hard
 

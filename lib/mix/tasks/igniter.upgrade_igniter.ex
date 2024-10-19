@@ -55,7 +55,8 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
     igniter
     |> Igniter.Refactors.Rename.rename_function(
       {Igniter.Code.Module, :parse},
-      {Igniter.Project.Module, :parse}
+      {Igniter.Project.Module, :parse},
+      arity: 1
     )
     |> Igniter.add_notice(
       "Igniter.Code.Module.parse/1 was deprecated in favor of `Igniter.Project.Module.parse/1"
