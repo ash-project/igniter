@@ -23,20 +23,30 @@ defmodule Igniter.Refactors.Rename do
   def rename_function(igniter, old, new, opts \\ [])
 
   def rename_function(igniter, {old_module, old_function}, {new_module, new_function}, opts) do
-    Enum.reduce(List.wrap(opts[:arity]), igniter, fn arity, igniter ->
-      Igniter.update_all_elixir_files(igniter, fn zipper ->
+    Igniter.update_all_elixir_files(igniter, fn zipper ->
+      Enum.reduce(List.wrap(opts[:arity]), {:ok, zipper}, fn arity, {:ok, zipper} ->
         with {:ok, zipper} <-
-               remap_calls(zipper, {old_module, old_function}, {new_module, new_function}, arity) do
-          remap_references(zipper, {old_module, old_function}, {new_module, new_function}, arity)
+               remap_calls(zipper, {old_module, old_function}, {new_module, new_function}, arity),
+             {:ok, zipper} <-
+               remap_references(
+                 zipper,
+                 {old_module, old_function},
+                 {new_module, new_function},
+                 arity
+               ) do
+          {:ok, zipper}
+        else
+          _ ->
+            {:ok, zipper}
         end
       end)
-      |> remap_function_definition(
-        {old_module, old_function},
-        {new_module, new_function},
-        arity,
-        opts[:deprecate]
-      )
     end)
+    |> remap_function_definition(
+      {old_module, old_function},
+      {new_module, new_function},
+      opts[:arity],
+      opts[:deprecate]
+    )
   end
 
   defp remap_function_definition(
@@ -72,7 +82,7 @@ defmodule Igniter.Refactors.Rename do
               Igniter.Code.Common.find_all(old_zipper, fn zipper ->
                 case subsume_module_attrs(zipper) do
                   %{node: {:def, _, [{^old_function, _, args}, _]}} ->
-                    arity == :any || length(args) == arity
+                    arity == :any || length(args) in List.wrap(arity)
 
                   _ ->
                     false
@@ -127,29 +137,31 @@ defmodule Igniter.Refactors.Rename do
   end
 
   defp update_imports(zipper, old_module, new_module, old_function, new_function, arity) do
-    if old_module != new_module do
-      # not doing this one for now
-      {:ok, zipper}
-    else
-      Igniter.Code.Common.update_all_matches(
-        zipper,
-        fn zipper ->
-          Igniter.Code.Function.function_call?(zipper, :import, 2) &&
-            Igniter.Code.Function.argument_equals?(zipper, 0, old_module)
-        end,
-        fn zipper ->
-          with {:ok, zipper} <-
-                 replace_import_qualifier(zipper, old_function, new_function, arity, :only),
-               {:ok, zipper} <-
-                 replace_import_qualifier(zipper, old_function, new_function, arity, :except) do
-            {:ok, zipper}
-          else
-            _ ->
+    Enum.reduce(List.wrap(arity), {:ok, zipper}, fn arity, {:ok, zipper} ->
+      if old_module != new_module do
+        # not doing this one for now
+        {:ok, zipper}
+      else
+        Igniter.Code.Common.update_all_matches(
+          zipper,
+          fn zipper ->
+            Igniter.Code.Function.function_call?(zipper, :import, 2) &&
+              Igniter.Code.Function.argument_equals?(zipper, 0, old_module)
+          end,
+          fn zipper ->
+            with {:ok, zipper} <-
+                   replace_import_qualifier(zipper, old_function, new_function, arity, :only),
+                 {:ok, zipper} <-
+                   replace_import_qualifier(zipper, old_function, new_function, arity, :except) do
               {:ok, zipper}
+            else
+              _ ->
+                {:ok, zipper}
+            end
           end
-        end
-      )
-    end
+        )
+      end
+    end)
   end
 
   defp replace_import_qualifier(zipper, old_function, new_function, arity, key) do
@@ -182,70 +194,72 @@ defmodule Igniter.Refactors.Rename do
   end
 
   defp update_refs(zipper, old_module, new_module, old_function, new_function, arity, deprecate) do
-    Igniter.Code.Common.update_all_matches(
-      zipper,
-      fn zipper ->
-        case subsume_module_attrs(zipper) do
-          %{node: {:def, _, [{^old_function, _, args}, _body]}} ->
-            arity == :any || length(args) == arity
-
-          _other ->
-            false
-        end
-      end,
-      fn zipper ->
-        if !deprecate && old_module == new_module do
-          case zipper.node do
-            {:def, _, [{^old_function, _, args}, body]} ->
-              {:ok,
-               Igniter.Code.Common.replace_code(
-                 zipper,
-                 {:def, [], [{new_function, [], args}, body]}
-               )}
-
-            _ ->
-              {:ok, zipper}
-          end
-        else
+    Enum.reduce(List.wrap(arity), {:ok, zipper}, fn arity, {:ok, zipper} ->
+      Igniter.Code.Common.update_all_matches(
+        zipper,
+        fn zipper ->
           case subsume_module_attrs(zipper) do
-            %{node: {:def, _, [{^old_function, _, args}, _]}} ->
-              if deprecate do
-                if has_deprecation_type?(zipper, deprecate) do
-                  {:halt_depth, zipper}
+            %{node: {:def, _, [{^old_function, _, args}, _body]}} ->
+              arity == :any || length(args) == arity
+
+            _other ->
+              false
+          end
+        end,
+        fn zipper ->
+          if !deprecate && old_module == new_module do
+            case zipper.node do
+              {:def, _, [{^old_function, _, args}, body]} ->
+                {:ok,
+                 Igniter.Code.Common.replace_code(
+                   zipper,
+                   {:def, [], [{new_function, [], args}, body]}
+                 )}
+
+              _ ->
+                {:ok, zipper}
+            end
+          else
+            case subsume_module_attrs(zipper) do
+              %{node: {:def, _, [{^old_function, _, args}, _]}} ->
+                if deprecate do
+                  if has_deprecation_type?(zipper, deprecate) do
+                    {:halt_depth, zipper}
+                  else
+                    message =
+                      if new_module == old_module do
+                        "Use `#{new_function}/#{Enum.count(args)}` instead."
+                      else
+                        "Use `Module.#{new_function}/#{Enum.count(args)}`"
+                      end
+
+                    deprecation =
+                      case deprecate do
+                        :hard ->
+                          "@deprecate \"#{message}\""
+
+                        :soft ->
+                          "@doc deprecated: \"#{message}\""
+                      end
+
+                    {:ok,
+                     Igniter.Code.Common.add_code(
+                       zipper,
+                       deprecation,
+                       :before
+                     )}
+                  end
                 else
-                  message =
-                    if new_module == old_module do
-                      "Use `#{new_function}/#{Enum.count(args)}` instead."
-                    else
-                      "Use `Module.#{new_function}/#{Enum.count(args)}`"
-                    end
-
-                  deprecation =
-                    case deprecate do
-                      :hard ->
-                        "@deprecate \"#{message}\""
-
-                      :soft ->
-                        "@doc deprecated: \"#{message}\""
-                    end
-
-                  {:ok,
-                   Igniter.Code.Common.add_code(
-                     zipper,
-                     deprecation,
-                     :before
-                   )}
+                  {:ok, Zipper.remove(zipper)}
                 end
-              else
-                {:ok, Zipper.remove(zipper)}
-              end
 
-            _ ->
-              {:ok, zipper}
+              _ ->
+                {:ok, zipper}
+            end
           end
         end
-      end
-    )
+      )
+    end)
   end
 
   defp has_deprecation_type?(nil, _), do: false
