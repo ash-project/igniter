@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.66](https://github.com/ash-project/igniter/compare/v0.3.65...v0.3.66) (2024-10-19)
+
+
+
+
+### Improvements:
+
+* significant improvements to function checking speed
+
 ## [v0.3.65](https://github.com/ash-project/igniter/compare/v0.3.64...v0.3.65) (2024-10-19)
 
 
