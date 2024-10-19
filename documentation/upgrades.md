@@ -35,6 +35,9 @@ like `--old-version-<dep-name> x.y.z`.
 
 ## Upgrading in CI (i.e Dependabot)
 
+Note: this is a BETA/untested feature, primarily because I had to release the capability to hex for people to write
+these, and I'm waiting on dependabot to make a PR to my project to test it 😂.
+
 The flag `--git-ci` is provided to `mix igniter.upgrade` to allow for CI integration. This flag
 causes igniter to parse the previous versions from the `mix.lock` file prior to the current pull request.
 This limitation does mean that only hex dependencies can be upgraded in this way.
