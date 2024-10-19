@@ -107,6 +107,19 @@ defmodule Igniter.Project.ConfigTest do
       """)
     end
 
+    test "it doesn't add non-pretty keys to existing config" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+        import Config
+        config :fake, foo: 10
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
+      |> assert_has_patch("config/fake.exs", """
+      2 + |config :fake, Foo.Bar, bar: "baz"
+      """)
+    end
+
     test "it chooses the 3 arg version when first item in path is not pretty, and merges that way" do
       test_project()
       |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")

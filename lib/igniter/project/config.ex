@@ -291,13 +291,12 @@ defmodule Igniter.Project.Config do
             :error ->
               [first | rest] = config_path
 
-              # this indicates its a module / not a "pretty" atom
               config =
-                if is_atom(first) && String.downcase(to_string(first)) != to_string(first) do
-                  {:config, [], [app_name, first, Igniter.Code.Keyword.keywordify(rest, value)]}
-                else
+                if simple_atom(first) do
                   {:config, [],
                    [app_name, [{first, Igniter.Code.Keyword.keywordify(rest, value)}]]}
+                else
+                  {:config, [], [app_name, first, Igniter.Code.Keyword.keywordify(rest, value)]}
                 end
 
               case Igniter.Code.Function.move_to_function_call_in_current_scope(
@@ -503,7 +502,7 @@ defmodule Igniter.Project.Config do
   end
 
   defp try_update_three_arg(zipper, config_path, app_name, value, updater) do
-    if Enum.count(config_path) == 1 do
+    if Enum.count(config_path) == 1 and simple_atom(Enum.at(config_path, 0)) do
       config_item = Enum.at(config_path, 0)
 
       case Igniter.Code.Function.move_to_function_call_in_current_scope(
@@ -554,23 +553,31 @@ defmodule Igniter.Project.Config do
   end
 
   defp try_update_two_arg(zipper, config_path, app_name, value, updater) do
-    case Igniter.Code.Function.move_to_function_call_in_current_scope(
-           zipper,
-           :config,
-           2,
-           fn function_call ->
-             Igniter.Code.Function.argument_equals?(function_call, 0, app_name)
-           end
-         ) do
-      :error ->
-        :error
+    if simple_atom(Enum.at(config_path, 0)) do
+      case Igniter.Code.Function.move_to_function_call_in_current_scope(
+             zipper,
+             :config,
+             2,
+             fn function_call ->
+               Igniter.Code.Function.argument_equals?(function_call, 0, app_name)
+             end
+           ) do
+        :error ->
+          :error
 
-      {:ok, zipper} ->
-        Igniter.Code.Function.update_nth_argument(
-          zipper,
-          1,
-          &Igniter.Code.Keyword.put_in_keyword(&1, config_path, value, updater)
-        )
+        {:ok, zipper} ->
+          Igniter.Code.Function.update_nth_argument(
+            zipper,
+            1,
+            &Igniter.Code.Keyword.put_in_keyword(&1, config_path, value, updater)
+          )
+      end
+    else
+      :error
     end
+  end
+
+  defp simple_atom(value) do
+    is_atom(value) and Regex.match?(~r/^[a-z_][a-zA-Z0-9_?!]*$/, to_string(value))
   end
 end
