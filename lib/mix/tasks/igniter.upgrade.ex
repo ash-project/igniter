@@ -159,34 +159,44 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       end
 
     igniter =
-      packages
-      |> Enum.reduce(igniter, &replace_dep(&2, &1))
-      |> Igniter.apply_and_fetch_dependencies(
-        error_on_abort?: true,
-        yes?: options[:yes],
-        update_deps: package_names,
-        update_deps_args: update_deps_args,
-        force?: true
-      )
+      if options[:git_ci] do
+        igniter
+      else
+        packages
+        |> Enum.reduce(igniter, &replace_dep(&2, &1))
+        |> Igniter.apply_and_fetch_dependencies(
+          error_on_abort?: true,
+          yes?: options[:yes],
+          update_deps: package_names,
+          update_deps_args: update_deps_args,
+          force?: true
+        )
+      end
 
     try do
       new_deps_info =
         Mix.Dep.load_and_cache()
         |> expand_deps()
-        |> Enum.map(fn dep ->
-          status =
-            Mix.Dep.in_dependency(dep, fn _ ->
-              if File.exists?("mix.exs") do
-                Mix.Project.pop()
-                Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
+        |> then(fn deps ->
+          if options[:git_ci] do
+            deps
+          else
+            Enum.map(deps, fn dep ->
+              status =
+                Mix.Dep.in_dependency(dep, fn _ ->
+                  if File.exists?("mix.exs") do
+                    Mix.Project.pop()
+                    Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
 
-                {:ok, Mix.Project.get!().project()[:version]}
-              else
-                dep.status
-              end
+                    {:ok, Mix.Project.get!().project()[:version]}
+                  else
+                    dep.status
+                  end
+                end)
+
+              %{dep | status: status}
             end)
-
-          %{dep | status: status}
+          end
         end)
         |> Enum.filter(&match?({:ok, v} when is_binary(v), &1.status))
 

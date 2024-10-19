@@ -24,7 +24,7 @@ defmodule Igniter.Refactors.Rename do
 
   def rename_function(igniter, {old_module, old_function}, {new_module, new_function}, opts) do
     Enum.reduce(List.wrap(opts[:arity]), igniter, fn arity, igniter ->
-      Igniter.update_glob(igniter, "lib/example.ex", fn zipper ->
+      Igniter.update_all_elixir_files(igniter, fn zipper ->
         with {:ok, zipper} <-
                remap_calls(zipper, {old_module, old_function}, {new_module, new_function}, arity) do
           remap_references(zipper, {old_module, old_function}, {new_module, new_function}, arity)

@@ -195,7 +195,6 @@ defmodule Igniter do
     |> Enum.reduce(igniter, fn {:ok, source}, igniter ->
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
     end)
-    |> format(paths)
   end
 
   @doc """
@@ -217,14 +216,77 @@ defmodule Igniter do
 
     igniter = include_glob(igniter, glob)
 
-    Enum.reduce(igniter.rewrite, igniter, fn source, igniter ->
-      path = Rewrite.Source.get(source, :path)
+    igniter.rewrite
+    |> Task.async_stream(
+      fn source ->
+        if GlobEx.match?(glob, Path.expand(source.path)) do
+          quoted = Rewrite.Source.get(source, :quoted)
+          zipper = Sourceror.Zipper.zip(quoted)
 
-      if GlobEx.match?(glob, Path.expand(path)) do
-        update_elixir_file(igniter, path, func)
-      else
-        igniter
+          case func.(zipper) do
+            %Sourceror.Zipper{} = new_zipper ->
+              if zipper.node != new_zipper.node do
+                {source, {:ok, new_zipper}}
+              end
+
+            {:ok, %Sourceror.Zipper{} = new_zipper} ->
+              if zipper.node != new_zipper.node do
+                {source, {:ok, new_zipper}}
+              end
+
+            other ->
+              {source, other}
+          end
+        else
+        end
+      end,
+      timeout: :infinity
+    )
+    |> Stream.reject(fn
+      {:ok, nil} ->
+        true
+
+      _ ->
+        false
+    end)
+    |> Enum.reduce({igniter, []}, fn {:ok, {source, res}}, {igniter, paths} ->
+      case res do
+        {:ok, %Sourceror.Zipper{} = zipper} ->
+          try do
+            Rewrite.update!(
+              igniter.rewrite,
+              Rewrite.Source.update(
+                source,
+                :configure,
+                :quoted,
+                Sourceror.Zipper.root(zipper)
+              )
+            )
+            |> then(&Map.put(igniter, :rewrite, &1))
+            |> then(fn igniter ->
+              {igniter, [source.path | paths]}
+            end)
+          rescue
+            e ->
+              reraise e, __STACKTRACE__
+          end
+
+        {:error, error} ->
+          Rewrite.update!(
+            igniter.rewrite,
+            Rewrite.Source.add_issues(source, List.wrap(error))
+          )
+          |> then(&Map.put(igniter, :rewrite, &1))
+          |> then(fn igniter ->
+            {igniter, paths}
+          end)
+
+        {:warning, warning} ->
+          {Igniter.add_warning(igniter, warning), paths}
       end
+    end)
+    |> then(fn {igniter, paths} ->
+      format(igniter, paths)
     end)
   end
 
@@ -730,6 +792,21 @@ defmodule Igniter do
         include_glob(igniter, Path.join(source_folder, "/**/*.{ex,exs}"))
       end)
       |> include_glob("{test,config}/**/*.{ex,exs}")
+      |> assign_private(:included_all_elixir_files?, true)
+    end
+  end
+
+  @doc "Runs an update over all elixir files"
+  def update_all_elixir_files(igniter, updater) do
+    if igniter.assigns[:private][:included_all_elixir_files?] do
+      igniter
+    else
+      igniter
+      |> Igniter.Project.IgniterConfig.get(:source_folders)
+      |> Enum.reduce(igniter, fn source_folder, igniter ->
+        update_glob(igniter, Path.join(source_folder, "/**/*.{ex,exs}"), updater)
+      end)
+      |> update_glob("{test,config}/**/*.{ex,exs}", updater)
       |> assign_private(:included_all_elixir_files?, true)
     end
   end
@@ -1332,26 +1409,13 @@ defmodule Igniter do
   defp read_source!(igniter, path, source_handler) do
     if igniter.assigns[:test_mode?] do
       if content = igniter.assigns[:test_files][path] do
-        source =
-          source_handler.from_string(content, path)
-          |> Map.put(:from, :file)
-
-        content =
-          source
-          |> Rewrite.Source.get(:content)
-
-        Rewrite.Source.update(source, :content, content)
+        source_handler.from_string(content, path)
+        |> Map.put(:from, :file)
       else
         raise "File #{path} not found in test files."
       end
     else
-      source = source_handler.read!(path)
-
-      content =
-        source
-        |> Rewrite.Source.get(:content)
-
-      Rewrite.Source.update(source, :content, content)
+      source_handler.read!(path)
     end
   end
 
