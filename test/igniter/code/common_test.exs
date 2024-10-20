@@ -302,7 +302,7 @@ defmodule Igniter.Code.CommonTest do
           end,
           fn zipper ->
             {:ok,
-             Zipper.replace(
+             Igniter.Code.Common.replace_code(
                zipper,
                quote do
                  filter(:status)

@@ -423,9 +423,67 @@ defmodule Igniter.Code.Common do
     replace_code(zipper, Sourceror.parse_string!(code))
   end
 
-  def replace_code(zipper, code) do
-    code = use_aliases(code, zipper)
-    Zipper.replace(zipper, code)
+  def replace_code(zipper, new_code) do
+    new_code = use_aliases(new_code, zipper)
+
+    with upwards when not is_nil(upwards) <- Zipper.up(zipper),
+         {:__block__, _, upwards_code} <- upwards.node,
+         true <- extendable_block?(upwards.node) do
+      index = Enum.count(zipper.path.left || [])
+
+      to_insert =
+        if extendable_block?(new_code) do
+          {:__block__, _, new_code} = new_code
+          new_code
+        else
+          [new_code]
+        end
+
+      {head, tail} =
+        Enum.split(upwards_code, index)
+
+      Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ Enum.drop(tail, 1)})
+    else
+      _ ->
+        with nil <- Zipper.up(zipper),
+             super_upwards when not is_nil(super_upwards) <- zipper.supertree,
+             true <- extendable_block?(super_upwards.node),
+             {:__block__, _, upwards_code} <- super_upwards.node do
+          index = Enum.count(zipper.supertree.path.left || [])
+
+          to_insert =
+            if extendable_block?(new_code) do
+              {:__block__, _, new_code} = new_code
+              new_code
+            else
+              [new_code]
+            end
+
+          {head, tail} =
+            Enum.split(upwards_code, index)
+
+          new_super_upwards =
+            Zipper.replace(
+              super_upwards,
+              {:__block__, [], head ++ to_insert ++ Enum.drop(tail, 1)}
+            )
+
+          %{
+            zipper
+            | supertree: %{
+                zipper.supertree
+                | path: %{
+                    zipper.supertree.path
+                    | parent: new_super_upwards,
+                      left: zipper.supertree.path.right ++ to_insert
+                  }
+              }
+          }
+        else
+          _ ->
+            Zipper.replace(zipper, new_code)
+        end
+    end
   end
 
   def extendable_block?(%Zipper{node: node}), do: extendable_block?(node)
