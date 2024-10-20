@@ -276,5 +276,51 @@ defmodule Igniter.Code.CommonTest do
                """
                |> String.trim_trailing()
     end
+
+    test "code can be replaced with multi line replacement" do
+      source =
+        """
+        listings do
+          query %{status: :published, order: "asc sequence"}
+          filters([
+            [label: :name, filter: "name"],
+            [label: :status, filter: "status"]
+          ])
+        end
+        """
+
+      zipper =
+        source
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+
+      {:ok, zipper} =
+        Igniter.Code.Common.update_all_matches(
+          zipper,
+          fn z ->
+            Igniter.Code.Function.function_call?(z, :filters, 1)
+          end,
+          fn zipper ->
+            {:ok,
+             Zipper.replace(
+               zipper,
+               quote do
+                 filter(:status)
+                 filter(:order)
+               end
+             )}
+          end
+        )
+
+      assert Sourceror.to_string(zipper.node) ==
+               """
+               listings do
+                 query(%{status: :published, order: "asc sequence"})
+                 filter(:status)
+                 filter(:order)
+               end
+               """
+               |> String.trim_trailing()
+    end
   end
 end
