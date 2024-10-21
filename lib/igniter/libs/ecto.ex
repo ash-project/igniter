@@ -71,7 +71,7 @@ defmodule Igniter.Libs.Ecto do
                 gen_migration(igniter, repo, name <> "_1", opts)
             end
 
-          :ovewrwrite ->
+          :overwrite ->
             Igniter.create_new_file(
               igniter,
               file,
