@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.68](https://github.com/ash-project/igniter/compare/v0.3.67...v0.3.68) (2024-10-21)
+
+
+
+
+### Bug Fixes:
+
+* properly detect all version migrations
+
+* make replacing code append to parent blocks when extendable
+
+* pass through additional arguments to installers
+
+* reintroduce accidentally removed function
+
+* don't call into shared lib?
+
 ## [v0.3.67](https://github.com/ash-project/igniter/compare/v0.3.66...v0.3.67) (2024-10-19)
 
 
