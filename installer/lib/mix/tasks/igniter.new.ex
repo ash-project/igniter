@@ -158,7 +158,7 @@ defmodule Mix.Tasks.Igniter.New do
     System.cmd("mix", ["deps.get"])
     System.cmd("mix", ["deps.compile"])
 
-    unless Enum.empty?(install) do
+    if !Enum.empty?(install) do
       example =
         if options[:example] do
           "--example"

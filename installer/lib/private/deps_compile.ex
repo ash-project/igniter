@@ -255,7 +255,7 @@ defmodule Igniter.Util.DepsCompile do
       "Shall I install #{manager}? (if running non-interactively, " <>
         "use \"mix local.rebar --force\")"
 
-    unless shell.yes?(install_question) do
+    if !shell.yes?(install_question) do
       error_message =
         "Could not find \"#{manager}\" to compile " <>
           "dependency #{inspect(app)}, please ensure \"#{manager}\" is available"

@@ -874,7 +874,7 @@ defmodule Igniter do
 
             :dry_run_with_changes
           else
-            unless opts[:quiet_on_no_changes?] || opts[:yes] do
+            if !(opts[:quiet_on_no_changes?] || opts[:yes]) do
               Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
 
               display_notices(igniter)
@@ -907,7 +907,7 @@ defmodule Igniter do
               |> Rewrite.write_all()
               |> case do
                 {:ok, _result} ->
-                  unless Enum.empty?(igniter.tasks) do
+                  if !Enum.empty?(igniter.tasks) do
                     Mix.shell().cmd("mix deps.get")
                   end
 
@@ -1047,7 +1047,7 @@ defmodule Igniter do
   end
 
   defp display_diff(sources, opts) do
-    unless opts[:yes] do
+    if !opts[:yes] do
       Mix.shell().info(diff(sources))
     end
   end
@@ -1350,7 +1350,7 @@ defmodule Igniter do
   defp eval_file_with_keyword_list(path) do
     {opts, _} = Code.eval_file(path)
 
-    unless Keyword.keyword?(opts) do
+    if !Keyword.keyword?(opts) do
       raise "Expected #{inspect(path)} to return a keyword list, got: #{inspect(opts)}"
     end
 
