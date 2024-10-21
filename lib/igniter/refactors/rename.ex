@@ -318,7 +318,8 @@ defmodule Igniter.Refactors.Rename do
     )
   end
 
-  defp do_remap_reference(zipper, {old_module, old_function}, {new_module, new_function}, arity) do
+  @doc false
+  def do_remap_reference(zipper, {old_module, old_function}, {new_module, new_function}, arity) do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
@@ -527,28 +528,28 @@ defmodule Igniter.Refactors.Rename do
               {:ok, zipper}
             end
 
-          {:|>, _, [first, {^old_function, _, context} | rest]}
+          {:|>, _, [first, {{^old_function, _, context}, _, rest}]}
           when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
             if Igniter.Code.Function.imported?(zipper, old_module, old_function, length(rest) + 1) do
               Igniter.Code.Common.replace_code(
                 zipper,
                 {:&, [],
                  [
-                   {:|>, [], [first, {new_function, [], context} | rest]}
+                   {:|>, [], [first, {{new_function, [], context}, [], rest}]}
                  ]}
               )
             else
               {:ok, zipper}
             end
 
-          {:|>, _, [first, ^old_function | rest]}
+          {:|>, _, [first, {^old_function, _, rest}]}
           when arity == :any or length(rest) == arity - 1 ->
             if Igniter.Code.Function.imported?(zipper, old_module, old_function, length(rest) + 1) do
               Igniter.Code.Common.replace_code(
                 zipper,
                 {:&, [],
                  [
-                   {:|>, [], [first, new_function | rest]}
+                   {:|>, [], [first, {new_function, [], rest}]}
                  ]}
               )
             else
@@ -556,11 +557,11 @@ defmodule Igniter.Refactors.Rename do
             end
 
           _ ->
-            false
+            :error
         end
 
       _ ->
-        false
+        :error
     end
   end
 
@@ -571,12 +572,13 @@ defmodule Igniter.Refactors.Rename do
         Igniter.Code.Function.function_call?(zipper, {old_module, old_function}, arity)
       end,
       fn zipper ->
-        {:ok, do_rename(zipper, {old_module, old_function}, {new_module, new_function}, arity)}
+        do_rename(zipper, {old_module, old_function}, {new_module, new_function}, arity)
       end
     )
   end
 
-  defp do_rename(zipper, {old_module, old_function}, {new_module, new_function}, arity) do
+  @doc false
+  def do_rename(zipper, {old_module, old_function}, {new_module, new_function}, arity) do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
@@ -602,40 +604,43 @@ defmodule Igniter.Refactors.Rename do
 
     case node do
       {{:., dot_meta, [{:__aliases__, alias_meta, ^split}, ^old_function]}, call_meta, args} ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {{:., dot_meta,
-            [{:__aliases__, alias_meta, split_and_atomize(new_module)}, new_function]}, call_meta,
-           args}
-        )
+        {:ok,
+         Igniter.Code.Common.replace_code(
+           zipper,
+           {{:., dot_meta,
+             [{:__aliases__, alias_meta, split_and_atomize(new_module)}, new_function]},
+            call_meta, args}
+         )}
 
       {{:., dot_meta, [{:__aliases__, alias_meta, ^split}, {^old_function, fun_meta, context}]},
        call_meta, args}
       when is_atom(context) ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {{:., dot_meta,
-            [
-              {:__aliases__, alias_meta, split_and_atomize(new_module)},
-              {new_function, fun_meta, context}
-            ]}, call_meta, args}
-        )
+        {:ok,
+         Igniter.Code.Common.replace_code(
+           zipper,
+           {{:., dot_meta,
+             [
+               {:__aliases__, alias_meta, split_and_atomize(new_module)},
+               {new_function, fun_meta, context}
+             ]}, call_meta, args}
+         )}
 
       {:|>, pipe_meta,
        [
          first_arg,
          {{:., dot_meta, [{:__aliases__, alias_meta, ^split}, ^old_function]}, call_meta, args}
        ]} ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:|>, pipe_meta,
-           [
-             first_arg,
-             {{:., dot_meta,
-               [{:__aliases__, alias_meta, split_and_atomize(new_module)}, new_function]},
-              call_meta, args}
-           ]}
-        )
+        {:ok,
+         Igniter.Code.Common.replace_code(
+           zipper,
+           {:|>, pipe_meta,
+            [
+              first_arg,
+              {{:., dot_meta,
+                [{:__aliases__, alias_meta, split_and_atomize(new_module)}, new_function]},
+               call_meta, args}
+            ]}
+         )}
 
       {:|>, pipe_meta,
        [
@@ -645,93 +650,104 @@ defmodule Igniter.Refactors.Rename do
           args}
        ]}
       when is_atom(context) ->
-        Igniter.Code.Common.replace_code(
-          zipper,
-          {:|>, pipe_meta,
-           [
-             first_arg,
-             {{:., dot_meta,
-               [
-                 {:__aliases__, alias_meta, split_and_atomize(new_module)},
-                 {new_function, fun_meta, context}
-               ]}, call_meta, args}
-           ]}
-        )
+        {:ok,
+         Igniter.Code.Common.replace_code(
+           zipper,
+           {:|>, pipe_meta,
+            [
+              first_arg,
+              {{:., dot_meta,
+                [
+                  {:__aliases__, alias_meta, split_and_atomize(new_module)},
+                  {new_function, fun_meta, context}
+                ]}, call_meta, args}
+            ]}
+         )}
 
-      {^old_function, _, args} when imported? and (arity == :any or length(args) == arity) ->
+      {^old_function, meta, args} when imported? and (arity == :any or length(args) == arity) ->
         if new_module == old_module do
-          Igniter.Code.Common.replace_code(zipper, {new_function, [], args})
+          {:ok, Zipper.replace(zipper, {new_function, meta, args})}
+          # Igniter.Code.Common.replace_code(zipper, {new_function, meta, args})}
         else
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
-             args}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, meta,
+              args}
+           )}
         end
 
-      {{^old_function, _, context}, _, args}
+      {{^old_function, ref_meta, context}, meta, args}
       when is_atom(context) and imported? and (arity == :any or length(args) == arity) ->
         if new_module == old_module do
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {{new_function, [], context}, [], args}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {{new_function, ref_meta, context}, meta, args}
+           )}
         else
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {{:., [],
-              [{:__aliases__, [], split_and_atomize(new_module)}, {new_function, [], context}]},
-             [], args}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {{:., [],
+               [
+                 {:__aliases__, [], split_and_atomize(new_module)},
+                 {new_function, ref_meta, context}
+               ]}, meta, args}
+           )}
         end
 
-      {:|>, _, [first_arg, {{^old_function, _, context}, _, rest}]}
+      {:|>, pipe_meta, [first_arg, {{^old_function, ref_meta, context}, meta, rest}]}
       when is_atom(context) and imported? and (arity == :any or length(rest) == arity - 1) ->
         if new_module == old_module do
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {:|>, [], [first_arg, {{new_function, [], context}, [], rest}]}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {:|>, pipe_meta, [first_arg, {{new_function, ref_meta, context}, meta, rest}]}
+           )}
         else
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {:|>, [],
-             [
-               first_arg,
-               {{:., [],
-                 [
-                   {:__aliases__, [], split_and_atomize(new_module)},
-                   {new_function, [], context}
-                 ]}, [], rest}
-             ]}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {:|>, pipe_meta,
+              [
+                first_arg,
+                {{:., [],
+                  [
+                    {:__aliases__, [], split_and_atomize(new_module)},
+                    {new_function, ref_meta, context}
+                  ]}, meta, rest}
+              ]}
+           )}
         end
 
-      {:|>, _, [first_arg, ^old_function | rest]}
+      {:|>, pipe_meta, [first_arg, {^old_function, _, rest}]}
       when imported? and (arity == :any or length(rest) == arity - 1) ->
         if new_module == old_module do
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {:|>, [],
-             [
-               first_arg,
-               new_function | rest
-             ]}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {:|>, pipe_meta,
+              [
+                first_arg,
+                {new_function, [], rest}
+              ]}
+           )}
         else
-          Igniter.Code.Common.replace_code(
-            zipper,
-            {:|>, [],
-             [
-               first_arg,
-               {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
-                rest}
-             ]}
-          )
+          {:ok,
+           Igniter.Code.Common.replace_code(
+             zipper,
+             {:|>, pipe_meta,
+              [
+                first_arg,
+                {{:., [], [{:__aliases__, [], split_and_atomize(new_module)}, new_function]}, [],
+                 rest}
+              ]}
+           )}
         end
 
       _ ->
-        zipper
+        {:ok, zipper}
     end
   end
 

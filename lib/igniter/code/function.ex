@@ -167,10 +167,10 @@ defmodule Igniter.Code.Function do
       {{^name, _, context}, _, args} when is_atom(context) ->
         arity == :any || Enum.count(args) == arity
 
-      {:|>, _, [_, {^name, _, context} | rest]} when is_atom(context) ->
+      {:|>, _, [_, {{^name, _, context}, _, rest}]} when is_atom(context) ->
         arity == :any || Enum.count(rest) == arity - 1
 
-      {:|>, _, [_, ^name | rest]} ->
+      {:|>, _, [_, {^name, _, rest}]} ->
         arity == :any || Enum.count(rest) == arity - 1
 
       _ ->
@@ -217,15 +217,15 @@ defmodule Igniter.Code.Function do
         when is_atom(context) and (arity == :any or length(args) == arity) ->
           imported?(zipper, module, name, length(args))
 
-        {:|>, _, [_, {^name, _, context} | rest]}
+        {:|>, _, [_, {{^name, _, context}, _, rest}]}
         when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
           imported?(zipper, module, name, length(rest) + 1)
 
-        {:|>, _, [_, ^name | rest]}
+        {:|>, _, [_, {^name, _, rest}]}
         when arity == :any or length(rest) == arity - 1 ->
           imported?(zipper, module, name, length(rest) + 1)
 
-        _ ->
+        _node ->
           false
       end
 
@@ -405,11 +405,11 @@ defmodule Igniter.Code.Function do
           when is_atom(context) and (arity == :any or length(args) == arity) ->
             imported?(zipper, module, name, length(args))
 
-          {:|>, _, [_, {^name, _, context} | rest]}
+          {:|>, _, [_, {{^name, _, context}, _, rest}]}
           when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
             imported?(zipper, module, name, length(rest) + 1)
 
-          {:|>, _, [_, ^name | rest]}
+          {:|>, _, [_, {^name, _, rest}]}
           when arity == :any or length(rest) == arity - 1 ->
             imported?(zipper, module, name, length(rest) + 1)
 
@@ -530,10 +530,10 @@ defmodule Igniter.Code.Function do
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
-      {:|>, _, [{name, _, context} | _rest]} when is_atom(context) and is_atom(name) ->
+      {:|>, _, [_, {{name, _, context}, _, _}]} when is_atom(context) and is_atom(name) ->
         {:ok, name}
 
-      {:|>, _, [name | _rest]} when is_atom(name) ->
+      {:|>, _, [_, {name, _, _}]} when is_atom(name) ->
         {:ok, name}
 
       {name, _, _args} when is_atom(name) ->
@@ -570,10 +570,10 @@ defmodule Igniter.Code.Function do
       when is_atom(name) and is_atom(context) ->
         true
 
-      {:|>, _, [{name, _, context} | _rest]} when is_atom(context) and is_atom(name) ->
+      {:|>, _, [_, {{name, _, context}, _, _}]} when is_atom(context) and is_atom(name) ->
         true
 
-      {:|>, _, [name | _rest]} when is_atom(name) ->
+      {:|>, _, [_, {name, _, _}]} when is_atom(name) ->
         true
 
       {name, _, _} when is_atom(name) ->

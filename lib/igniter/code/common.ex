@@ -386,7 +386,7 @@ defmodule Igniter.Code.Common do
       {:ok, _} ->
         Zipper.traverse(zipper, false, fn zipper, acc ->
           if pred.(zipper) do
-            case fun.(zipper) do
+            case within(zipper, fun) do
               {:code, new_code} ->
                 {replace_code(zipper, new_code), true}
 
@@ -413,6 +413,36 @@ defmodule Igniter.Code.Common do
           {zipper, true} ->
             update_all_matches(zipper, pred, fun)
         end
+    end
+  catch
+    {:other_res, v} ->
+      v
+  end
+
+  @doc """
+  Removes all nodes matching the given predicate with the given function.
+
+  Recurses until the predicate no longer returns false
+  """
+  @spec remove_all_matches(
+          Zipper.t(),
+          (Zipper.t() -> boolean())
+        ) ::
+          Zipper.t()
+  def remove_all_matches(zipper, pred) do
+    # we check for a single match before traversing as an optimization
+    case move_to(zipper, pred) do
+      :error ->
+        zipper
+
+      {:ok, _} ->
+        Zipper.traverse(zipper, fn zipper ->
+          if pred.(zipper) do
+            Zipper.remove(zipper)
+          else
+            zipper
+          end
+        end)
     end
   catch
     {:other_res, v} ->
@@ -446,7 +476,8 @@ defmodule Igniter.Code.Common do
     else
       _ ->
         with nil <- Zipper.up(zipper),
-             super_upwards when not is_nil(super_upwards) <- zipper.supertree,
+             supertree when not is_nil(supertree) <- zipper.supertree,
+             super_upwards when not is_nil(super_upwards) <- Zipper.up(supertree),
              true <- extendable_block?(super_upwards.node),
              {:__block__, _, upwards_code} <- super_upwards.node do
           index = Enum.count(zipper.supertree.path.left || [])
@@ -465,7 +496,7 @@ defmodule Igniter.Code.Common do
           new_super_upwards =
             Zipper.replace(
               super_upwards,
-              {:__block__, [], head ++ to_insert ++ Enum.drop(tail, 1)}
+              {:__block__, [], head ++ to_insert ++ tl(tail)}
             )
 
           %{
@@ -475,14 +506,54 @@ defmodule Igniter.Code.Common do
                 | path: %{
                     zipper.supertree.path
                     | parent: new_super_upwards,
-                      left: zipper.supertree.path.right ++ to_insert
+                      left: zipper.supertree.path.left,
+                      right: tl(to_insert) ++ zipper.supertree.path.right
                   }
-              }
+              },
+              node: List.first(to_insert)
           }
         else
           _ ->
-            Zipper.replace(zipper, new_code)
+            new_code =
+              with true <- multi_element_pipe?(zipper),
+                   {call, meta, [first_arg | rest]} when call != :|> <- new_code,
+                   {:ok, rewritten} <- rewrite_pipe(call, meta, first_arg, rest) do
+                rewritten
+              else
+                _ ->
+                  new_code
+              end
+
+            case {zipper.node, new_code} do
+              {{_, meta, _}, {new_call, _, new_children}} ->
+                Zipper.replace(zipper, {new_call, meta, new_children})
+
+              {_node, _new_node} ->
+                Zipper.replace(zipper, new_code)
+            end
         end
+    end
+  end
+
+  defp multi_element_pipe?(%{node: {:|>, _, _}} = zipper) do
+    up = Zipper.up(zipper)
+    down = Zipper.down(zipper)
+
+    match?(%{node: {:|>, _, _}}, up) || match?(%{node: {:|>, _, _}}, down)
+  end
+
+  defp multi_element_pipe?(_), do: false
+
+  defp rewrite_pipe(:!, meta, first_arg, []) do
+    {:ok,
+     {:|>, meta, [first_arg, {{:., [], [{:__aliases__, [alias: false], [:Kernel]}, :!]}, [], []}]}}
+  end
+
+  defp rewrite_pipe(function, meta, first_arg, rest) when is_atom(function) do
+    if Regex.match?(~r/^[a-z_][a-zA-Z0-9_?!]*$/, to_string(function)) do
+      {:ok, {:|>, meta, [first_arg, {function, [], rest}]}}
+    else
+      :error
     end
   end
 
@@ -921,14 +992,14 @@ defmodule Igniter.Code.Common do
     |> Zipper.subtree()
     |> fun.()
     |> case do
-      :error ->
-        :error
-
-      {:ok, zipper} ->
+      {:ok, %Zipper{} = zipper} ->
         {:ok,
          zipper
          |> Zipper.top()
          |> into(zipper.supertree || top_zipper)}
+
+      other ->
+        other
     end
   end
 

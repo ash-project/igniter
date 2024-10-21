@@ -186,8 +186,8 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
-  describe "update_all_matches" do
-    test "code can be removed" do
+  describe "remove_all_matches" do
+    test "removes all matches" do
       source =
         """
         attributes do
@@ -204,17 +204,12 @@ defmodule Igniter.Code.CommonTest do
         |> Sourceror.parse_string!()
         |> Zipper.zip()
 
-      {:ok, zipper} =
-        Igniter.Code.Common.update_all_matches(
+      zipper =
+        Igniter.Code.Common.remove_all_matches(
           zipper,
           fn z ->
             Igniter.Code.Function.function_call?(z, :attribute, 2) &&
               Igniter.Code.Function.argument_equals?(z, 1, :villain)
-          end,
-          fn zipper ->
-            zipper
-            |> Zipper.remove()
-            |> then(&{:ok, &1})
           end
         )
 
@@ -228,7 +223,9 @@ defmodule Igniter.Code.CommonTest do
                """
                |> String.trim_trailing()
     end
+  end
 
+  describe "update_all_matches" do
     test "code can be replaced" do
       source =
         """

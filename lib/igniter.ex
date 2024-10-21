@@ -259,7 +259,7 @@ defmodule Igniter do
                 source,
                 :configure,
                 :quoted,
-                Sourceror.Zipper.root(zipper)
+                Sourceror.Zipper.topmost_root(zipper)
               )
             )
             |> then(&Map.put(igniter, :rewrite, &1))
@@ -268,7 +268,19 @@ defmodule Igniter do
             end)
           rescue
             e ->
-              reraise e, __STACKTRACE__
+              reraise """
+                      Failed to set the new source for the file, for `#{source.path}`
+
+                      Source:
+
+                      #{Igniter.Util.Debug.code_at_node(Zipper.topmost(zipper))}
+
+                      Error:
+
+                      #{Exception.format(:error, e)}
+
+                      """,
+                      __STACKTRACE__
           end
 
         {:error, error} ->

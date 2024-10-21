@@ -6,7 +6,8 @@
   module_location: :outside_matching_folder,
   source_folders: [
     "lib",
-    "test/support"
+    "test/support",
+    "installer/lib"
   ],
   dont_move_files: [
     ~r"lib/mix"
