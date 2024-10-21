@@ -108,4 +108,31 @@ defmodule Igniter.Libs.EctoTest do
       """)
     end
   end
+
+  test "it overwrites existing file" do
+    test_project()
+    |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
+      body: """
+      def up, do: "up old"
+      def down, do: "down old"
+      """,
+      timestamp: 0
+    )
+    |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
+      body: """
+      def up, do: "up new"
+      def down, do: "down new"
+      """,
+      timestamp: 0,
+      on_exists: :overwrite
+    )
+    |> assert_creates("priv/repo/migrations/0_create_users.exs", """
+    defmodule Example.Repo.Migrations.CreateUsers do
+      use Ecto.Migration
+
+      def up, do: "up new"
+      def down, do: "down new"
+    end
+    """)
+  end
 end
