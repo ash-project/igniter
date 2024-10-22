@@ -41,7 +41,8 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
 
     upgrades =
       %{
-        "0.3.66" => [&code_module_parse_to_project_module_parse/2]
+        "0.3.66" => [&code_module_parse_to_project_module_parse/2],
+        "0.3.71" => [&code_module_parse_to_project_module_parse/2]
       }
 
     # For each version that requires a change, add it to this map
