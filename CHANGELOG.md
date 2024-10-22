@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.70](https://github.com/ash-project/igniter/compare/v0.3.69...v0.3.70) (2024-10-22)
+
+
+
+
+### Bug Fixes:
+
+* properly upgrade deps with mix deps.update
+
 ## [v0.3.69](https://github.com/ash-project/igniter/compare/v0.3.68...v0.3.69) (2024-10-21)
 
 
