@@ -35,31 +35,45 @@ like `--old-version-<dep-name> x.y.z`.
 
 ## Upgrading in CI (i.e Dependabot)
 
-Note: this is a BETA/untested feature, primarily because I had to release the capability to hex for people to write
-these, and I'm waiting on dependabot to make a PR to my project to test it 😂.
-
 The flag `--git-ci` is provided to `mix igniter.upgrade` to allow for CI integration. This flag
 causes igniter to parse the previous versions from the `mix.lock` file prior to the current pull request.
 This limitation does mean that only hex dependencies can be upgraded in this way.
 Here is an example set of github action steps that will run `mix igniter.upgrade` and add a commit
 for any upgrades.
 
+### Limitations
+
+This example setup does not trigger the github actions on your PR again. This is due to
+[intentional limitations of GITHUB_TOKEN]. You can see more here: https://github.com/stefanzweifel/git-auto-commit-action?tab=readme-ov-file#commits-made-by-this-action-do-not-trigger-new-workflow-runs
+It is possible to work around this with a "personal access token". If you come up with a nice way
+to make the commit trigger another workflow, please let us know 😊.
+
 ```yml
-- name: Dependabot metadata
-  id: dependabot-metadata
-  uses: dependabot/fetch-metadata@v2
-  if: github.event.pull_request.user.login == 'dependabot[bot]'
-  with:
-    github-token: "${{ secrets.GITHUB_TOKEN }}"
-- name: mix upgrade
-  if: github.event.pull_request.user.login == 'dependabot[bot]'
-  run: mix igniter.upgrade ${{steps.dependabot-metadata.outputs.dependency-names}} --git-ci
-- name: Commit Changes
-  uses: stefanzweifel/git-auto-commit-action@v5
-  if: github.event.pull_request.user.login == 'dependabot[bot]'
-  with:
-    commit_message: Apply Igniter Upgrades
-    commit_user_name: Igniter
-    commit_user_email: igniter@ash-hq.org
-    commit_author: Igniter Upgrade Bot <igniter@ash-hq.org>
+igniter-upgrade:
+  name: mix igniter.upgrade
+  runs-on: ubuntu-latest
+  if: ${{inputs.igniter-upgrade}}
+  permissions:
+    contents: write
+  steps:
+    - name: Dependabot metadata
+      id: dependabot-metadata
+      uses: dependabot/fetch-metadata@v2
+      if: github.event.pull_request.user.login == 'dependabot[bot]'
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: ${{ github.head_ref }}
+    # This uses a `.tool-version` file for languages
+    # Feel free to use whatever steps you want to set up elixir
+    # and run the `igniter.upgrade` mix task. Just use the same flags as shown.
+    - uses: team-alembic/staple-actions/actions/mix-task@main
+      with:
+        task: igniter.upgrade --git-ci
+    - name: Commit Changes
+      uses: stefanzweifel/git-auto-commit-action@v5
+      if: github.event.pull_request.user.login == 'dependabot[bot]'
+      with:
+        commit_message: "[dependabot skip] Apply Igniter Upgrades"
+        commit_user_name: dependabot[bot]
 ```

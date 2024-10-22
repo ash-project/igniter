@@ -33,7 +33,8 @@ defmodule Mix.Tasks.Igniter.Upgrade do
   * `--only` or `-o` - only fetches dependencies for given environment
   * `--target` or `-t` - only fetches dependencies for given target
   * `--no-archives-check` or `-n` - does not check archives before fetching deps
-  * `--git-ci` or `-g` - Uses git history (HEAD~1) to check the previous versions in the lock file. See the upgrade guides for more.
+  * `--git-ci` or `-g` - Uses git history (HEAD~1) to check the previous versions in the lock file.
+    See the upgrade guides for more. Sets --yes automatically.
   """
 
   def info(_argv, _composing_task) do
@@ -59,6 +60,13 @@ defmodule Mix.Tasks.Igniter.Upgrade do
   def igniter(igniter, argv) do
     {%{packages: packages}, argv} = positional_args!(argv)
     options = options!(argv)
+
+    options =
+      if options[:git_ci] do
+        Keyword.put(options, :yes, true)
+      else
+        options
+      end
 
     packages =
       packages
