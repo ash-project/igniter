@@ -126,37 +126,10 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
     package_names =
       packages
-      |> Enum.filter(&String.contains?(&1, "@"))
-      |> case do
-        [] ->
-          nil
+      |> Enum.map(&(String.split(&1, "@") |> List.first()))
+      |> Enum.map(&String.to_atom/1)
 
-        packages ->
-          packages
-          |> Enum.map(&(String.split(&1, "@") |> List.first()))
-          |> Enum.map(&String.to_atom/1)
-      end
-
-    update_deps_args =
-      if only = options[:only] do
-        ["--only", only]
-      else
-        []
-      end
-
-    update_deps_args =
-      if target = options[:target] do
-        ["--target", target] ++ update_deps_args
-      else
-        update_deps_args
-      end
-
-    update_deps_args =
-      if options[:no_archives_check] do
-        ["--no-archives-check"] ++ update_deps_args
-      else
-        update_deps_args
-      end
+    update_deps_args = update_deps_args(options)
 
     igniter =
       if options[:git_ci] do
@@ -166,8 +139,8 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         |> Enum.reduce(igniter, &replace_dep(&2, &1))
         |> Igniter.apply_and_fetch_dependencies(
           error_on_abort?: true,
-          yes?: options[:yes],
-          update_deps: package_names,
+          yes: options[:yes],
+          update_deps: Enum.map(package_names, &to_string/1),
           update_deps_args: update_deps_args,
           force?: true
         )
@@ -246,6 +219,35 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         )
 
         exit(reason)
+    end
+  end
+
+  defp update_deps_args(options) do
+    update_deps_args =
+      if only = options[:only] do
+        ["--only", only]
+      else
+        []
+      end
+
+    update_deps_args =
+      if target = options[:target] do
+        ["--target", target] ++ update_deps_args
+      else
+        update_deps_args
+      end
+
+    update_deps_args =
+      if options[:no_archives_check] do
+        ["--no-archives-check"] ++ update_deps_args
+      else
+        update_deps_args
+      end
+
+    if options[:all] do
+      ["--all"] ++ update_deps_args
+    else
+      update_deps_args
     end
   end
 
