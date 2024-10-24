@@ -9,8 +9,8 @@ defmodule Igniter.Upgrades do
     |> Enum.filter(fn {version, _} ->
       Version.match?(version, "> #{from} and <= #{to}")
     end)
-    |> Enum.sort_by(&elem(&1, 0), &Version.compare/2)
-    |> Enum.flat_map(&elem(&1, 1))
+    |> Enum.sort_by(&elem(&1, 0), Version)
+    |> Enum.flat_map(&List.wrap(elem(&1, 1)))
     |> Enum.reduce(igniter, fn upgrade, igniter ->
       upgrade.(igniter, opts)
     end)
