@@ -209,22 +209,28 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       end
     rescue
       e ->
-        recover_mix_exs_and_lock(
-          igniter,
-          original_mix_exs,
-          original_mix_lock,
-          Exception.format(:error, e, __STACKTRACE__)
-        )
+        if !options[:git_ci] do
+          recover_mix_exs_and_lock(
+            igniter,
+            original_mix_exs,
+            original_mix_lock,
+            Exception.format(:error, e, __STACKTRACE__),
+            options
+          )
+        end
 
         reraise e, __STACKTRACE__
     catch
       :exit, reason ->
-        recover_mix_exs_and_lock(
-          igniter,
-          original_mix_exs,
-          original_mix_lock,
-          "exit: " <> inspect(reason)
-        )
+        if !options[:git_ci] do
+          recover_mix_exs_and_lock(
+            igniter,
+            original_mix_exs,
+            original_mix_lock,
+            "exit: " <> inspect(reason),
+            options
+          )
+        end
 
         exit(reason)
     end
@@ -276,18 +282,19 @@ defmodule Mix.Tasks.Igniter.Upgrade do
     end
   end
 
-  defp recover_mix_exs_and_lock(igniter, mix_exs, mix_lock, reason) do
+  defp recover_mix_exs_and_lock(igniter, mix_exs, mix_lock, reason, options) do
     if !igniter.assigns[:test_mode?] do
-      if Igniter.Util.IO.yes?("""
-         Something went wrong during the upgrade process.
+      if options[:yes] ||
+           Igniter.Util.IO.yes?("""
+           Something went wrong during the upgrade process.
 
-         #{reason}
+           #{reason}
 
-         Restore mix.exs and mix.lock to their original contents?
+           Restore mix.exs and mix.lock to their original contents?
 
-         If you don't do this, you will need to reset them to upgrade again,
-         or perform any upgrade steps manually.
-         """) do
+           If you don't do this, you will need to reset them to upgrade again,
+           or perform any upgrade steps manually.
+           """) do
         File.write!("mix.exs", mix_exs)
         File.write!("mix.lock", mix_lock)
       end
