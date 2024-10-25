@@ -104,7 +104,7 @@ defmodule Igniter.MixProject do
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
-      {:doctor, "~> 0.21", only: [:dev, :test]},
+      {:doctor, "~> 0.21", only: [:dev, :test]}
     ]
   end
 
