@@ -671,7 +671,8 @@ defmodule Igniter do
     end
   end
 
-  defp source_handler(path, opts \\ []) do
+  @doc false
+  def source_handler(path, opts \\ []) do
     Keyword.get_lazy(opts, :source_handler, fn ->
       if Path.extname(path) in Rewrite.Source.Ex.extensions() do
         Rewrite.Source.Ex

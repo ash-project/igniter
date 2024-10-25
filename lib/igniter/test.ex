@@ -1,8 +1,18 @@
 defmodule Igniter.Test do
   @moduledoc "Tools for testing with igniter."
 
+  @deprecated "Use mix_project/1 instead"
+  @spec test_project(opts :: Keyword.t()) :: Igniter.t()
+  def test_project(opts \\ []) do
+    Igniter.new()
+    |> Igniter.assign(:test_mode?, true)
+    |> Igniter.assign(:test_files, add_mix_new(opts))
+    |> Igniter.Project.IgniterConfig.setup()
+    |> apply_igniter!()
+  end
+
   @doc """
-  Sets up a test igniter that has  only the files passed to it.
+  Sets up a test Igniter that mimics a new mix project.
 
   ## Starting point
 
@@ -23,7 +33,7 @@ defmodule Igniter.Test do
 
   ## Examples
 
-      test_project(files: %{
+      mix_project(files: %{
         "lib/foo.ex" => \"\"\"
         defmodule MyApp.Foo do
           use Ash.Resource
@@ -31,11 +41,50 @@ defmodule Igniter.Test do
         \"\"\"
       })
   """
-  @spec test_project(opts :: Keyword.t()) :: Igniter.t()
-  def test_project(opts \\ []) do
+  @spec mix_project(opts :: Keyword.t()) :: Igniter.t()
+  def mix_project(opts \\ []) do
     Igniter.new()
     |> Igniter.assign(:test_mode?, true)
     |> Igniter.assign(:test_files, add_mix_new(opts))
+    |> Igniter.Project.IgniterConfig.setup()
+    |> apply_igniter!()
+  end
+
+  @doc """
+  Sets up a test Igniter that mimics a new Phoenix project.
+
+  ## Starting point
+
+  All of the files of an empty mix project are added by default.
+  You can specify more or overwrite the default files by passing a map of
+  file paths to their contents.
+
+  ## Limitations
+
+  You cannot install new dependencies, or use dependencies your own project does not have.
+  If you need to do that kind of thing, you will have to do a test that uses tools like
+  `System.cmd` in a temporary directory.
+
+  ## Options
+
+  * `files` - A map of file paths to file contents. The file paths should be relative to the project root.
+  * `app_name` - The name of the application. Defaults to `:test`.
+
+  ## Examples
+
+      phoenix_project(files: %{
+        "lib/foo.ex" => \"\"\"
+        defmodule MyApp.Foo do
+          use Ash.Resource
+        end
+        \"\"\"
+      })
+  """
+  @spec phoenix_project(opts :: Keyword.t()) :: Igniter.t()
+  def phoenix_project(opts \\ []) do
+    Igniter.new()
+    |> Igniter.assign(:test_mode?, true)
+    |> Igniter.assign(:test_files, add_phoenix_new(opts))
     |> Igniter.Project.IgniterConfig.setup()
     |> apply_igniter!()
   end
@@ -344,128 +393,226 @@ defmodule Igniter.Test do
     end)
   end
 
+  # https://github.com/elixir-lang/elixir/blob/51289220afe991d252a65e828d85184193b52ad3/lib/mix/lib/mix/tasks/new.ex
+  # TODO: opts[:umbrella]
+  # TODO: opts[:sup]
   defp add_mix_new(opts) do
     app_name = opts[:app_name] || :test
-    module_name = Module.concat([Macro.camelize(to_string(app_name))])
+    mod = app_name |> to_string() |> Macro.camelize()
+    mod_filename = Macro.underscore(mod)
+
+    assigns = [
+      app: app_name,
+      mod: mod,
+      sup_app: "",
+      version: get_version(System.version())
+    ]
 
     opts[:files]
     |> Kernel.||(%{})
-    |> Map.put_new("test/test_helper.exs", "ExUnit.start()")
-    |> Map.put_new("test/#{app_name}_test.exs", """
-    defmodule #{module_name}Test do
-      use ExUnit.Case
-      doctest #{module_name}
-
-      test "greets the world" do
-        assert #{module_name}.hello() == :world
-      end
-    end
-    """)
-    |> Map.put_new("lib/#{app_name}.ex", """
-    defmodule #{module_name} do
-      @moduledoc \"\"\"
-      Documentation for `#{module_name}`.
-      \"\"\"
-
-      @doc \"\"\"
-      Hello world.
-
-      ## Examples
-
-          iex> #{module_name}.hello()
-          :world
-
-      \"\"\"
-      def hello do
-        :world
-      end
-    end
-    """)
-    |> Map.put_new("README.md", """
-      # #{module_name}
+    |> put_file(
+      "README.md",
+      """
+      # <%= @mod %>
 
       **TODO: Add description**
-
+      <%= if @app do %>
       ## Installation
 
       If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-      by adding `thing` to your list of dependencies in `mix.exs`:
+      by adding `<%= @app %>` to your list of dependencies in `mix.exs`:
 
       ```elixir
       def deps do
         [
-          {:#{app_name}, "~> 0.1.0"}
+          {:<%= @app %>, "~> 0.1.0"}
         ]
       end
       ```
 
       Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
       and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-      be found at <https://hexdocs.pm/#{app_name}>.
-    """)
-    |> Map.put_new(".formatter.exs", """
-    # Used by "mix format"
-    [
-      inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
-    ]
-    """)
-    |> Map.put_new(".gitignore", """
-    # The directory Mix will write compiled artifacts to.
-    /_build/
+      be found at <https://hexdocs.pm/<%= @app %>>.
+      <% end %>
+      """,
+      assigns
+    )
+    |> put_file(
+      ".formatter.exs",
+      """
+      # Used by "mix format"
+      [
+        inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"]
+      ]
+      """,
+      assigns
+    )
+    |> put_file(
+      ".gitignore",
+      """
+      # The directory Mix will write compiled artifacts to.
+      /_build/
 
-    # If you run "mix test --cover", coverage assets end up here.
-    /cover/
+      # If you run "mix test --cover", coverage assets end up here.
+      /cover/
 
-    # The directory Mix downloads your dependencies sources to.
-    /deps/
+      # The directory Mix downloads your dependencies sources to.
+      /deps/
 
-    # Where third-party dependencies like ExDoc output generated docs.
-    /doc/
+      # Where third-party dependencies like ExDoc output generated docs.
+      /doc/
 
-    # Ignore .fetch files in case you like to edit your project deps locally.
-    /.fetch
+      # If the VM crashes, it generates a dump, let's ignore it too.
+      erl_crash.dump
 
-    # If the VM crashes, it generates a dump, let's ignore it too.
-    erl_crash.dump
+      # Also ignore archive artifacts (built via "mix archive.build").
+      *.ez
+      <%= if @app do %>
+      # Ignore package tarball (built via "mix hex.build").
+      <%= @app %>-*.tar
+      <% end %>
+      # Temporary files, for example, from tests.
+      /tmp/
+      """,
+      assigns
+    )
+    |> put_file(
+      "mix.exs",
+      """
+      defmodule <%= @mod %>.MixProject do
+        use Mix.Project
 
-    # Also ignore archive artifacts (built via "mix archive.build").
-    *.ez
+        def project do
+          [
+            app: :<%= @app %>,
+            version: "0.1.0",
+            elixir: "~> <%= @version %>",
+            start_permanent: Mix.env() == :prod,
+            deps: deps()
+          ]
+        end
 
-    # Ignore package tarball (built via "mix hex.build").
-    #{app_name}-*.tar
+        # Run "mix help compile.app" to learn about applications.
+        def application do
+          [
+            extra_applications: [:logger]<%= @sup_app %>
+          ]
+        end
 
-    # Temporary files, for example, from tests.
-    /tmp/
-    """)
-    |> Map.put_new("mix.exs", """
-    defmodule #{module_name}.MixProject do
-      use Mix.Project
+        # Run "mix help deps" to learn about dependencies.
+        defp deps do
+          [
+            # {:dep_from_hexpm, "~> 0.3.0"},
+            # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+          ]
+        end
+      end
+      """,
+      assigns
+    )
+    |> put_file(
+      "lib/#{mod_filename}.ex",
+      """
+      defmodule <%= @mod %> do
+        @moduledoc \"""
+        Documentation for `<%= @mod %>`.
+        \"""
 
-      def project do
-        [
-          app: :#{app_name},
-          version: "0.1.0",
-          elixir: "~> 1.17",
-          start_permanent: Mix.env() == :prod,
-          deps: deps()
-        ]
+        @doc \"""
+        Hello world.
+
+        ## Examples
+
+            iex> <%= @mod %>.hello()
+            :world
+
+        \"""
+        def hello do
+          :world
+        end
+      end
+      """,
+      assigns
+    )
+    |> put_file(
+      "test/test_helper.exs",
+      """
+      ExUnit.start()
+      """,
+      assigns
+    )
+    |> put_file(
+      "test/#{mod_filename}_test.exs",
+      """
+      defmodule <%= @mod %>Test do
+        use ExUnit.Case
+        doctest <%= @mod %>
+
+        test "greets the world" do
+          assert <%= @mod %>.hello() == :world
+        end
+      end
+      """,
+      assigns
+    )
+  end
+
+  # https://github.com/phoenixframework/phoenix/tree/ed1331ea71bf458cc7909bca023564905a44fa90/installer
+  # TODO: opts[:umbrella]
+  # TODO: maybe support other options such as --module, --no-ecto, etc
+  defp add_phoenix_new(opts) do
+    # FIXME: base path
+    app_name = to_string(opts[:app_name] || :test)
+    source_base_path = Path.expand("../../deps/phx_new/templates", __DIR__)
+
+    project =
+      app_name
+      |> Phx.New.Project.new([])
+      |> Phx.New.Single.prepare_project()
+      |> Phx.New.Generator.put_binding()
+
+    templates =
+      for {_, _, files} <- Phx.New.Single.template_files(:new),
+          {source, target} <- files,
+          source = to_string(source) do
+        {Path.expand(source, source_base_path), expand_path_with_bindings(target, project)}
       end
 
-      # Run "mix help compile.app" to learn about applications.
-      def application do
-        [
-          extra_applications: [:logger]
-        ]
+    Enum.reduce(templates, opts[:files] || %{}, fn {source, target}, files ->
+      if File.dir?(source) do
+        files
+      else
+        put_file(files, target, File.read!(source), project.binding)
+      end
+    end)
+  end
+
+  defp put_file(files, path, contents, assigns) do
+    contents =
+      if Igniter.source_handler(path) == Rewrite.Source.Ex do
+        contents
+        |> EEx.eval_string(assigns: assigns)
+        |> Rewrite.Source.Ex.format()
+      else
+        EEx.eval_string(contents, assigns: assigns)
       end
 
-      # Run "mix help deps" to learn about dependencies.
-      defp deps do
-        [
-          # {:dep_from_hexpm, "~> 0.3.0"},
-          # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-        ]
+    Map.put_new(files, path, contents)
+  end
+
+  defp get_version(version) do
+    {:ok, version} = Version.parse(version)
+
+    "#{version.major}.#{version.minor}" <>
+      case version.pre do
+        [h | _] -> "-#{h}"
+        [] -> ""
       end
-    end
-    """)
+  end
+
+  defp expand_path_with_bindings(path, %Phx.New.Project{} = project) do
+    Regex.replace(Regex.recompile!(~r/:[a-zA-Z0-9_]+/), path, fn ":" <> key, _ ->
+      project |> Map.fetch!(:"#{key}") |> to_string()
+    end)
   end
 end
