@@ -610,7 +610,7 @@ defmodule Igniter.Test do
       end
   end
 
-  defp expand_path_with_bindings(path, project) do
+ defp expand_path_with_bindings(path, %Phx.New.Project{} = project) do
     Regex.replace(Regex.recompile!(~r/:[a-zA-Z0-9_]+/), path, fn ":" <> key, _ ->
       project |> Map.fetch!(:"#{key}") |> to_string()
     end)
