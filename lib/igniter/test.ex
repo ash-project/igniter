@@ -81,12 +81,18 @@ defmodule Igniter.Test do
       })
   """
   @spec phoenix_project(opts :: Keyword.t()) :: Igniter.t()
-  def phoenix_project(opts \\ []) do
-    Igniter.new()
-    |> Igniter.assign(:test_mode?, true)
-    |> Igniter.assign(:test_files, add_phoenix_new(opts))
-    |> Igniter.Project.IgniterConfig.setup()
-    |> apply_igniter!()
+  if Code.ensure_loaded(Phx.New) do
+    def phoenix_project(opts \\ []) do
+      Igniter.new()
+      |> Igniter.assign(:test_mode?, true)
+      |> Igniter.assign(:test_files, add_phoenix_new(opts))
+      |> Igniter.Project.IgniterConfig.setup()
+      |> apply_igniter!()
+    end
+  else
+    def phoenix_project(_opts \\ []) do
+      raise "You must include the `phx_new` dependency to use `#{inspect(__MODULE__)}.phoenix_project/1`"
+    end
   end
 
   @doc """
@@ -610,7 +616,7 @@ defmodule Igniter.Test do
       end
   end
 
- defp expand_path_with_bindings(path, %Phx.New.Project{} = project) do
+  defp expand_path_with_bindings(path, %Phx.New.Project{} = project) do
     Regex.replace(Regex.recompile!(~r/:[a-zA-Z0-9_]+/), path, fn ":" <> key, _ ->
       project |> Map.fetch!(:"#{key}") |> to_string()
     end)
