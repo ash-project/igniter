@@ -14,7 +14,7 @@ defmodule Igniter.Project.DepsTest do
     end
 
     test "adds the provided dependency in a tuple format" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"})
       |> assert_has_patch("mix.exs", "+ | {:foobar, \"~> 2.0\"}")
       |> Igniter.Project.Deps.add_dep({:barfoo, "~> 1.0"})
@@ -33,7 +33,7 @@ defmodule Igniter.Project.DepsTest do
 
   describe "set_dep_option" do
     test "sets the option when no options exist" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"})
       |> apply_igniter!()
       |> Igniter.Project.Deps.set_dep_option(:foobar, :only, :test)

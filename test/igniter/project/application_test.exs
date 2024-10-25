@@ -4,7 +4,7 @@ defmodule Igniter.Project.ApplicationTest do
 
   describe "add_new_child/1" do
     test "adds an application if one doesn't exist" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> assert_creates("lib/test/application.ex", """
       defmodule Test.Application do
@@ -29,7 +29,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "doesnt add a module if its already supervised" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> apply_igniter!()
       |> Igniter.Project.Application.add_new_child(Foo)
@@ -37,7 +37,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "doesnt add a module if its already supervised as a tuple" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: 1})
       |> apply_igniter!()
       |> Igniter.Project.Application.add_new_child(Foo)
@@ -45,7 +45,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "doesnt add a module if its already supervised as an atom and we're adding a tuple" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> apply_igniter!()
       |> Igniter.Project.Application.add_new_child({Foo, a: 1})
@@ -53,7 +53,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "supports taking options as the second argument" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: :b})
       |> assert_creates("lib/test/application.ex", """
       defmodule Test.Application do
@@ -78,7 +78,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "supports updating options using `opts_updater`" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: :b})
       |> apply_igniter!()
       |> Igniter.Project.Application.add_new_child(Foo,
@@ -93,7 +93,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "will set opts to an empty list if using `opts_updater`" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> apply_igniter!()
       |> Igniter.Project.Application.add_new_child(Foo,
@@ -108,7 +108,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "using `after: fn _ -> true end` with tuples in the list" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: :b})
       |> Igniter.Project.Application.add_new_child(Something)
       |> Igniter.Project.Application.add_new_child(SomethingAtTheEnd, after: fn _ -> true end)
@@ -130,7 +130,7 @@ defmodule Igniter.Project.ApplicationTest do
     end
 
     test "supports taking code as the second argument" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child(
         {Foo,
          {:code,
@@ -163,7 +163,7 @@ defmodule Igniter.Project.ApplicationTest do
     test "supports expressing " do
       :erlang.system_flag(:backtrace_depth, 1000)
 
-      test_project()
+      mix_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> apply_igniter!()
       |> Igniter.Project.Application.add_new_child(Bar)

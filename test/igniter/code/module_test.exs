@@ -123,7 +123,7 @@ defmodule Igniter.Code.ModuleTest do
   describe inspect(&Igniter.Code.Module.find_all_matching_modules/1) do
     test "finds all elixir files but ignores all other files" do
       igniter =
-        test_project()
+        mix_project()
         |> Igniter.Project.Module.create_module(Foo, """
         defmodule Foo do
         end

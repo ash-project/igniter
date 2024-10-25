@@ -4,7 +4,7 @@ defmodule Igniter.Project.TaskAliasesTest do
 
   describe "add_alias/3-4" do
     test "adds a task alias to the `mix.exs` file" do
-      test_project()
+      mix_project()
       |> Igniter.Project.TaskAliases.add_alias("test", "test --special")
       |> assert_has_patch("mix.exs", """
       10 + | deps: deps(),
@@ -18,7 +18,7 @@ defmodule Igniter.Project.TaskAliasesTest do
     end
 
     test "by default, it ignores existing aliases" do
-      test_project()
+      mix_project()
       |> Igniter.Project.TaskAliases.add_alias("test", "test --special")
       |> apply_igniter!()
       |> Igniter.Project.TaskAliases.add_alias("test", "my_thing.setup_tests")
@@ -26,7 +26,7 @@ defmodule Igniter.Project.TaskAliasesTest do
     end
 
     test "the alter option can be used to modify existing aliases" do
-      test_project()
+      mix_project()
       |> Igniter.Project.TaskAliases.add_alias("test", "test --special")
       |> apply_igniter!()
       |> Igniter.Project.TaskAliases.add_alias("test", "my_thing.setup_tests",
@@ -39,7 +39,7 @@ defmodule Igniter.Project.TaskAliasesTest do
     end
 
     test "the alter option won't add steps that are already present" do
-      test_project()
+      mix_project()
       |> Igniter.Project.TaskAliases.add_alias("test", ["my_thing.setup_tests", "test --special"])
       |> apply_igniter!()
       |> Igniter.Project.TaskAliases.add_alias("test", "my_thing.setup_tests",

@@ -5,7 +5,7 @@ defmodule Igniter.Libs.PhoenixTest do
   describe "controller?/2" do
     test "detects a phoenix controller" do
       igniter =
-        assert test_project()
+        assert mix_project()
                |> Igniter.create_new_file("lib/test_web/controllers/foo_controller.ex", """
                defmodule TestWeb.FooController do
                  use TestWeb, :controller

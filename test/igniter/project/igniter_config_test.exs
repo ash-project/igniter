@@ -4,7 +4,7 @@ defmodule Igniter.Project.IgniterConfigTest do
 
   describe "add_extension/2" do
     test "adds an extension to the list" do
-      test_project()
+      mix_project()
       |> Igniter.Project.IgniterConfig.add_extension(Foobar)
       |> assert_has_patch(".igniter.exs", """
       9 - |  extensions: []
@@ -15,7 +15,7 @@ defmodule Igniter.Project.IgniterConfigTest do
 
   describe "dont_move_file_pattern/2" do
     test "adds a pattern to the list" do
-      test_project()
+      mix_project()
       |> Igniter.Project.IgniterConfig.dont_move_file_pattern(~r"abc")
       |> assert_has_patch(".igniter.exs", """
       8 - |  dont_move_files: [~r"lib/mix"],
@@ -24,7 +24,7 @@ defmodule Igniter.Project.IgniterConfigTest do
     end
 
     test "doesnt add a duplicate pattern to the list" do
-      test_project()
+      mix_project()
       |> Igniter.Project.IgniterConfig.dont_move_file_pattern(~r"lib/mix")
       |> assert_unchanged(".igniter.exs")
     end
