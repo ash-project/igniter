@@ -45,22 +45,36 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
-  Moves to the next node that matches the predicate, going upwards.
+  Moves a zipper upwards.
+
+  If the second argument is a predicate function, it will be called on the zipper and then
+  move upwards until the predicate returns `true`.
+
+  If the second argument is a non-negative integer, it will move upwards that many times if
+  possible, returning `:error` otherwise.
   """
-  @spec move_upwards(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
-  def move_upwards(zipper, pred) do
+  @spec move_upwards(Zipper.t(), non_neg_integer() | (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def move_upwards(zipper, pred_or_n)
+
+  def move_upwards(%Zipper{} = zipper, pred) when is_function(pred, 1) do
     if pred.(zipper) do
       {:ok, zipper}
     else
-      case Zipper.up(zipper) do
-        nil ->
-          :error
-
-        next ->
-          move_upwards(next, pred)
+      case move_upwards(zipper, 1) do
+        :error -> :error
+        {:ok, next} -> move_upwards(next, pred)
       end
     end
   end
+
+  def move_upwards(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_upwards(zipper, n)
+  end
+
+  defp do_nth_upwards(nil, _), do: :error
+  defp do_nth_upwards(zipper, 0), do: {:ok, zipper}
+  defp do_nth_upwards(zipper, n), do: zipper |> Zipper.up() |> do_nth_upwards(n - 1)
 
   @doc """
   Moves to the last node before the node that matches the predicate, going upwards.
@@ -70,12 +84,9 @@ defmodule Igniter.Code.Common do
     if pred.(zipper) do
       {:ok, Zipper.down(zipper) || zipper}
     else
-      case Zipper.up(zipper) do
-        nil ->
-          {:ok, zipper}
-
-        next ->
-          move_upwards(next, pred)
+      case move_upwards(zipper, 1) do
+        :error -> :error
+        {:ok, next} -> move_upwards(next, pred)
       end
     end
   end
