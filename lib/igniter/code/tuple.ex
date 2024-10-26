@@ -52,7 +52,7 @@ defmodule Igniter.Code.Tuple do
     item
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.down()
-    |> Common.nth_right(elem)
+    |> Common.move_right(elem)
     |> case do
       {:ok, nth} ->
         {:ok, Common.maybe_move_to_single_child_block(nth)}

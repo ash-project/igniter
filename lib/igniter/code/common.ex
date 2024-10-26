@@ -766,22 +766,10 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  @doc "Moves the zipper right n times, returning `:error` if it can't move that many times."
+  @deprecated "Use `move_right/2` instead, passing an integer as the second argument."
   @spec nth_right(Zipper.t(), non_neg_integer()) :: {:ok, Zipper.t()} | :error
-  def nth_right(zipper, 0) do
-    {:ok, zipper}
-  end
-
   def nth_right(zipper, n) do
-    zipper
-    |> Zipper.right()
-    |> case do
-      nil ->
-        :error
-
-      zipper ->
-        nth_right(zipper, n - 1)
-    end
+    do_nth_right(zipper, n)
   end
 
   @doc """
@@ -841,12 +829,20 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
-  Moves rightwards, entering blocks (and exiting them if no match is found), until the provided predicate returns `true`.
+  Moves a zipper to the right.
 
-  Returns `:error` if the end is reached without finding a match.
+  If the second argument is a predicate function, it will be called on the zipper and then
+  move rightwards until the predicate returns `true`. This function will automatically enter
+  and exit blocks.
+
+  If the second argument is a non-negative integer, it will move right that many times if
+  possible, returning `:error` otherwise.
   """
-  @spec move_right(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
-  def move_right(%Zipper{} = zipper, pred) do
+  @spec move_right(Zipper.t(), non_neg_integer() | (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def move_right(zipper, pred_or_n)
+
+  def move_right(%Zipper{} = zipper, pred) when is_function(pred, 1) do
     zipper_in_single_child_block = maybe_move_to_single_child_block(zipper)
 
     cond do
@@ -895,6 +891,14 @@ defmodule Igniter.Code.Common do
         end
     end
   end
+
+  def move_right(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_right(zipper, n)
+  end
+
+  defp do_nth_right(nil, _), do: :error
+  defp do_nth_right(zipper, 0), do: {:ok, zipper}
+  defp do_nth_right(zipper, n), do: zipper |> Zipper.right() |> do_nth_right(n - 1)
 
   @doc """
   Moves nextwards (depth-first), until the provided predicate returns `true`.

@@ -149,7 +149,7 @@ defmodule Igniter.Code.List do
         zipper
         |> Igniter.Code.Common.maybe_move_to_single_child_block()
         |> Zipper.down()
-        |> Common.nth_right(index)
+        |> Common.move_right(index)
         |> case do
           :error ->
             :error
