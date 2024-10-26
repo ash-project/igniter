@@ -50,9 +50,12 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
 
   defp find_use_gettext_modules(igniter) do
     Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, zipper ->
-      case Igniter.Code.Module.move_to_use(zipper, Gettext) do
-        {:ok, _zipper} -> true
-        _ -> false
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_use(zipper, Gettext),
+           false <- has_backend_arg?(zipper) do
+        true
+      else
+        _ ->
+          false
       end
     end)
   end
@@ -65,15 +68,29 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
   defp use_gettext_backend(igniter, module) do
     Igniter.Project.Module.find_and_update_module!(igniter, module, fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_use(zipper, Gettext),
+           false <- has_backend_arg?(zipper),
            {:ok, zipper} <-
              Igniter.Code.Function.update_nth_argument(zipper, 0, fn zipper ->
                {:ok, Igniter.Code.Common.replace_code(zipper, Gettext.Backend)}
              end) do
         {:ok, zipper}
       else
+        true ->
+          {:ok, zipper}
+
         _ ->
           {:warning, "Failed to update to Gettext.Backend in #{inspect(module)}"}
       end
     end)
+  end
+
+  defp has_backend_arg?(zipper) do
+    with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
+         {:ok, _zipper} <- Igniter.Code.Keyword.get_key(zipper, :backend) do
+      true
+    else
+      _ ->
+        false
+    end
   end
 end
