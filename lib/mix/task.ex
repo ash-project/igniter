@@ -1,5 +1,13 @@
 defmodule Igniter.Mix.Task do
-  @moduledoc "A behaviour for implementing a Mix task that is enriched to be composable with other Igniter tasks."
+  @moduledoc """
+  A behaviour for implementing a Mix task that is enriched to be composable with other Igniter tasks.
+
+  > ### Note {: .info}
+  >
+  > A default `run/1` is implemented so you can directly run the task. Igniter never uses this function, so it is overridable.
+  >
+  > This enables your library to make use of the task for its own purposes if needed. An example would be if you wanted to implement an Igniter installer, but also have an `install` task for end-user consumption (e.g. `mix tailwind.install`).
+  """
 
   alias Igniter.Mix.Task.Info
 
@@ -67,6 +75,8 @@ defmodule Igniter.Mix.Task do
         |> igniter(argv)
         |> Igniter.do_or_dry_run(opts)
       end
+
+      defoverridable run: 1
 
       @impl true
       def installer?, do: __MODULE__ |> Mix.Task.task_name() |> String.ends_with?(".install")
