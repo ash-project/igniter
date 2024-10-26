@@ -632,7 +632,7 @@ defmodule Igniter.Code.Function do
 
                 zipper ->
                   zipper
-                  |> Common.nth_right(index)
+                  |> Common.move_right(index)
                   |> case do
                     :error ->
                       :error
@@ -652,7 +652,7 @@ defmodule Igniter.Code.Function do
 
           zipper ->
             zipper
-            |> Common.nth_right(index)
+            |> Common.move_right(index)
             |> case do
               :error ->
                 :error
@@ -701,7 +701,7 @@ defmodule Igniter.Code.Function do
 
                 zipper ->
                   zipper
-                  |> Common.nth_right(index)
+                  |> Common.move_right(index)
                   |> case do
                     :error ->
                       :error
@@ -730,7 +730,7 @@ defmodule Igniter.Code.Function do
 
           zipper ->
             zipper
-            |> Common.nth_right(index + offset)
+            |> Common.move_right(index + offset)
             |> case do
               :error ->
                 :error
@@ -808,7 +808,7 @@ defmodule Igniter.Code.Function do
           {{:., _, [_mod, name]}, _, args} when is_atom(name) and is_list(args) ->
             zipper
             |> Zipper.down()
-            |> Common.nth_right(index + 1)
+            |> Common.move_right(index + 1)
             |> case do
               :error ->
                 false
@@ -828,7 +828,7 @@ defmodule Igniter.Code.Function do
 
               zipper ->
                 zipper
-                |> Common.nth_right(index)
+                |> Common.move_right(index)
                 |> case do
                   :error ->
                     false

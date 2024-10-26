@@ -42,7 +42,8 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
     upgrades =
       %{
         "0.3.66" => [&code_module_parse_to_project_module_parse/2],
-        "0.3.71" => [&code_module_parse_to_project_module_parse/2]
+        "0.3.71" => [&code_module_parse_to_project_module_parse/2],
+        "0.3.76" => [&code_common_nth_right_to_move_right/2]
       }
 
     # For each version that requires a change, add it to this map
@@ -60,7 +61,19 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
       arity: 1
     )
     |> Igniter.add_notice(
-      "Igniter.Code.Module.parse/1 was deprecated in favor of `Igniter.Project.Module.parse/1"
+      "Igniter.Code.Module.parse/1 was deprecated in favor of Igniter.Project.Module.parse/1"
+    )
+  end
+
+  defp code_common_nth_right_to_move_right(igniter, _opts) do
+    igniter
+    |> Igniter.Refactors.Rename.rename_function(
+      {Igniter.Code.Common, :nth_right},
+      {Igniter.Code.Common, :move_right},
+      arity: 2
+    )
+    |> Igniter.add_notice(
+      "Igniter.Code.Common.nth_right/2 was deprecated in favor of Igniter.Code.Common.move_right/2"
     )
   end
 end

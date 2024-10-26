@@ -45,22 +45,36 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
-  Moves to the next node that matches the predicate, going upwards.
+  Moves a zipper upwards.
+
+  If the second argument is a predicate function, it will be called on the zipper and then
+  move upwards until the predicate returns `true`.
+
+  If the second argument is a non-negative integer, it will move upwards that many times if
+  possible, returning `:error` otherwise.
   """
-  @spec move_upwards(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
-  def move_upwards(zipper, pred) do
+  @spec move_upwards(Zipper.t(), non_neg_integer() | (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def move_upwards(zipper, pred_or_n)
+
+  def move_upwards(%Zipper{} = zipper, pred) when is_function(pred, 1) do
     if pred.(zipper) do
       {:ok, zipper}
     else
-      case Zipper.up(zipper) do
-        nil ->
-          :error
-
-        next ->
-          move_upwards(next, pred)
+      case move_upwards(zipper, 1) do
+        :error -> :error
+        {:ok, next} -> move_upwards(next, pred)
       end
     end
   end
+
+  def move_upwards(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_upwards(zipper, n)
+  end
+
+  defp do_nth_upwards(nil, _), do: :error
+  defp do_nth_upwards(zipper, 0), do: {:ok, zipper}
+  defp do_nth_upwards(zipper, n), do: zipper |> Zipper.up() |> do_nth_upwards(n - 1)
 
   @doc """
   Moves to the last node before the node that matches the predicate, going upwards.
@@ -70,12 +84,9 @@ defmodule Igniter.Code.Common do
     if pred.(zipper) do
       {:ok, Zipper.down(zipper) || zipper}
     else
-      case Zipper.up(zipper) do
-        nil ->
-          {:ok, zipper}
-
-        next ->
-          move_upwards(next, pred)
+      case move_upwards(zipper, 1) do
+        :error -> :error
+        {:ok, next} -> move_upwards(next, pred)
       end
     end
   end
@@ -766,22 +777,10 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  @doc "Moves the zipper right n times, returning `:error` if it can't move that many times."
+  @deprecated "Use `move_right/2` instead, passing an integer as the second argument."
   @spec nth_right(Zipper.t(), non_neg_integer()) :: {:ok, Zipper.t()} | :error
-  def nth_right(zipper, 0) do
-    {:ok, zipper}
-  end
-
   def nth_right(zipper, n) do
-    zipper
-    |> Zipper.right()
-    |> case do
-      nil ->
-        :error
-
-      zipper ->
-        nth_right(zipper, n - 1)
-    end
+    do_nth_move(zipper, n, &Zipper.right/1)
   end
 
   @doc """
@@ -841,12 +840,51 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
-  Moves rightwards, entering blocks (and exiting them if no match is found), until the provided predicate returns `true`.
+  Moves a zipper to the left.
 
-  Returns `:error` if the end is reached without finding a match.
+  If the second argument is a predicate function, it will be called on the zipper and then
+  move leftwards until the predicate returns `true`. This function will automatically enter
+  and exit blocks.
+
+  If the second argument is a non-negative integer, it will move left that many times if
+  possible, returning `:error` otherwise.
   """
-  @spec move_right(Zipper.t(), (Zipper.t() -> boolean)) :: {:ok, Zipper.t()} | :error
-  def move_right(%Zipper{} = zipper, pred) do
+  @spec move_left(Zipper.t(), non_neg_integer() | (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def move_left(zipper, pred_or_n)
+
+  def move_left(%Zipper{} = zipper, pred) when is_function(pred, 1) do
+    do_move(zipper, pred, &Zipper.left/1)
+  end
+
+  def move_left(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_move(zipper, n, &Zipper.left/1)
+  end
+
+  @doc """
+  Moves a zipper to the right.
+
+  If the second argument is a predicate function, it will be called on the zipper and then
+  move rightwards until the predicate returns `true`. This function will automatically enter
+  and exit blocks.
+
+  If the second argument is a non-negative integer, it will move right that many times if
+  possible, returning `:error` otherwise.
+  """
+  @spec move_right(Zipper.t(), non_neg_integer() | (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def move_right(zipper, pred_or_n)
+
+  def move_right(%Zipper{} = zipper, pred) when is_function(pred, 1) do
+    do_move(zipper, pred, &Zipper.right/1)
+  end
+
+  def move_right(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_move(zipper, n, &Zipper.right/1)
+  end
+
+  defp do_move(%Zipper{} = zipper, pred, move)
+       when is_function(pred, 1) and is_function(move, 1) do
     zipper_in_single_child_block = maybe_move_to_single_child_block(zipper)
 
     cond do
@@ -861,40 +899,45 @@ defmodule Igniter.Code.Common do
         |> Zipper.down()
         |> case do
           nil ->
-            case Zipper.right(zipper) do
+            case move.(zipper) do
               nil ->
                 :error
 
               zipper ->
-                move_right(zipper, pred)
+                do_move(zipper, pred, move)
             end
 
           zipper ->
-            case move_right(zipper, pred) do
+            case do_move(zipper, pred, move) do
               {:ok, zipper} ->
                 {:ok, zipper}
 
               :error ->
-                case Zipper.right(zipper) do
+                case move.(zipper) do
                   nil ->
                     :error
 
                   zipper ->
-                    move_right(zipper, pred)
+                    do_move(zipper, pred, move)
                 end
             end
         end
 
       true ->
-        case Zipper.right(zipper) do
+        case move.(zipper) do
           nil ->
             :error
 
           zipper ->
-            move_right(zipper, pred)
+            do_move(zipper, pred, move)
         end
     end
   end
+
+  defp do_nth_move(zipper, count, move)
+  defp do_nth_move(nil, _, _), do: :error
+  defp do_nth_move(zipper, 0, _), do: {:ok, zipper}
+  defp do_nth_move(zipper, n, move), do: zipper |> move.() |> do_nth_move(n - 1, move)
 
   @doc """
   Moves nextwards (depth-first), until the provided predicate returns `true`.
