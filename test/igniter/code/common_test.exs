@@ -1,4 +1,5 @@
 defmodule Igniter.Code.CommonTest do
+  alias Igniter.Code.Common
   alias Sourceror.Zipper
   use ExUnit.Case
   require Igniter.Code.Function
@@ -318,6 +319,123 @@ defmodule Igniter.Code.CommonTest do
                end
                """
                |> String.trim_trailing()
+    end
+  end
+
+  describe "move_right/2" do
+    test "moves a zipper to the right until a predicate matches" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [3]}}} =
+               Common.move_right(zipper, fn
+                 %Zipper{node: {:__block__, _, [3]}} -> true
+                 _ -> false
+               end)
+    end
+
+    test "returns :error if the predicate never matches" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+
+      assert Common.move_right(zipper, fn _ -> false end) == :error
+    end
+
+    test "moves a zipper to the right a given number of times" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [3]}}} = Common.move_right(zipper, 3)
+    end
+
+    test "returns :error if zipper cannot be moved right a given number of times" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+
+      assert Common.move_right(zipper, 4) == :error
+    end
+  end
+
+  describe "move_upwards/2" do
+    test "moves a zipper upwards until a predicate matches" do
+      {:ok, zipper} =
+        """
+        defmodule UpwardsTest do
+          @foo 1
+          def upwards_test do
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Igniter.Code.Function.move_to_def(:upwards_test, 0)
+
+      assert {:ok, %Zipper{node: {:defmodule, _, _}}} =
+               Common.move_upwards(zipper, &Igniter.Code.Function.function_call?(&1, :defmodule))
+    end
+
+    test "returns :error if the predicate never matches" do
+      {:ok, zipper} =
+        """
+        defmodule UpwardsTest do
+          @foo 1
+          def upwards_test do
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Igniter.Code.Function.move_to_def(:upwards_test, 0)
+
+      assert Common.move_upwards(zipper, fn _ -> false end) == :error
+    end
+
+    test "moves a zipper upwards a given number of times" do
+      {:ok, zipper} =
+        """
+        defmodule UpwardsTest do
+          @foo 1
+          def upwards_test do
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Igniter.Code.Function.move_to_function_call(:def, 2)
+
+      assert {:ok, %Zipper{node: {:defmodule, _, _}}} = Common.move_upwards(zipper, 4)
+    end
+
+    test "returns :error if zipper cannot be moved up a given number of times" do
+      {:ok, zipper} =
+        """
+        defmodule UpwardsTest do
+          @foo 1
+          def upwards_test do
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Igniter.Code.Function.move_to_function_call(:def, 2)
+
+      assert Common.move_upwards(zipper, 5) == :error
     end
   end
 end
