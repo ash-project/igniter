@@ -372,6 +372,60 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
+  describe "move_left/2" do
+    test "moves a zipper to the left until a predicate matches" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+        |> Common.rightmost()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [0]}}} =
+               Common.move_left(zipper, fn
+                 %Zipper{node: {:__block__, _, [0]}} -> true
+                 _ -> false
+               end)
+    end
+
+    test "returns :error if the predicate never matches" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+        |> Common.rightmost()
+
+      assert Common.move_left(zipper, fn _ -> false end) == :error
+    end
+
+    test "moves a zipper to the left a given number of times" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+        |> Common.rightmost()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [0]}}} = Common.move_left(zipper, 3)
+    end
+
+    test "returns :error if zipper cannot be moved right a given number of times" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+        |> Common.rightmost()
+
+      assert Common.move_left(zipper, 4) == :error
+    end
+  end
+
   describe "move_upwards/2" do
     test "moves a zipper upwards until a predicate matches" do
       {:ok, zipper} =

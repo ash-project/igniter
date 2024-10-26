@@ -780,7 +780,7 @@ defmodule Igniter.Code.Common do
   @deprecated "Use `move_right/2` instead, passing an integer as the second argument."
   @spec nth_right(Zipper.t(), non_neg_integer()) :: {:ok, Zipper.t()} | :error
   def nth_right(zipper, n) do
-    do_nth_right(zipper, n)
+    do_nth_move(zipper, n, &Zipper.right/1)
   end
 
   @doc """
@@ -840,6 +840,28 @@ defmodule Igniter.Code.Common do
   end
 
   @doc """
+  Moves a zipper to the left.
+
+  If the second argument is a predicate function, it will be called on the zipper and then
+  move leftwards until the predicate returns `true`. This function will automatically enter
+  and exit blocks.
+
+  If the second argument is a non-negative integer, it will move left that many times if
+  possible, returning `:error` otherwise.
+  """
+  @spec move_left(Zipper.t(), non_neg_integer() | (Zipper.t() -> boolean())) ::
+          {:ok, Zipper.t()} | :error
+  def move_left(zipper, pred_or_n)
+
+  def move_left(%Zipper{} = zipper, pred) when is_function(pred, 1) do
+    do_move(zipper, pred, &Zipper.left/1)
+  end
+
+  def move_left(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_move(zipper, n, &Zipper.left/1)
+  end
+
+  @doc """
   Moves a zipper to the right.
 
   If the second argument is a predicate function, it will be called on the zipper and then
@@ -854,6 +876,15 @@ defmodule Igniter.Code.Common do
   def move_right(zipper, pred_or_n)
 
   def move_right(%Zipper{} = zipper, pred) when is_function(pred, 1) do
+    do_move(zipper, pred, &Zipper.right/1)
+  end
+
+  def move_right(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
+    do_nth_move(zipper, n, &Zipper.right/1)
+  end
+
+  defp do_move(%Zipper{} = zipper, pred, move)
+       when is_function(pred, 1) and is_function(move, 1) do
     zipper_in_single_child_block = maybe_move_to_single_child_block(zipper)
 
     cond do
@@ -868,48 +899,45 @@ defmodule Igniter.Code.Common do
         |> Zipper.down()
         |> case do
           nil ->
-            case Zipper.right(zipper) do
+            case move.(zipper) do
               nil ->
                 :error
 
               zipper ->
-                move_right(zipper, pred)
+                do_move(zipper, pred, move)
             end
 
           zipper ->
-            case move_right(zipper, pred) do
+            case do_move(zipper, pred, move) do
               {:ok, zipper} ->
                 {:ok, zipper}
 
               :error ->
-                case Zipper.right(zipper) do
+                case move.(zipper) do
                   nil ->
                     :error
 
                   zipper ->
-                    move_right(zipper, pred)
+                    do_move(zipper, pred, move)
                 end
             end
         end
 
       true ->
-        case Zipper.right(zipper) do
+        case move.(zipper) do
           nil ->
             :error
 
           zipper ->
-            move_right(zipper, pred)
+            do_move(zipper, pred, move)
         end
     end
   end
 
-  def move_right(%Zipper{} = zipper, n) when is_integer(n) and n >= 0 do
-    do_nth_right(zipper, n)
-  end
-
-  defp do_nth_right(nil, _), do: :error
-  defp do_nth_right(zipper, 0), do: {:ok, zipper}
-  defp do_nth_right(zipper, n), do: zipper |> Zipper.right() |> do_nth_right(n - 1)
+  defp do_nth_move(zipper, count, move)
+  defp do_nth_move(nil, _, _), do: :error
+  defp do_nth_move(zipper, 0, _), do: {:ok, zipper}
+  defp do_nth_move(zipper, n, move), do: zipper |> move.() |> do_nth_move(n - 1, move)
 
   @doc """
   Moves nextwards (depth-first), until the provided predicate returns `true`.
