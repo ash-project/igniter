@@ -492,4 +492,25 @@ defmodule Igniter.Code.CommonTest do
       assert Common.move_upwards(zipper, 5) == :error
     end
   end
+
+  describe "expand_literal/1" do
+    test "it resolves basic literals" do
+      assert {:ok, :literal} = :literal |> Zipper.zip() |> Igniter.Code.Common.expand_literal()
+    end
+
+    test "it resolves literals that are the single child of a :__block__" do
+      assert {:ok, :literal} =
+               {:__block__, [], [:literal]}
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
+    end
+
+    test "it returns an error when the node does not resolve to a literal" do
+      assert :error =
+               "@should_error"
+               |> Sourceror.parse_string!()
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
+    end
+  end
 end

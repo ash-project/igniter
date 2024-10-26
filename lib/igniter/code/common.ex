@@ -188,7 +188,13 @@ defmodule Igniter.Code.Common do
     else
       case current_env(zipper) do
         {:ok, env} ->
-          {:ok, Macro.expand_literals(zipper.node, env)}
+          expanded = Macro.expand_literals(zipper.node, env)
+
+          if Macro.quoted_literal?(expanded) do
+            {:ok, expanded}
+          else
+            :error
+          end
 
         _ ->
           :error
