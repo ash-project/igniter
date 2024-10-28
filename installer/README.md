@@ -4,14 +4,14 @@ Provides `igniter.new` installer as an archive.
 
 To install from Hex, run:
 
-    $ mix archive.install hex igniter_new
+```shell
+$ mix archive.install hex igniter_new
+```
 
-To build and install it locally,
-ensure any previous archive versions are removed:
+To build and install it locally, ensure the previous version is removed prior to installation:
 
-    $ mix archive.uninstall phx_new
-
-Then run:
-
-    $ cd installer
-    $ MIX_ENV=prod mix do archive.build, archive.install
+```shell
+$ cd installer
+$ mix archive.uninstall igniter_new
+$ MIX_ENV=prod mix do archive.build + archive.install
+```
