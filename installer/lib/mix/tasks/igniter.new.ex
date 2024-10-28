@@ -214,9 +214,9 @@ defmodule Mix.Tasks.Igniter.New do
   # seems like something missing in OptionParser
   defp rest_args([]), do: []
 
-  defp rest_args(["--" <> flag, "-" <> next | rest])
-       when flag in @flags or flag in @flags_with_values do
-    rest_args(["-" <> next | rest])
+  defp rest_args(["--" <> flag | rest])
+       when flag in @flags do
+    rest_args(rest)
   end
 
   defp rest_args(["--" <> flag, _value | rest]) when flag in @flags_with_values do
