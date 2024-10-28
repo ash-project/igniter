@@ -7,530 +7,391 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ## [v0.3.76](https://github.com/ash-project/igniter/compare/v0.3.75...v0.3.76) (2024-10-28)
 
-
-
-
 ### Bug Fixes:
 
-* properly ignore `with-args` when passing args to installers
+- properly ignore `with-args` when passing args to installers
 
-* `expand_literal` should expand single-child blocks
+- `expand_literal` should expand single-child blocks
 
-* `expand_literal` should return an error `Macro.expand_literals` doesn't return a literal
+- `expand_literal` should return an error `Macro.expand_literals` doesn't return a literal
 
-* make task run/1 overridable (#114)
+- make task run/1 overridable (#114)
+
+- Support integer argument in `move_right/2` and `move_upwards/2` and add `move_left/2` (#113)
 
 ### Improvements:
 
-* resolve project app names set using a module attribute (#111)
+- resolve project app names set using a module attribute (#111)
 
-* resolve project app names set using a module attribute
+- resolve project app names set using a module attribute
 
 ## [v0.3.75](https://github.com/ash-project/igniter/compare/v0.3.74...v0.3.75) (2024-10-26)
 
-
-
-
 ### Bug Fixes:
 
-* make update_gettext idempotent
+- make update_gettext idempotent
 
 ## [v0.3.74](https://github.com/ash-project/igniter/compare/v0.3.73...v0.3.74) (2024-10-24)
 
-
-
-
 ### Bug Fixes:
 
-* properly compare version lists
+- properly compare version lists
 
 ## [v0.3.73](https://github.com/ash-project/igniter/compare/v0.3.72...v0.3.73) (2024-10-24)
 
-
-
-
 ### Bug Fixes:
 
-* don't use `yes?` if --git_ci or --yes
+- don't use `yes?` if --git_ci or --yes
 
 ## [v0.3.72](https://github.com/ash-project/igniter/compare/v0.3.71...v0.3.72) (2024-10-22)
 
-
-
-
 ### Bug Fixes:
 
-* set `--yes` automatically in git_ci
+- set `--yes` automatically in git_ci
 
 ## [v0.3.71](https://github.com/ash-project/igniter/compare/v0.3.70...v0.3.71) (2024-10-22)
 
-
-
-
 ## [v0.3.70](https://github.com/ash-project/igniter/compare/v0.3.69...v0.3.70) (2024-10-22)
-
-
-
 
 ### Bug Fixes:
 
-* properly upgrade deps with mix deps.update
+- properly upgrade deps with mix deps.update
 
 ## [v0.3.69](https://github.com/ash-project/igniter/compare/v0.3.68...v0.3.69) (2024-10-21)
 
-
-
-
 ### Improvements:
 
-* add `mix igniter.refactor.unless_to_if_not`
+- add `mix igniter.refactor.unless_to_if_not`
 
 ## [v0.3.68](https://github.com/ash-project/igniter/compare/v0.3.67...v0.3.68) (2024-10-21)
 
-
-
-
 ### Bug Fixes:
 
-* properly detect all version migrations
+- properly detect all version migrations
 
-* make replacing code append to parent blocks when extendable
+- make replacing code append to parent blocks when extendable
 
-* pass through additional arguments to installers
+- pass through additional arguments to installers
 
-* reintroduce accidentally removed function
+- reintroduce accidentally removed function
 
-* don't call into shared lib?
+- don't call into shared lib?
 
 ## [v0.3.67](https://github.com/ash-project/igniter/compare/v0.3.66...v0.3.67) (2024-10-19)
 
-
-
-
 ### Bug Fixes:
 
-* ensure deps are always added in explicit tuple format
+- ensure deps are always added in explicit tuple format
 
-* don't use the 2 arg version of config when the first key would be ugly
+- don't use the 2 arg version of config when the first key would be ugly
 
 ## [v0.3.66](https://github.com/ash-project/igniter/compare/v0.3.65...v0.3.66) (2024-10-19)
 
-
-
-
 ### Improvements:
 
-* significant improvements to function checking speed
+- significant improvements to function checking speed
 
 ## [v0.3.65](https://github.com/ash-project/igniter/compare/v0.3.64...v0.3.65) (2024-10-19)
 
-
-
-
 ### Improvements:
 
-* add `mix igniter.upgrade`
+- add `mix igniter.upgrade`
 
-* add `mix igniter.refactor.rename_function`
+- add `mix igniter.refactor.rename_function`
 
 ## [v0.3.64](https://github.com/ash-project/igniter/compare/v0.3.63...v0.3.64) (2024-10-17)
 
-
-
-
 ### Bug Fixes:
 
-* don't infinitely recurse on update_all_matches
+- don't infinitely recurse on update_all_matches
 
-* detect node removal in update_all_matches
+- detect node removal in update_all_matches
 
 ### Improvements:
 
-* add `Igniter.Code.String`
+- add `Igniter.Code.String`
 
 ## [v0.3.63](https://github.com/ash-project/igniter/compare/v0.3.62...v0.3.63) (2024-10-15)
 
-
-
-
 ### Bug Fixes:
 
-* properly collect csv options into lists
+- properly collect csv options into lists
 
 ## [v0.3.62](https://github.com/ash-project/igniter/compare/v0.3.61...v0.3.62) (2024-10-14)
 
-
-
-
 ### Bug Fixes:
 
-* properly parse csv/keep options
+- properly parse csv/keep options
 
 ## [v0.3.61](https://github.com/ash-project/igniter/compare/v0.3.60...v0.3.61) (2024-10-14)
 
-
-
-
 ### Improvements:
 
-* support csv option type and properly handle keep options lists
+- support csv option type and properly handle keep options lists
 
 ## [v0.3.60](https://github.com/ash-project/igniter/compare/v0.3.59...v0.3.60) (2024-10-14)
 
-
-
-
 ### Improvements:
 
-* don't rely on elixir 1.16+ features
+- don't rely on elixir 1.16+ features
 
 ## [v0.3.59](https://github.com/ash-project/igniter/compare/v0.3.58...v0.3.59) (2024-10-14)
 
-
-
-
 ### Bug Fixes:
 
-* don't return igniter from message function
+- don't return igniter from message function
 
 ## [v0.3.58](https://github.com/ash-project/igniter/compare/v0.3.57...v0.3.58) (2024-10-13)
 
-
-
-
 ### Bug Fixes:
 
-* don't assume the availabilit of `which`
+- don't assume the availabilit of `which`
 
 ## [v0.3.57](https://github.com/ash-project/igniter/compare/v0.3.56...v0.3.57) (2024-10-11)
 
-
-
-
 ### Improvements:
 
-* add `group` and option disambiguation based on groups
+- add `group` and option disambiguation based on groups
 
 ## [v0.3.56](https://github.com/ash-project/igniter/compare/v0.3.55...v0.3.56) (2024-10-11)
 
-
-
-
 ### Improvements:
 
-* support required arguments in the info schema
+- support required arguments in the info schema
 
 ## [v0.3.55](https://github.com/ash-project/igniter/compare/v0.3.54...v0.3.55) (2024-10-11)
 
-
-
-
 ### Bug Fixes:
 
-* fix pattern match on prompt on git changes
+- fix pattern match on prompt on git changes
 
 ## [v0.3.54](https://github.com/ash-project/igniter/compare/v0.3.53...v0.3.54) (2024-10-11)
 
-
-
-
 ### Bug Fixes:
 
-* looser match on git change detection
+- looser match on git change detection
 
 ## [v0.3.53](https://github.com/ash-project/igniter/compare/v0.3.52...v0.3.53) (2024-10-11)
 
-
-
-
 ### Improvements:
 
-* add `on_exists` handling to `Igniter.Libs.Ecto.gen_migration`
+- add `on_exists` handling to `Igniter.Libs.Ecto.gen_migration`
 
 ## [v0.3.52](https://github.com/ash-project/igniter/compare/v0.3.51...v0.3.52) (2024-10-07)
 
-
-
-
 ### Improvements:
 
-* properly warn on git changes before committing
+- properly warn on git changes before committing
 
 ## [v0.3.51](https://github.com/ash-project/igniter/compare/v0.3.50...v0.3.51) (2024-10-07)
 
-
-
-
 ### Bug Fixes:
 
-* provide proper version in the installer
+- provide proper version in the installer
 
 ### Improvements:
 
-* remove `System.cmd` for `igniter.install` in installer
+- remove `System.cmd` for `igniter.install` in installer
 
-* allow excluding line numbers in `Igniter.Test.assert_has_patch`
+- allow excluding line numbers in `Igniter.Test.assert_has_patch`
 
-* prettier errors on task exits
+- prettier errors on task exits
 
 ## [v0.3.50](https://github.com/ash-project/igniter/compare/v0.3.49...v0.3.50) (2024-10-07)
 
-
-
-
 ### Improvements:
 
-* don't warn on missing installers that aren't actually missing
+- don't warn on missing installers that aren't actually missing
 
 ## [v0.3.49](https://github.com/ash-project/igniter/compare/v0.3.48...v0.3.49) (2024-10-06)
 
-
-
-
 ### Bug Fixes:
 
-* fix dialyzer spec
+- fix dialyzer spec
 
 ## [v0.3.48](https://github.com/ash-project/igniter/compare/v0.3.47...v0.3.48) (2024-10-04)
 
-
-
-
 ### Improvements:
 
-* add `opts_updater` option to `add_new_child`
+- add `opts_updater` option to `add_new_child`
 
-* add `Igniter.Libs.Ecto.gen_migration`
+- add `Igniter.Libs.Ecto.gen_migration`
 
-* implement various deprecations
+- implement various deprecations
 
-* add `Igniter.Libs.Ecto` for listing/selecting repos
+- add `Igniter.Libs.Ecto` for listing/selecting repos
 
-* add `defaults` key to `Info{}`
+- add `defaults` key to `Info{}`
 
 ## [v0.3.47](https://github.com/ash-project/igniter/compare/v0.3.46...v0.3.47) (2024-10-04)
 
-
-
-
 ### Bug Fixes:
 
-* prompt users to handle diverged environment issues
+- prompt users to handle diverged environment issues
 
-* display installer output in `IO.stream()`
+- display installer output in `IO.stream()`
 
-* honor --yes properly when adding nested deps
+- honor --yes properly when adding nested deps
 
-* don't install revoked versions of packages
+- don't install revoked versions of packages
 
-* install non-rc packages, or the rc package if there is none
+- install non-rc packages, or the rc package if there is none
 
 ## [v0.3.46](https://github.com/ash-project/igniter/compare/v0.3.45...v0.3.46) (2024-10-03)
 
-
-
-
 ### Bug Fixes:
 
-* fix message in task name warning
+- fix message in task name warning
 
 ## [v0.3.45](https://github.com/ash-project/igniter/compare/v0.3.44...v0.3.45) (2024-09-25)
 
-
-
-
 ### Bug Fixes:
 
-* use `ensure_all_started` without a list for backwards compatibility
+- use `ensure_all_started` without a list for backwards compatibility
 
 ### Improvements:
 
-* Yn -> y/n to represent a lack of a default
+- Yn -> y/n to represent a lack of a default
 
 ## [v0.3.44](https://github.com/ash-project/igniter/compare/v0.3.43...v0.3.44) (2024-09-24)
 
-
-
-
 ### Bug Fixes:
 
-* properly create or update config files
+- properly create or update config files
 
-* format files after reading so formatter_opts is set before later writes
+- format files after reading so formatter_opts is set before later writes
 
-* remove incorrect call to `add_code` from `replace_code`
+- remove incorrect call to `add_code` from `replace_code`
 
 ## [v0.3.43](https://github.com/ash-project/igniter/compare/v0.3.42...v0.3.43) (2024-09-23)
 
-
-
-
 ### Bug Fixes:
 
-* traverse lists without entering child nodes
+- traverse lists without entering child nodes
 
 ## [v0.3.42](https://github.com/ash-project/igniter/compare/v0.3.41...v0.3.42) (2024-09-23)
 
-
-
-
 ### Bug Fixes:
 
-* handle empty requested positional args when extracting positional
+- handle empty requested positional args when extracting positional
 
 ### Improvements:
 
-* add `Igniter.Code.List.replace_in_list/3`
+- add `Igniter.Code.List.replace_in_list/3`
 
-* allow appending/prepending a different value when the full
+- allow appending/prepending a different value when the full
 
 ## [v0.3.41](https://github.com/ash-project/igniter/compare/v0.3.40...v0.3.41) (2024-09-23)
 
-
-
-
 ### Improvements:
 
-* add `Igniter.Project.TaskAliases.add_alias/3-4`
+- add `Igniter.Project.TaskAliases.add_alias/3-4`
 
 ## [v0.3.40](https://github.com/ash-project/igniter/compare/v0.3.39...v0.3.40) (2024-09-23)
 
-
-
-
 ### Bug Fixes:
 
-* properly detect existing scopes with matching names
+- properly detect existing scopes with matching names
 
 ## [v0.3.39](https://github.com/ash-project/igniter/compare/v0.3.38...v0.3.39) (2024-09-18)
 
-
-
-
 ### Bug Fixes:
 
-* don't warn while parsing files
+- don't warn while parsing files
 
-* display an error when a composed task can't be found
+- display an error when a composed task can't be found
 
 ### Improvements:
 
-* more phoenix router specific code
+- more phoenix router specific code
 
-* make `issues` red and formatted with more spacing
+- make `issues` red and formatted with more spacing
 
-* properly compare regex literals
+- properly compare regex literals
 
-* add `dont_move_file_pattern` utility
+- add `dont_move_file_pattern` utility
 
-* update installer to always run mix deps get and install
+- update installer to always run mix deps get and install
 
 ## [v0.3.38](https://github.com/ash-project/igniter/compare/v0.3.37...v0.3.38) (2024-09-16)
 
-
-
-
 ### Bug Fixes:
 
-* don't add warning on `overwrite` option
+- don't add warning on `overwrite` option
 
 ### Improvements:
 
-* better confirmation message experience
+- better confirmation message experience
 
 ## [v0.3.37](https://github.com/ash-project/igniter/compare/v0.3.36...v0.3.37) (2024-09-15)
 
-
-
-
 ### Improvements:
 
-* return `igniter` in `Igniter.Test.assert_unchanged`
+- return `igniter` in `Igniter.Test.assert_unchanged`
 
 ## [v0.3.36](https://github.com/ash-project/igniter/compare/v0.3.35...v0.3.36) (2024-09-13)
 
-
-
-
 ### Bug Fixes:
 
-* reevaluate .igniter.exs when it changes
+- reevaluate .igniter.exs when it changes
 
 ### Improvements:
 
-* Support for extensions in igniter config
+- Support for extensions in igniter config
 
-* Add a phoenix extension to prevent moving modules that may be phoenix-y
+- Add a phoenix extension to prevent moving modules that may be phoenix-y
 
 ## [v0.3.35](https://github.com/ash-project/igniter/compare/v0.3.34...v0.3.35) (2024-09-10)
 
-
-
-
 ### Bug Fixes:
 
-* much smarter removal of `import_config` when evaluating configuration files
+- much smarter removal of `import_config` when evaluating configuration files
 
-* when including a glob, use `test_files` in test_mode
+- when including a glob, use `test_files` in test_mode
 
 ### Improvements:
 
-* add `Igniter.Code.Common.remove/2`
+- add `Igniter.Code.Common.remove/2`
 
 ## [v0.3.34](https://github.com/ash-project/igniter/compare/v0.3.33...v0.3.34) (2024-09-10)
 
-
-
-
 ### Bug Fixes:
 
-* properly avoid adding duplicate children to application tree
+- properly avoid adding duplicate children to application tree
 
 ## [v0.3.33](https://github.com/ash-project/igniter/compare/v0.3.32...v0.3.33) (2024-09-10)
 
-
-
-
 ### Bug Fixes:
 
-* properly determine module placement in app tree
+- properly determine module placement in app tree
 
 ## [v0.3.32](https://github.com/ash-project/igniter/compare/v0.3.31...v0.3.32) (2024-09-10)
 
-
-
-
 ### Bug Fixes:
 
-* properly extract app module from `def project`
+- properly extract app module from `def project`
 
 ## [v0.3.31](https://github.com/ash-project/igniter/compare/v0.3.30...v0.3.31) (2024-09-10)
 
-
-
-
 ### Bug Fixes:
 
-* set only option to `nil` by default
+- set only option to `nil` by default
 
 ## [v0.3.30](https://github.com/ash-project/igniter/compare/v0.3.29...v0.3.30) (2024-09-10)
 
-
-
-
 ### Bug Fixes:
 
-* handle some edge cases in application child adding
+- handle some edge cases in application child adding
 
 ### Improvements:
 
-* support the opts being code when adding a new child to the app tree
+- support the opts being code when adding a new child to the app tree
 
-* prepend new children instead of appending them
+- prepend new children instead of appending them
 
-* add an `after` option to `add_new_child/3`
+- add an `after` option to `add_new_child/3`
 
-* better warnings on invalid patches in test
+- better warnings on invalid patches in test
 
 ## [v0.3.29](https://github.com/ash-project/igniter/compare/v0.3.28...v0.3.29) (2024-09-09)
 
