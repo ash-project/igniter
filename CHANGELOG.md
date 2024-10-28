@@ -5,6 +5,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.76](https://github.com/ash-project/igniter/compare/v0.3.75...v0.3.76) (2024-10-28)
+
+
+
+
+### Bug Fixes:
+
+* properly ignore `with-args` when passing args to installers
+
+* `expand_literal` should expand single-child blocks
+
+* `expand_literal` should return an error `Macro.expand_literals` doesn't return a literal
+
+* make task run/1 overridable (#114)
+
+### Improvements:
+
+* resolve project app names set using a module attribute (#111)
+
+* resolve project app names set using a module attribute
+
 ## [v0.3.75](https://github.com/ash-project/igniter/compare/v0.3.74...v0.3.75) (2024-10-26)
 
 
