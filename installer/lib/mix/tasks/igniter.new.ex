@@ -212,43 +212,49 @@ defmodule Mix.Tasks.Igniter.New do
 
   # I don't feel like I should have to do this
   # seems like something missing in OptionParser
-  defp rest_args([]), do: []
+  defp rest_args(args) do
+    args
+    |> Enum.flat_map(&String.split(&1, ~r/([^\\]=)/, parts: 2, trim: true))
+    |> do_rest_args()
+  end
 
-  defp rest_args(["--" <> flag | rest])
+  defp do_rest_args([]), do: []
+
+  defp do_rest_args(["--" <> flag | rest])
        when flag in @flags do
-    rest_args(rest)
+    do_rest_args(rest)
   end
 
-  defp rest_args(["--" <> flag, _value | rest]) when flag in @flags_with_values do
-    rest_args(rest)
+  defp do_rest_args(["--" <> flag, _value | rest]) when flag in @flags_with_values do
+    do_rest_args(rest)
   end
 
-  defp rest_args(["-" <> flag, "-" <> next | rest])
+  defp do_rest_args(["-" <> flag, "-" <> next | rest])
        when flag in @switches or flag in @switches_with_values do
-    rest_args(["-" <> next | rest])
+    do_rest_args(["-" <> next | rest])
   end
 
-  defp rest_args(["-" <> flag, _value | rest]) when flag in @switches_with_values do
-    rest_args(rest)
+  defp do_rest_args(["-" <> flag, _value | rest]) when flag in @switches_with_values do
+    do_rest_args(rest)
   end
 
-  defp rest_args(["-" <> flag, "-" <> next | rest]) do
-    ["-#{flag}" | rest_args(["-" <> next | rest])]
+  defp do_rest_args(["-" <> flag, "-" <> next | rest]) do
+    ["-#{flag}" | do_rest_args(["-" <> next | rest])]
   end
 
-  defp rest_args(["-" <> flag, next | rest]) do
-    ["-#{flag}", next | rest_args(rest)]
+  defp do_rest_args(["-" <> flag, next | rest]) do
+    ["-#{flag}", next | do_rest_args(rest)]
   end
 
-  defp rest_args(["--" <> flag]) when flag in @flags or flag in @flags_with_values do
+  defp do_rest_args(["--" <> flag]) when flag in @flags or flag in @flags_with_values do
     []
   end
 
-  defp rest_args(["-" <> flag]) when flag in @switches or flag in @switches_with_values do
+  defp do_rest_args(["-" <> flag]) when flag in @switches or flag in @switches_with_values do
     []
   end
 
-  defp rest_args([other]), do: [other]
+  defp do_rest_args([other]), do: [other]
 
   defp add_igniter_dep(contents, version_requirement) do
     String.replace(
