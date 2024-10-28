@@ -338,6 +338,21 @@ defmodule Igniter.Code.CommonTest do
                end)
     end
 
+    test "can match the first node tested" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [0]}}} =
+               Common.move_right(zipper, fn
+                 %Zipper{node: {:__block__, _, [0]}} -> true
+                 _ -> false
+               end)
+    end
+
     test "returns :error if the predicate never matches" do
       zipper =
         "[0, 1, 2, 3]"
@@ -385,6 +400,22 @@ defmodule Igniter.Code.CommonTest do
       assert {:ok, %Zipper{node: {:__block__, _, [0]}}} =
                Common.move_left(zipper, fn
                  %Zipper{node: {:__block__, _, [0]}} -> true
+                 _ -> false
+               end)
+    end
+
+    test "can match the first node tested" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+        |> Common.rightmost()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [3]}}} =
+               Common.move_left(zipper, fn
+                 %Zipper{node: {:__block__, _, [3]}} -> true
                  _ -> false
                end)
     end

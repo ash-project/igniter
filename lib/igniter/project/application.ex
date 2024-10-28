@@ -51,47 +51,29 @@ defmodule Igniter.Project.Application do
 
   defp expand_attribute(zipper) do
     with {:@, _, [{attr, _, nil}]} <- zipper.node,
-         {:ok, zipper} <- move_up_to_defmodule_body(zipper) do
+         {:ok, zipper} <- find_prev(zipper, &match?({:@, _, [{^attr, _, [_]}]}, &1.node)) do
       zipper
-      |> Stream.unfold(fn
-        %Zipper{} = zipper -> {zipper, Zipper.left(zipper)}
-        nil -> nil
-      end)
-      |> Enum.find_value(:error, fn
-        %Zipper{node: {:@, _, [{^attr, _, [_]}]}} = zipper ->
-          zipper
-          |> Zipper.down()
-          |> Zipper.down()
-          |> Common.expand_literal()
-
-        _ ->
-          nil
-      end)
+      |> Zipper.down()
+      |> Zipper.down()
+      |> Common.expand_literal()
     else
       _ ->
         :error
     end
   end
 
-  defp move_up_to_defmodule_body(zipper) do
-    # when there are > 1 top-level nodes in a defmodule body, they will
-    # be 4 levels down
-    case move_upwards_n_times(zipper, 4) do
-      {:ok, maybe_defmodule} ->
-        if Igniter.Code.Function.function_call?(maybe_defmodule, :defmodule, 2) do
-          {:ok, zipper}
-        else
-          zipper |> Zipper.up() |> move_up_to_defmodule_body()
-        end
+  defp find_prev(zipper, pred) do
+    case Common.move_left(zipper, pred) do
+      {:ok, zipper} ->
+        {:ok, zipper}
 
       :error ->
-        :error
+        case Common.move_upwards(zipper, 1) do
+          {:ok, zipper} -> find_prev(zipper, pred)
+          :error -> :error
+        end
     end
   end
-
-  defp move_upwards_n_times(nil, _), do: :error
-  defp move_upwards_n_times(zipper, 0), do: {:ok, zipper}
-  defp move_upwards_n_times(zipper, n), do: zipper |> Zipper.up() |> move_upwards_n_times(n - 1)
 
   @doc "Returns the name of the application module."
   def app_module(igniter) do
