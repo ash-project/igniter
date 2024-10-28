@@ -171,6 +171,8 @@ defmodule Igniter.Code.Common do
   """
   @spec expand_literal(Zipper.t()) :: {:ok, any()} | :error
   def expand_literal(zipper) do
+    zipper = maybe_move_to_single_child_block(zipper)
+
     quoted_literal? =
       case zipper.node do
         {:__block__, _, _} = value ->
@@ -186,7 +188,13 @@ defmodule Igniter.Code.Common do
     else
       case current_env(zipper) do
         {:ok, env} ->
-          {:ok, Macro.expand_literals(zipper.node, env)}
+          expanded = Macro.expand_literals(zipper.node, env)
+
+          if Macro.quoted_literal?(expanded) do
+            {:ok, expanded}
+          else
+            :error
+          end
 
         _ ->
           :error

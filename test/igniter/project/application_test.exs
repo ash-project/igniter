@@ -173,4 +173,92 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
   end
+
+  describe "app_name/1" do
+    test "it returns the application name when it's an atom literal" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: :igniter_test
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_name(igniter) == :igniter_test
+    end
+
+    test "it returns the application name when it's a module attribute" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              @app :igniter_test
+
+              def project do
+                [
+                  app: @app
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_name(igniter) == :igniter_test
+    end
+
+    test "it raises if the application name can't be resolved" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: app_name()
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      assert_raise RuntimeError, fn -> Igniter.Project.Application.app_name(igniter) end
+
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: @app
+                ]
+              end
+
+              @app :igniter_test
+            end
+            """
+          }
+        )
+
+      assert_raise RuntimeError, fn -> Igniter.Project.Application.app_name(igniter) end
+    end
+  end
 end

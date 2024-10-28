@@ -29,7 +29,7 @@ defmodule Igniter.Project.Application do
          zipper <- Igniter.Code.Common.rightmost(zipper),
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :app),
-         {:ok, app_name} when is_atom(app_name) <- Igniter.Code.Common.expand_literal(zipper) do
+         {:ok, app_name} when is_atom(app_name) <- expand_app_name(zipper) do
       app_name
     else
       _ ->
@@ -39,6 +39,39 @@ defmodule Igniter.Project.Application do
         Please ensure that the `project` function in your mix.exs
         file returns a keyword list with an `app` key.
         """
+    end
+  end
+
+  defp expand_app_name(zipper) do
+    with :error <- Common.expand_literal(zipper),
+         :error <- expand_attribute(zipper) do
+      :error
+    end
+  end
+
+  defp expand_attribute(zipper) do
+    with {:@, _, [{attr, _, nil}]} <- zipper.node,
+         {:ok, zipper} <- find_prev(zipper, &match?({:@, _, [{^attr, _, [_]}]}, &1.node)) do
+      zipper
+      |> Zipper.down()
+      |> Zipper.down()
+      |> Common.expand_literal()
+    else
+      _ ->
+        :error
+    end
+  end
+
+  defp find_prev(zipper, pred) do
+    case Common.move_left(zipper, pred) do
+      {:ok, zipper} ->
+        {:ok, zipper}
+
+      :error ->
+        case Common.move_upwards(zipper, 1) do
+          {:ok, zipper} -> find_prev(zipper, pred)
+          :error -> :error
+        end
     end
   end
 

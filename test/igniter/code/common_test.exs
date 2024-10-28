@@ -338,6 +338,21 @@ defmodule Igniter.Code.CommonTest do
                end)
     end
 
+    test "can match the first node tested" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [0]}}} =
+               Common.move_right(zipper, fn
+                 %Zipper{node: {:__block__, _, [0]}} -> true
+                 _ -> false
+               end)
+    end
+
     test "returns :error if the predicate never matches" do
       zipper =
         "[0, 1, 2, 3]"
@@ -385,6 +400,22 @@ defmodule Igniter.Code.CommonTest do
       assert {:ok, %Zipper{node: {:__block__, _, [0]}}} =
                Common.move_left(zipper, fn
                  %Zipper{node: {:__block__, _, [0]}} -> true
+                 _ -> false
+               end)
+    end
+
+    test "can match the first node tested" do
+      zipper =
+        "[0, 1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.down()
+        |> Zipper.down()
+        |> Common.rightmost()
+
+      assert {:ok, %Zipper{node: {:__block__, _, [3]}}} =
+               Common.move_left(zipper, fn
+                 %Zipper{node: {:__block__, _, [3]}} -> true
                  _ -> false
                end)
     end
@@ -490,6 +521,27 @@ defmodule Igniter.Code.CommonTest do
         |> Igniter.Code.Function.move_to_function_call(:def, 2)
 
       assert Common.move_upwards(zipper, 5) == :error
+    end
+  end
+
+  describe "expand_literal/1" do
+    test "it resolves basic literals" do
+      assert {:ok, :literal} = :literal |> Zipper.zip() |> Igniter.Code.Common.expand_literal()
+    end
+
+    test "it resolves literals that are the single child of a :__block__" do
+      assert {:ok, :literal} =
+               {:__block__, [], [:literal]}
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
+    end
+
+    test "it returns an error when the node does not resolve to a literal" do
+      assert :error =
+               "@should_error"
+               |> Sourceror.parse_string!()
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
     end
   end
 end
