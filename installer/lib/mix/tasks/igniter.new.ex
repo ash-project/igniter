@@ -206,7 +206,7 @@ defmodule Mix.Tasks.Igniter.New do
   end
 
   @flags ~w(example sup umbrella)
-  @flags_with_values ~w(install local with with_args module)
+  @flags_with_values ~w(install local with with-args module)
   @switches ~w(e)
   @switches_with_values ~w(i l)
 
