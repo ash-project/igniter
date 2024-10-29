@@ -75,9 +75,13 @@ Mix tasks built with igniter are both individually callable, _and_ composable. T
 
 Igniter will look for a task called `<your_package>.install` when the user runs `mix igniter.install <your_package>`, and will run it after installing and fetching dependencies.
 
+To create your installer, use `mix igniter.gen.task <your_package>.install`
+
 ### Generators/Patchers
 
 These can be run like any other mix task, or composed together. For example, lets say that you wanted to have your own `Ash.Resource` generator, that starts with the default `mix ash.gen.resource` task, but then adds or modifies files:
+
+To create your generator, use `mix igniter.gen.task <your_package>.task.name`
 
 ```elixir
 # in lib/mix/tasks/my_app.gen.resource.ex
@@ -91,10 +95,8 @@ defmodule Mix.Tasks.MyApp.Gen.Resource do
 
     igniter
     |> Igniter.compose_task("ash.gen.resource", argv)
-    |> Igniter.create_new_elixir_file(location, """
-    defmodule #{inspect(my_special_thing)} do
+    |> Igniter.Project.Module.create_module(my_special_thing, """
       # this is the special thing for #{inspect()}
-    end
     """)
   end
 end
