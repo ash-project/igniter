@@ -60,7 +60,7 @@ defmodule Igniter.Test do
         IO.puts("#{prefix}No changes!")
 
       diff ->
-        prefix = if label = "", do: "", else: "#{label}:\n\n"
+        prefix = if label == "", do: "", else: "#{label}:\n\n"
         IO.puts("#{prefix}#{diff}")
     end
 
