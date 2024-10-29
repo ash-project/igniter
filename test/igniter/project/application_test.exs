@@ -263,7 +263,7 @@ defmodule Igniter.Project.ApplicationTest do
   end
 
   describe "app_module/1" do
-    test "it returns the application module" do
+    test "it returns the application module when an application callback is provided" do
       igniter =
         test_project(
           files: %{
@@ -271,23 +271,15 @@ defmodule Igniter.Project.ApplicationTest do
             defmodule IgniterTest.MixProject do
               use Mix.Project
 
-              def project do
-                [
-                  app: :igniter_test,
-                  other: :thing,
-                  deps: deps()
-                ]
-              end
-
-              deps do
-                []
+              def application do
+                [mod: {IgniterTest.Application, []}]
               end
             end
             """
           }
         )
 
-      assert Igniter.Project.Application.app_module(igniter) == IgniterTest.MixProject
+      assert Igniter.Project.Application.app_module(igniter) == IgniterTest.Application
     end
   end
 end

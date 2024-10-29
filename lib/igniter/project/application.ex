@@ -93,17 +93,13 @@ defmodule Igniter.Project.Application do
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :mod) do
       case Igniter.Code.Common.expand_literal(zipper) do
-        # {:ok, {app_module, _}} ->
-        #   {:ok, app_module}
-
-        {:ok, app_module} ->
+        {app_module, _} ->
           {:ok, app_module}
 
         :error ->
           try do
-            zipper.node
-            |> Code.eval_quoted()
-            |> elem(0)
+            {{module, _}, _} = Code.eval_quoted(zipper.node)
+            module
           rescue
             _ ->
               reraise """
