@@ -93,6 +93,9 @@ defmodule Igniter.Project.Application do
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :mod) do
       case Igniter.Code.Common.expand_literal(zipper) do
+        # {:ok, {app_module, _}} ->
+        #   {:ok, app_module}
+
         {:ok, app_module} ->
           {:ok, app_module}
 

@@ -261,4 +261,33 @@ defmodule Igniter.Project.ApplicationTest do
       assert_raise RuntimeError, fn -> Igniter.Project.Application.app_name(igniter) end
     end
   end
+
+  describe "app_module/1" do
+    test "it returns the application module" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: :igniter_test,
+                  other: :thing,
+                  deps: deps()
+                ]
+              end
+
+              deps do
+                []
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_module(igniter) == IgniterTest.MixProject
+    end
+  end
 end
