@@ -10,7 +10,7 @@ defmodule Installer.Lib.Private.SharedUtils do
   def do_extract_positional_args([], argv, positional), do: {argv, positional}
 
   def do_extract_positional_args(argv, got_argv, positional) do
-    case OptionParser.next(argv, switches: []) |> IO.inspect() do
+    case OptionParser.next(argv, switches: []) do
       {_, _key, true, rest} ->
         do_extract_positional_args(
           rest,
