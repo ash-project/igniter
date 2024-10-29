@@ -557,10 +557,12 @@ defmodule Igniter.Code.CommonTest do
       expected = "[1, :replaced, 3]"
 
       replaced = Common.replace_code(zipper, ":replaced")
+      refute replaced.supertree
       assert {:__block__, _, [:replaced]} = replaced.node
       assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
 
       subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code(":replaced")
+      assert subtree_replaced.supertree
       assert {:__block__, _, [:replaced]} = subtree_replaced.node
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
@@ -587,10 +589,12 @@ defmodule Igniter.Code.CommonTest do
       """
 
       replaced = Common.replace_code(zipper, "replaced()")
+      refute replaced.supertree
       assert {:replaced, _, []} = replaced.node
       assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
 
       subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code("replaced()")
+      assert subtree_replaced.supertree
       assert {:replaced, _, []} = subtree_replaced.node
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
@@ -619,12 +623,14 @@ defmodule Igniter.Code.CommonTest do
         """
 
       replaced = zipper |> Common.replace_code("replaced1()\nreplaced2()\n")
+      refute replaced.supertree
       assert {:replaced1, _, []} = replaced.node
       assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
 
       subtree_replaced =
         zipper |> Zipper.subtree() |> Common.replace_code("replaced1()\nreplaced2()\n")
 
+      assert subtree_replaced.supertree
       assert {:replaced1, _, []} = replaced.node
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
