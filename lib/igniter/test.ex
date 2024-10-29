@@ -7,8 +7,7 @@ defmodule Igniter.Test do
   ## Starting point
 
   All of the files of an empty mix project are added by default.
-  You can specify more or overwrite the default files by passing a map of
-  file paths to their contents.
+  You can specify more or overwrite files with the `:files` option.
 
   ## Limitations
 
@@ -41,43 +40,52 @@ defmodule Igniter.Test do
   end
 
   @doc """
-  IO.puts the current igniter diff, and returns the igniter
+  Print the current `igniter` diff, returning the `igniter`.
+
+  This is primarily used for debugging purposes.
 
   ## Options
 
-  * `label` - A label to put before the diff.
-  * `only` - File path(s) to only show the diff for
+  * `:label` - A label to print before the diff
+  * `:only` - Only print the diff for this file or files
   """
   @spec puts_diff(Igniter.t(), opts :: Keyword.t()) :: Igniter.t()
   def puts_diff(igniter, opts \\ []) do
-    igniter.rewrite.sources
-    |> Map.values()
-    |> then(fn sources ->
-      if opts[:only] do
-        Enum.filter(sources, &(&1.path in List.wrap(opts[:only])))
-      else
-        sources
-      end
-    end)
-    |> Igniter.diff()
-    |> String.trim()
-    |> case do
+    only = Keyword.get(opts, :only)
+    label = Keyword.get(opts, :label, "")
+
+    case igniter |> diff(only: only, color?: true) |> String.trim() do
       "" ->
-        if opts[:label] do
-          IO.puts("#{opts[:label]} No changes!")
-        else
-          IO.puts("No changes!")
-        end
+        prefix = if label == "", do: "", else: "#{label}: "
+        IO.puts("#{prefix}No changes!")
 
       diff ->
-        if opts[:label] do
-          IO.puts("#{opts[:label]}\n\n#{diff}")
-        else
-          IO.puts(diff)
-        end
+        prefix = if label = "", do: "", else: "#{label}:\n\n"
+        IO.puts("#{prefix}#{diff}")
     end
 
     igniter
+  end
+
+  @doc """
+  Return the current `igniter` diff.
+
+  ## Options
+
+  * `:only` - Only return the diff for this file or files
+  """
+  @spec diff(Igniter.t(), opts :: Keyword.t()) :: String.t()
+  def diff(igniter, opts \\ []) do
+    only = Keyword.get(opts, :only)
+    color? = Keyword.get(opts, :color?, false)
+
+    igniter.rewrite.sources
+    |> Map.values()
+    |> Enum.sort_by(& &1.path)
+    |> Enum.filter(fn source ->
+      !only || source.path in List.wrap(only)
+    end)
+    |> Igniter.diff(color?: color?)
   end
 
   @doc """
