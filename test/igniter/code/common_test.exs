@@ -587,9 +587,11 @@ defmodule Igniter.Code.CommonTest do
       """
 
       replaced = Common.replace_code(zipper, "replaced()")
+      assert {:replaced, _, []} = replaced.node
       assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
 
       subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code("replaced()")
+      assert {:replaced, _, []} = subtree_replaced.node
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
 
@@ -617,11 +619,13 @@ defmodule Igniter.Code.CommonTest do
         """
 
       replaced = zipper |> Common.replace_code("replaced1()\nreplaced2()\n")
+      assert {:replaced1, _, []} = replaced.node
       assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
 
       subtree_replaced =
         zipper |> Zipper.subtree() |> Common.replace_code("replaced1()\nreplaced2()\n")
 
+      assert {:replaced1, _, []} = replaced.node
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
   end

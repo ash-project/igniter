@@ -491,7 +491,13 @@ defmodule Igniter.Code.Common do
       {head, tail} =
         Enum.split(upwards_code, index)
 
-      Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ Enum.drop(tail, 1)})
+      {:ok, zipper} =
+        upwards
+        |> Zipper.replace({:__block__, [], head ++ to_insert ++ Enum.drop(tail, 1)})
+        |> Zipper.down()
+        |> move_right(index)
+
+      zipper
     else
       _ ->
         with nil <- Zipper.up(zipper),
