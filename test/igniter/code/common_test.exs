@@ -544,4 +544,85 @@ defmodule Igniter.Code.CommonTest do
                |> Igniter.Code.Common.expand_literal()
     end
   end
+
+  describe "replace_code/1" do
+    test "replaces simple values" do
+      zipper =
+        "[1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("2")
+        |> Common.replace_code(":replaced")
+
+      expected = "[1, :replaced, 3]"
+
+      replaced = Common.replace_code(zipper, ":replaced")
+      assert {:__block__, _, [:replaced]} = replaced.node
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code(":replaced")
+      assert {:__block__, _, [:replaced]} = subtree_replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "replaces in blocks" do
+      zipper =
+        """
+        block do
+          one()
+          two()
+          three()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("two()")
+
+      expected = """
+      block do
+        one()
+        replaced()
+        three()
+      end\
+      """
+
+      replaced = Common.replace_code(zipper, "replaced()")
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code("replaced()")
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "extends in blocks" do
+      zipper =
+        """
+        block do
+          one()
+          two()
+          three()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("two()")
+
+      expected =
+        """
+        block do
+          one()
+          replaced1()
+          replaced2()
+          three()
+        end\
+        """
+
+      replaced = zipper |> Common.replace_code("replaced1()\nreplaced2()\n")
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced =
+        zipper |> Zipper.subtree() |> Common.replace_code("replaced1()\nreplaced2()\n")
+
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+  end
 end
