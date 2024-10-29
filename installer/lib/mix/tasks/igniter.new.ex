@@ -214,7 +214,7 @@ defmodule Mix.Tasks.Igniter.New do
   # seems like something missing in OptionParser
   defp rest_args(args) do
     args
-    |> Enum.flat_map(&String.split(&1, ~r/([^\\]=)/, parts: 2, trim: true))
+    |> Enum.flat_map(&String.split(&1, ~r/(?<!\\)=/, parts: 2, trim: true))
     |> do_rest_args()
   end
 
