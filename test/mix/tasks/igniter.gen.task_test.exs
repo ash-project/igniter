@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
 
   describe "igniter.gen.task" do
     test "generates a mix task" do
-      test_project()
+      mix_project()
       |> Igniter.compose_task("igniter.gen.task", ["foo.bar"])
       |> assert_creates(
         "lib/mix/tasks/foo.bar.ex",
@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
     end
 
     test "generates a mix task that switches on igniter being compiled with `--optional`" do
-      test_project()
+      mix_project()
       |> Igniter.compose_task("igniter.gen.task", ["foo.bar", "--optional"])
       |> assert_creates(
         "lib/mix/tasks/foo.bar.ex",

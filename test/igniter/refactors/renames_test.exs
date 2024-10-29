@@ -7,7 +7,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "performs a simple rename on zero arity functions" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       SomeModule.some_function()
@@ -26,7 +26,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "performs a simple rename on two arity functions" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       SomeModule.some_function(1, 2)
@@ -45,7 +45,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "performs a simple rename on piped module call functions" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       1
@@ -65,7 +65,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "can detect aliases" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       alias SomeModule, as: SomethingElse
@@ -86,7 +86,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "can detect imports" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       import SomeModule
@@ -107,7 +107,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "will rewrite the definitions within the module" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/some_module.ex", """
     defmodule SomeModule do
       def some_function(a, b), do: a + b
@@ -137,7 +137,7 @@ defmodule Igniter.Refactors.RenameTest do
   end
 
   test "will rewrite function captures" do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       import SomeModule

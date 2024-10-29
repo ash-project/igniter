@@ -15,7 +15,7 @@ defmodule Igniter.Libs.EctoTest do
   describe "list_repos" do
     test "returns the list of repos" do
       {_igniter, repos} =
-        test_project()
+        mix_project()
         |> Igniter.Project.Module.create_module(Example.Repo, "use Ecto.Repo")
         |> Igniter.Project.Module.create_module(Example.Repo2, "use AshPostgres.Repo")
         |> Igniter.Libs.Ecto.list_repos()
@@ -29,7 +29,7 @@ defmodule Igniter.Libs.EctoTest do
       send(self(), {:mix_shell_input, :prompt, "0"})
 
       assert {_igniter, Example.Repo} =
-               test_project()
+               mix_project()
                |> Igniter.Project.Module.create_module(Example.Repo, "use Ecto.Repo")
                |> Igniter.Project.Module.create_module(Example.Repo2, "use AshPostgres.Repo")
                |> Igniter.Libs.Ecto.select_repo(label: "Which repo would you like to use?")
@@ -38,7 +38,7 @@ defmodule Igniter.Libs.EctoTest do
 
   describe "gen_migration" do
     test "it generates a migration file" do
-      test_project()
+      mix_project()
       |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
         body: """
         def up do
@@ -67,7 +67,7 @@ defmodule Igniter.Libs.EctoTest do
     end
 
     test "it increments duplicates" do
-      test_project()
+      mix_project()
       |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
         body: """
         def up do
@@ -110,7 +110,7 @@ defmodule Igniter.Libs.EctoTest do
   end
 
   test "it overwrites existing file" do
-    test_project()
+    mix_project()
     |> Igniter.Libs.Ecto.gen_migration(Example.Repo, "create_users",
       body: """
       def up, do: "up old"

@@ -4,7 +4,7 @@ defmodule Igniter.Extensions.PhoenixTest do
 
   describe "proper_location/2" do
     test "extensions are honored even if the extension is added in the same check" do
-      test_project()
+      mix_project()
       |> Igniter.Project.IgniterConfig.add_extension(Igniter.Extensions.Phoenix)
       |> Igniter.Project.Module.create_module(TestWeb.FooController, """
         use TestWeb, :controller
@@ -14,7 +14,7 @@ defmodule Igniter.Extensions.PhoenixTest do
 
     test "returns a controller location" do
       igniter =
-        test_project()
+        mix_project()
         |> Igniter.create_new_file("lib/test_web/controllers/foo_controller.ex", """
         defmodule TestWeb.FooController do
           use TestWeb, :controller
@@ -28,7 +28,7 @@ defmodule Igniter.Extensions.PhoenixTest do
 
     test "when belonging to a controller, it returns an html location" do
       igniter =
-        test_project()
+        mix_project()
         |> Igniter.create_new_file("lib/test_web/controllers/foo_controller.ex", """
         defmodule TestWeb.FooController do
           use TestWeb, :controller
@@ -47,7 +47,7 @@ defmodule Igniter.Extensions.PhoenixTest do
 
     test "when not belonging to a controller, we say we don't know where it goes" do
       igniter =
-        test_project()
+        mix_project()
         |> Igniter.create_new_file("lib/test_web/controllers/foo_html.ex", """
         defmodule TestWeb.FooHTML do
           use TestWeb, :html
@@ -60,7 +60,7 @@ defmodule Igniter.Extensions.PhoenixTest do
 
     test "returns a json location" do
       igniter =
-        test_project()
+        mix_project()
         |> Igniter.create_new_file("test_web/controllers/foo_controller.ex", """
         defmodule TestWeb.FooController do
           use TestWeb, :controller

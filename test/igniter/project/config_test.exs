@@ -5,7 +5,7 @@ defmodule Igniter.Project.ConfigTest do
 
   describe "configure/6" do
     test "it creates the config file if it does not exist" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
       |> assert_creates("config/fake.exs", """
       import Config
@@ -14,7 +14,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it merges with 2 arg version of existing config" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -30,7 +30,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "it sets the spark formatter plugins" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Config.configure(
         "fake.exs",
         :spark,
@@ -53,7 +53,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "it merges the spark formatter plugins" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
       import Config
       config :spark, formatter: ["Ash.Resource": []]
@@ -78,7 +78,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it merges with 2 arg version of existing config with a single path item" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -96,7 +96,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it chooses the 3 arg version when first item in path is not pretty" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
       """)
@@ -108,7 +108,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it doesn't add non-pretty keys to existing config" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
         config :fake, foo: 10
@@ -121,7 +121,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it chooses the 3 arg version when first item in path is not pretty, and merges that way" do
-      test_project()
+      mix_project()
       |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :bar], "baz")
       |> apply_igniter!()
       |> Igniter.Project.Config.configure("fake.exs", :fake, [Foo.Bar, :buz], "biz")
@@ -132,7 +132,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it merges with 3 arg version of existing config" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -148,7 +148,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "it merges with 3 arg version of existing config with the config set to []" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -169,7 +169,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "it merges with 3 arg version of existing config with the config set to [] and the path is one level deeper than existing" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -190,7 +190,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "it merges with 2 arg version of existing config with the config set to [] and the path is one level deeper than existing" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file(
         "config/fake.exs",
         """
@@ -220,7 +220,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "it merges with 3 arg version of existing config with a single path item" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -235,7 +235,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "present values can be updated" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -254,7 +254,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "we merge configs even in large config files" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
       # this is too
 
@@ -283,7 +283,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "integers can be used as values" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -299,7 +299,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "arbitrary data structures can be used as values" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
         config :level1, :level2, level3: [{"hello", "world"}]
@@ -321,7 +321,7 @@ defmodule Igniter.Project.ConfigTest do
 
     @tag :regression
     test "quoted code can be used as values" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file(
         "config/fake.exs",
         """
@@ -363,7 +363,7 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     test "present values can be updated by updating map keys" do
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
         import Config
 
@@ -398,7 +398,7 @@ defmodule Igniter.Project.ConfigTest do
                   """
                 ]
               }} =
-               test_project()
+               mix_project()
                |> Igniter.create_new_file("config/fake.exs", """
                  config :fake, foo: %{"a" => ["a", "b"]}
                """)
@@ -417,7 +417,7 @@ defmodule Igniter.Project.ConfigTest do
   @tag :regression
   test "works with conditional import present in config file" do
     # this test just asserts no error is raised doing this
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("config/config.exs", """
     import Config
     config :foo, :bar, 10
@@ -433,7 +433,7 @@ defmodule Igniter.Project.ConfigTest do
 
   test "configures_root_key?/3" do
     igniter =
-      test_project()
+      mix_project()
       |> Igniter.create_new_file("config/fake.exs", """
       import Config
 
@@ -452,7 +452,7 @@ defmodule Igniter.Project.ConfigTest do
     setup do
       %{
         igniter:
-          test_project()
+          mix_project()
           |> Igniter.create_new_file("config/fake.exs", """
           import Config
 

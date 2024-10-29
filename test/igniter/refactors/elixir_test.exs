@@ -70,7 +70,7 @@ defmodule Igniter.Refactors.ElixirTest do
   end
 
   defp assert_format(code, expectation) do
-    test_project()
+    mix_project()
     |> Igniter.create_new_file("lib/example.ex", """
     defmodule Example do
       #{code}

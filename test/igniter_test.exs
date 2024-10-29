@@ -6,7 +6,7 @@ defmodule IgniterTest do
 
   describe "Igniter.copy_template/4" do
     test "it evaluates and writes the template" do
-      test_project()
+      mix_project()
       |> Igniter.copy_template("test/templates/template.css.eex", "lib/foobar.css",
         class: "hello"
       )
@@ -18,7 +18,7 @@ defmodule IgniterTest do
     end
 
     test "it overwrites an existing file" do
-      test_project()
+      mix_project()
       |> Igniter.copy_template("test/templates/template.css.eex", "lib/foobar.css",
         class: "hello"
       )
