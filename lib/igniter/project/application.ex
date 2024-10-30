@@ -103,7 +103,7 @@ defmodule Igniter.Project.Application do
           try do
             case Code.eval_quoted(zipper.node) do
               {{module, _}, _} -> module
-              module when is_atom(module) -> module
+              {module, _} when is_atom(module) -> module
             end
           rescue
             _ ->
