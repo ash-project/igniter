@@ -92,9 +92,9 @@ defmodule Igniter.Project.Application do
          {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :mod) do
-      case dbg(Igniter.Code.Common.expand_literal(dbg(zipper))) do
-        {app_module, _} ->
-          {:ok, app_module}
+      case Igniter.Code.Common.expand_literal(zipper) do
+        {:ok, {app_module, _}} ->
+          app_module
 
         :error ->
           try do
