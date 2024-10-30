@@ -89,10 +89,10 @@ defmodule Igniter.Project.Application do
       |> Sourceror.Zipper.zip()
 
     with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :application, 0),
-         zipper <- Igniter.Code.Common.rightmost(zipper),
+         {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :mod) do
-      case Igniter.Code.Common.expand_literal(zipper) do
+      case dbg(Igniter.Code.Common.expand_literal(dbg(zipper))) do
         {app_module, _} ->
           {:ok, app_module}
 

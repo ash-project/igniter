@@ -281,5 +281,83 @@ defmodule Igniter.Project.ApplicationTest do
 
       assert Igniter.Project.Application.app_module(igniter) == IgniterTest.Application
     end
+
+    test "it returns the app module when there are other items in the list" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def application do
+                [
+                  before: "before",
+                  mod: {IgniterTest.Application, []},
+                  after: "after"
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_module(igniter) == IgniterTest.Application
+    end
+
+    test "it returns the app module when there is code before the list" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def application do
+                is_list([])
+
+                [mod: {IgniterTest.Application, []}]
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_module(igniter) == IgniterTest.Application
+    end
+
+    test "it returns nil when :mod is not provided" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def application do
+                [a: 1, b: 2, c: 3]
+              end
+            end
+            """
+          }
+        )
+
+      assert is_nil(Igniter.Project.Application.app_module(igniter))
+    end
+
+    test "it returns nil when no application() callback is provided" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+            end
+            """
+          }
+        )
+
+      assert is_nil(Igniter.Project.Application.app_module(igniter))
+    end
   end
 end
