@@ -131,7 +131,26 @@ defmodule Igniter.Code.CommonTest do
   end
 
   describe "rightmost/1" do
-    test "moves the zipper to the right most node" do
+    test "moves the zipper to the right most node with one element" do
+      {:ok, zipper} =
+        """
+        defmodule RightmostTest do
+          def foo do
+            [a: 1, b: 2]
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+        |> Igniter.Code.Function.move_to_def(:foo, 0)
+
+      zipper = zipper |> Zipper.down() |> Igniter.Code.Common.rightmost()
+
+      assert Igniter.Util.Debug.code_at_node(zipper) ==
+               "[a: 1, b: 2]"
+    end
+
+    test "moves the zipper to the right most node with multiple elements" do
       {:ok, zipper} =
         """
         defmodule RightmostTest do
