@@ -546,6 +546,14 @@ defmodule Igniter.Code.CommonTest do
                |> Zipper.zip()
                |> Igniter.Code.Common.expand_literal()
     end
+
+    test "it can expand a tuple" do
+      assert {:ok, {Module, []}} =
+               "{Module, []}"
+               |> Sourceror.parse_string!()
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
+    end
   end
 
   describe "replace_code/1" do

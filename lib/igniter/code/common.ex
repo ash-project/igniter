@@ -173,16 +173,7 @@ defmodule Igniter.Code.Common do
   def expand_literal(zipper) do
     zipper = maybe_move_to_single_child_block(zipper)
 
-    quoted_literal? =
-      case zipper.node do
-        {:__block__, _, _} = value ->
-          !extendable_block?(value)
-
-        node ->
-          Macro.quoted_literal?(node)
-      end
-
-    if quoted_literal? do
+    if quoted_literal?(zipper) do
       {v, _} = Code.eval_quoted(zipper.node)
       {:ok, v}
     else
@@ -1167,4 +1158,18 @@ defmodule Igniter.Code.Common do
   end
 
   defp supertree(_), do: nil
+
+  defp quoted_literal?(%Zipper{} = zipper) do
+    quoted_literal?(zipper.node)
+  end
+
+  defp quoted_literal?(node) do
+    node
+    |> Sourceror.to_string()
+    |> Code.string_to_quoted()
+    |> case do
+      {:ok, quoted} -> Macro.quoted_literal?(quoted)
+      _ -> false
+    end
+  end
 end
