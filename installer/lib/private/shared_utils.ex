@@ -2,9 +2,7 @@ defmodule Installer.Lib.Private.SharedUtils do
   @moduledoc false
   @doc false
   def extract_positional_args(argv) do
-    argv
-    |> Enum.flat_map(&String.split(&1, "=", parts: 2, trim: true))
-    |> do_extract_positional_args([], [])
+    do_extract_positional_args(argv, [], [])
   end
 
   def do_extract_positional_args([], argv, positional), do: {argv, positional}
@@ -19,9 +17,11 @@ defmodule Installer.Lib.Private.SharedUtils do
         )
 
       {_, _key, _value, rest} ->
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
         do_extract_positional_args(
           rest,
-          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
+          got_argv ++ Enum.take(argv, count_consumed),
           positional
         )
 

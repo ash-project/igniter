@@ -43,9 +43,12 @@ defmodule Igniter.Project.Application do
   end
 
   defp expand_app_name(zipper) do
-    with :error <- Common.expand_literal(zipper),
-         :error <- expand_attribute(zipper) do
-      :error
+    case Common.expand_literal(zipper) do
+      :error ->
+        expand_attribute(zipper)
+
+      other ->
+        other
     end
   end
 
