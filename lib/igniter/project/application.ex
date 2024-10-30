@@ -96,10 +96,15 @@ defmodule Igniter.Project.Application do
         {:ok, {app_module, _}} ->
           app_module
 
+        {:ok, app_module} ->
+          app_module
+
         :error ->
           try do
-            {{module, _}, _} = Code.eval_quoted(zipper.node)
-            module
+            case Code.eval_quoted(zipper.node) do
+              {{module, _}, _} -> module
+              module when is_atom(module) -> module
+            end
           rescue
             _ ->
               reraise """

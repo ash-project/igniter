@@ -282,6 +282,25 @@ defmodule Igniter.Project.ApplicationTest do
       assert Igniter.Project.Application.app_module(igniter) == IgniterTest.Application
     end
 
+    test "it returns the application module its just a module" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def application do
+                [mod: IgniterTest.Application]
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_module(igniter) == IgniterTest.Application
+    end
+
     test "it returns the app module when there are other items in the list" do
       igniter =
         test_project(
