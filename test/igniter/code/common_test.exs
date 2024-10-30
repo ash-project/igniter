@@ -527,6 +527,9 @@ defmodule Igniter.Code.CommonTest do
   describe "expand_literal/1" do
     test "it resolves basic literals" do
       assert {:ok, :literal} = :literal |> Zipper.zip() |> Igniter.Code.Common.expand_literal()
+
+      assert {:ok, {Module, []}} =
+               {Module, []} |> Zipper.zip() |> Igniter.Code.Common.expand_literal()
     end
 
     test "it resolves literals that are the single child of a :__block__" do
@@ -539,6 +542,14 @@ defmodule Igniter.Code.CommonTest do
     test "it returns an error when the node does not resolve to a literal" do
       assert :error =
                "@should_error"
+               |> Sourceror.parse_string!()
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
+    end
+
+    test "it can expand a tuple" do
+      assert {:ok, {Module, []}} =
+               "{Module, []}"
                |> Sourceror.parse_string!()
                |> Zipper.zip()
                |> Igniter.Code.Common.expand_literal()

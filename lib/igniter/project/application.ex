@@ -89,18 +89,23 @@ defmodule Igniter.Project.Application do
       |> Sourceror.Zipper.zip()
 
     with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :application, 0),
+         zipper <- Sourceror.Zipper.down(zipper),
          zipper <- Igniter.Code.Common.rightmost(zipper),
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :mod) do
       case Igniter.Code.Common.expand_literal(zipper) do
+        {:ok, {app_module, _}} ->
+          app_module
+
         {:ok, app_module} ->
-          {:ok, app_module}
+          app_module
 
         :error ->
           try do
-            zipper.node
-            |> Code.eval_quoted()
-            |> elem(0)
+            case Code.eval_quoted(zipper.node) do
+              {{module, _}, _} -> module
+              {module, _} when is_atom(module) -> module
+            end
           rescue
             _ ->
               reraise """
