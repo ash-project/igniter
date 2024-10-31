@@ -12,6 +12,8 @@ defmodule Igniter.Mix.Task do
   alias Igniter.Mix.Task.Info
   alias Igniter.Mix.Task.Args
 
+  require Logger
+
   @doc """
   Whether or not it supports being run in the root of an umbrella project
 
@@ -61,8 +63,10 @@ defmodule Igniter.Mix.Task do
   defmacro __using__(_opts) do
     quote do
       use Mix.Task
-      @behaviour Igniter.Mix.Task
       import Igniter.Mix.Task, only: [options!: 1, positional_args!: 1]
+
+      @behaviour Igniter.Mix.Task
+      @after_compile Igniter.Mix.Task
 
       @impl Mix.Task
       def run(argv) do
@@ -114,6 +118,25 @@ defmodule Igniter.Mix.Task do
       end
 
       defoverridable supports_umbrella?: 0, info: 2, installer?: 0
+    end
+  end
+
+  def __after_compile__(env, _bytecode) do
+    igniter1_defined? = function_exported?(env.module, :igniter, 1)
+    igniter2_defined? = function_exported?(env.module, :igniter, 2)
+
+    if igniter1_defined? and igniter2_defined? do
+      Logger.warning("""
+      #{inspect(env.module)} (#{env.file})
+
+          Module defines both igniter/1 and igniter/2, but igniter/2 is deprecated and will never be called.
+      """)
+    end
+
+    if not (igniter1_defined? or igniter2_defined?) do
+      raise CompileError,
+        description:
+          "#{inspect(env.module)} must define either igniter/1 or igniter/2 to implement the #{inspect(__MODULE__)} behaviour"
     end
   end
 
