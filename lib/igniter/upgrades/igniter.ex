@@ -27,7 +27,8 @@ defmodule Igniter.Upgrades.Igniter do
   end
 
   defp remove_ignored_argv(zipper) do
-    with {:ok, {argv_var, _, nil}} <- fetch_argv_arg(zipper),
+    with %Zipper{node: {argv_var, _, nil}} <-
+           Zipper.search_pattern(zipper, "igniter(__, __cursor__())"),
          "_" <> _ <- to_string(argv_var) do
       remove_argv_arg(zipper)
     else
@@ -36,8 +37,7 @@ defmodule Igniter.Upgrades.Igniter do
   end
 
   defp replace_generated_argv_usage(zipper) do
-    with {:ok, {:argv, _, nil}} <- fetch_argv_arg(zipper),
-         {:ok, zipper} <- remove_argv_arg(zipper),
+    with {:ok, zipper} <- remove_argv_arg(zipper),
          {:ok, zipper} <- Common.move_to_do_block(zipper),
          zipper <- Common.maybe_move_to_block(zipper),
          true <- generated_argv_usage?(zipper) do
@@ -58,24 +58,10 @@ defmodule Igniter.Upgrades.Igniter do
   end
 
   defp generated_argv_usage?(zipper) do
-    line_one_match? =
-      Function.function_call?(zipper, :=, 2) and
-        Function.argument_matches_pattern?(zipper, 0, {{:arguments, _, nil}, {:argv, _, nil}}) and
-        Function.argument_matches_predicate?(
-          zipper,
-          1,
-          &Common.node_matches_pattern?(&1, {:positional_args!, _, [{:argv, _, nil}]})
-        )
-
-    with true <- line_one_match?,
-         {:ok, zipper} <- Common.move_right(zipper, 1) do
-      Function.function_call?(zipper, :=, 2) and
-        Function.argument_matches_pattern?(zipper, 0, {:options, _, nil}) and
-        Function.argument_matches_predicate?(
-          zipper,
-          1,
-          &Common.node_matches_pattern?(&1, {:options!, _, [{:argv, _, nil}]})
-        )
+    with ^zipper <- Zipper.search_pattern(zipper, "{arguments, argv} = positional_args!(argv)"),
+         {:ok, zipper} <- Common.move_right(zipper, 1),
+         ^zipper <- Zipper.search_pattern(zipper, "options = options!(argv)") do
+      true
     else
       _ -> false
     end
@@ -83,17 +69,10 @@ defmodule Igniter.Upgrades.Igniter do
 
   defp remove_argv_arg(zipper) do
     Common.within(zipper, fn zipper ->
-      with {:ok, argv} <- fetch_argv_arg(zipper),
-           {:ok, zipper} <- Common.move_to_pattern(zipper, ^argv) do
-        {:ok, Zipper.remove(zipper)}
+      case Zipper.search_pattern(zipper, "igniter(__, __cursor__())") do
+        %Zipper{} = zipper -> {:ok, Zipper.remove(zipper)}
+        _ -> :error
       end
     end)
-  end
-
-  defp fetch_argv_arg(zipper) do
-    case zipper.node do
-      {:def, _, [{:igniter, _, [_, argv]} | _]} -> {:ok, argv}
-      _ -> :error
-    end
   end
 end
