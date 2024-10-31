@@ -163,38 +163,23 @@ defmodule Igniter do
         string -> GlobEx.compile!(Path.expand(string))
       end
 
-    paths =
-      if igniter.assigns[:test_mode?] do
-        igniter.assigns[:test_files]
-        |> Map.keys()
-        |> Enum.filter(&GlobEx.match?(glob, Path.expand(&1)))
-      else
-        glob
-        |> GlobEx.ls()
-      end
-      |> Stream.filter(fn path ->
-        if Path.extname(path) in [".ex", ".exs"] do
-          true
-        else
-          raise ArgumentError,
-                "Cannot include #{inspect(path)} because it is not an Elixir file. This can be supported in the future, but the work hasn't been done yet."
-        end
-      end)
-      |> Stream.map(&Path.relative_to_cwd/1)
+    if igniter.assigns[:test_mode?] do
+      igniter.assigns[:test_files]
+      |> Map.keys()
+      |> Enum.filter(&GlobEx.match?(glob, Path.expand(&1)))
+      |> Enum.map(&Path.relative_to_cwd/1)
       |> Enum.reject(fn path ->
         Rewrite.has_source?(igniter.rewrite, path)
       end)
-
-    paths
-    |> Task.async_stream(
-      fn path ->
+      |> Enum.map(fn path ->
         read_ex_source!(igniter, path)
-      end,
-      timeout: :infinity
-    )
-    |> Enum.reduce(igniter, fn {:ok, source}, igniter ->
-      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-    end)
+      end)
+      |> Enum.reduce(igniter, fn source, igniter ->
+        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+      end)
+    else
+      %{igniter | rewrite: Rewrite.read!(igniter.rewrite, glob)}
+    end
   end
 
   @doc """
