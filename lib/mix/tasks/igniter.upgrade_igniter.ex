@@ -33,11 +33,9 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
     }
   end
 
-  def igniter(igniter, argv) do
-    # extract positional arguments according to `positional` above
-    {arguments, argv} = positional_args!(argv)
-    # extract options according to `schema` and `aliases` above
-    options = options!(argv)
+  def igniter(igniter) do
+    arguments = igniter.args.positional
+    options = igniter.args.options
 
     upgrades =
       %{

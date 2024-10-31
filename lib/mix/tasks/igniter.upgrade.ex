@@ -57,9 +57,9 @@ defmodule Mix.Tasks.Igniter.Upgrade do
     }
   end
 
-  def igniter(igniter, argv) do
-    {%{packages: packages}, argv} = positional_args!(argv)
-    options = options!(argv)
+  def igniter(igniter) do
+    packages = igniter.args.positional.packages
+    options = igniter.args.options
 
     options =
       if options[:git_ci] do
@@ -189,7 +189,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       original_deps_info
       |> dep_changes_in_order(new_deps_info)
       |> Enum.reduce({igniter, []}, fn update, {igniter, missing} ->
-        case apply_updates(igniter, update, argv) do
+        case apply_updates(igniter, update) do
           {:ok, igniter} ->
             {igniter, missing}
 
@@ -265,7 +265,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
     end
   end
 
-  defp apply_updates(igniter, {package, from, to}, argv) do
+  defp apply_updates(igniter, {package, from, to}) do
     task =
       if package == :igniter do
         "igniter.upgrade_igniter"
@@ -275,7 +275,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
     with task when not is_nil(task) <- Mix.Task.get(task),
          true <- function_exported?(task, :info, 2) do
-      {:ok, task.igniter(igniter, [from, to] ++ argv)}
+      {:ok, task.igniter(igniter, [from, to] ++ igniter.args.argv_flags)}
     else
       _ ->
         {:missing, package}

@@ -32,9 +32,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
     }
   end
 
-  def igniter(igniter, argv) do
-    {%{task_name: task_name}, argv} = positional_args!(argv)
-    options = options!(argv)
+  def igniter(igniter) do
+    task_name = igniter.args.positional.task_name
+    options = igniter.args.options
 
     options =
       if options[:upgrade] do

@@ -41,10 +41,9 @@ defmodule Mix.Tasks.Igniter.Refactor.RenameFunction do
     }
   end
 
-  def igniter(igniter, argv) do
-    # extract positional arguments according to `positional` above
-    {arguments, argv} = positional_args!(argv)
-    options = options!(argv)
+  def igniter(igniter) do
+    arguments = igniter.args.positional
+    options = igniter.args.options
 
     deprecate =
       case options[:deprecate] do
