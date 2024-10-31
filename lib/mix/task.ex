@@ -178,6 +178,8 @@ defmodule Igniter.Mix.Task do
       task_name = Mix.Task.task_name(__MODULE__)
       info = info(argv, task_name)
 
+      argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
+
       {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
 
       desired =

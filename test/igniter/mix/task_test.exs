@@ -158,6 +158,7 @@ defmodule Igniter.Mix.TaskTest do
       end
 
       def igniter(igniter, argv) do
+        {_, argv} = positional_args!(argv)
         send(self(), {:options, options!(argv)})
         igniter
       end
