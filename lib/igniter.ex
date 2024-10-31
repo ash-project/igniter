@@ -396,7 +396,7 @@ defmodule Igniter do
         add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
       else
         igniter
-        |> Igniter.Mix.Task.configure(task, argv || igniter.args.argv_flags)
+        |> Igniter.Mix.Task.configure_and_run(task, argv || igniter.args.argv_flags)
         |> Map.replace!(:args, original_args)
       end
     else

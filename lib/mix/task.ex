@@ -93,7 +93,7 @@ defmodule Igniter.Mix.Task do
           Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
 
         Igniter.new()
-        |> Igniter.Mix.Task.configure(__MODULE__, argv)
+        |> Igniter.Mix.Task.configure_and_run(__MODULE__, argv)
         |> Igniter.do_or_dry_run(opts)
       end
 
@@ -141,7 +141,7 @@ defmodule Igniter.Mix.Task do
   end
 
   @doc false
-  def configure(igniter, task_module, argv) do
+  def configure_and_run(igniter, task_module, argv) do
     case task_module.parse_argv(argv) do
       %Args{} = args ->
         igniter = %{igniter | args: args}
