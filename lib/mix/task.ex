@@ -369,4 +369,11 @@ defmodule Igniter.Mix.Task do
 
     "mix #{name} #{call}"
   end
+
+  @doc false
+  def igniter_task?(task) when is_atom(task) do
+    mix_task? = function_exported?(task, :run, 1)
+    igniter_task? = function_exported?(task, :igniter, 1) or function_exported?(task, :igniter, 2)
+    mix_task? and igniter_task?
+  end
 end

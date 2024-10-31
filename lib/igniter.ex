@@ -391,7 +391,7 @@ defmodule Igniter do
 
     original_args = igniter.args
 
-    if function_exported?(task, :igniter, 1) or function_exported?(task, :igniter, 2) do
+    if Igniter.Mix.Task.igniter_task?(task) do
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
         add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
       else
