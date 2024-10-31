@@ -88,13 +88,16 @@ To create your generator, use `mix igniter.gen.task <your_package>.task.name`
 defmodule Mix.Tasks.MyApp.Gen.Resource do
   use Igniter.Mix.Task
 
-  def igniter(igniter, [resource | _] = argv) do
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
+    [resource | _] = igniter.args.argv
+
     resource = Igniter.Code.Module.parse(resource)
     my_special_thing = Module.concat([resource, SpecialThing])
     location = Igniter.Code.Module.proper_location(my_special_thing)
 
     igniter
-    |> Igniter.compose_task("ash.gen.resource", argv)
+    |> Igniter.compose_task("ash.gen.resource", igniter.args.argv)
     |> Igniter.Project.Module.create_module(my_special_thing, """
       # this is the special thing for #{inspect()}
     """)

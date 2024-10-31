@@ -99,6 +99,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
       #{docs}
 
+      @impl Igniter.Mix.Task
       def info(_argv, _composing_task) do
         %Igniter.Mix.Task.Info{
           # Groups allow for overlapping arguments for tasks by the same author
@@ -109,7 +110,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           # dependencies to add and call their associated installers, if they exist
           installs: [],
           # An example invocation
-          example: @example,#{only(opts, task_name)}
+          example: @example,
+          #{only(opts, task_name)}\
           # a list of positional arguments, i.e `[:file]`
           positional: #{positional(opts)},
           # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
@@ -117,7 +119,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           composes: [],
           # `OptionParser` schema
           schema: [],
-          # Default values for the options in the `schema`.
+          # Default values for the options in the `schema`
           defaults: [],
           # CLI aliases
           aliases: [],
@@ -126,12 +128,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
         }
       end
 
-      def igniter(igniter, argv) do
-        # extract positional arguments according to `positional` above
-        {arguments, argv} = positional_args!(argv)
-        # extract options according to `schema` and `aliases` above
-        options = options!(argv)
-
+      @impl Igniter.Mix.Task
+      def igniter(igniter) do
         #{execute(opts, task_name)}
       end
     end
@@ -176,6 +174,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       if Code.ensure_loaded?(Igniter) do
         use Igniter.Mix.Task
 
+        @impl Igniter.Mix.Task
         def info(_argv, _composing_task) do
           %Igniter.Mix.Task.Info{
             # Groups allow for overlapping arguments for tasks by the same author
@@ -186,7 +185,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             # dependencies to add and call their associated installers, if they exist
             installs: [],
             # An example invocation
-            example: @example,#{only(opts, task_name)}
+            example: @example,
+            #{only(opts, task_name)}\
             # a list of positional arguments, i.e `[:file]`
             positional: #{positional(opts)},
             # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
@@ -194,7 +194,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             composes: [],
             # `OptionParser` schema
             schema: [],
-            # Default values for the options in the `schema`.
+            # Default values for the options in the `schema`
             defaults: [],
             # CLI aliases
             aliases: [],
@@ -203,12 +203,8 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           }
         end
 
-        def igniter(igniter, argv) do
-          # extract positional arguments according to `positional` above
-          {arguments, argv} = positional_args!(argv)
-          # extract options according to `schema` and `aliases` above
-          options = options!(argv)
-
+        @impl Igniter.Mix.Task
+        def igniter(igniter) do
           #{execute(opts, task_name)}
         end
       else
@@ -243,14 +239,17 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
   defp execute(opts, task_name) do
     if opts[:upgrade] do
       """
+      positional = igniter.args.positional
+      options = igniter.args.options
+
       upgrades = %{
-        # "0.1.1" -> [&change_foo_to_bar/2]
+        # "0.1.1" => [&change_foo_to_bar/2]
       }
       # For each version that requires a change, add it to this map
       # Each key is a version that points at a list of functions that take an
-      # igniter and options (i.e flags or other custom options).
+      # igniter and options (i.e. flags or other custom options).
       # See the upgrades guide for more.
-      Igniter.Upgrades.run(igniter, arguments.from, arguments.to, upgrades, custom_opts: options)
+      Igniter.Upgrades.run(igniter, positional.from, positional.to, upgrades, custom_opts: options)
       """
     else
       """

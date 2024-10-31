@@ -7,6 +7,11 @@ defmodule Igniter.Mix.Task do
   > A default `run/1` is implemented so you can directly run the task. Igniter never uses this function, so it is overridable.
   >
   > This enables your library to make use of the task for its own purposes if needed. An example would be if you wanted to implement an Igniter installer, but also have an `install` task for end-user consumption (e.g. `mix tailwind.install`).
+
+  ## Options and Arguments
+
+  Command line args are automatically parsed into `igniter.args` using the configuration returned
+  from `c:info/2`. See `Igniter.Mix.Task.Info` for more.
   """
 
   alias Igniter.Mix.Task.Info
