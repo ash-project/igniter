@@ -160,6 +160,45 @@ defmodule Igniter.Mix.TaskTest do
       end
     end
 
+    defmodule Elixir.Mix.Tasks.ExampleTask1GroupC do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          group: :c,
+          positional: [:task1_positional],
+          schema: [
+            task1_option: :string
+          ],
+          composes: [
+            "example_task2_group_c"
+          ]
+        }
+      end
+
+      def igniter(igniter) do
+        igniter = Igniter.compose_task(igniter, Elixir.Mix.Tasks.ExampleTask2GroupC)
+        send(self(), {:task1_group_c, igniter.args})
+        igniter
+      end
+    end
+
+    defmodule Elixir.Mix.Tasks.ExampleTask2GroupC do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          group: :c,
+          schema: [task2_option: :string]
+        }
+      end
+
+      def igniter(igniter) do
+        send(self(), {:task2_group_c, igniter.args})
+        igniter
+      end
+    end
+
     setup do
       Elixir.Mix.Task.load_all()
 
@@ -215,6 +254,32 @@ defmodule Igniter.Mix.TaskTest do
 
       assert_received {:options, options}
       assert options[:other] == "foo"
+    end
+
+    test "composed tasks do not consume current task args" do
+      Mix.Tasks.ExampleTask1GroupC.run([
+        "positional_1",
+        "--task1-option",
+        "task1",
+        "--task2-option",
+        "task2"
+      ])
+
+      assert_received {:task2_group_c,
+                       %{
+                         positional: task2_positional,
+                         options: [task1_option: "task1", task2_option: "task2"]
+                       }}
+
+      assert task2_positional == %{}
+
+      assert_received {:task1_group_c,
+                       %{
+                         positional: %{
+                           task1_positional: "positional_1"
+                         },
+                         options: [task1_option: "task1", task2_option: "task2"]
+                       }}
     end
   end
 

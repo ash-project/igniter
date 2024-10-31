@@ -3,10 +3,10 @@ defmodule Igniter.Mix.Task.Args do
   Command line arguments parsed when running an `Igniter.Mix.Task`.
   """
 
-  defstruct positional: [], options: [], argv_flags: [], argv: []
+  defstruct positional: %{}, options: [], argv_flags: [], argv: []
 
   @type t :: %__MODULE__{
-          positional: keyword(),
+          positional: %{atom() => term()},
           options: keyword(),
           argv_flags: list(String.t()),
           argv: list(String.t())
