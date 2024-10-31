@@ -342,14 +342,41 @@ defmodule Igniter do
   @doc """
   Finds the `Igniter.Mix.Task` task by name and composes it with `igniter`.
 
-  This will call the task's `igniter/1` (or `igniter/2`) callback, setting
-  `igniter.args` using the current `igniter.args.argv_flags`. This prevents
-  composed tasks from accidentally consuming positional arguments. If you
-  wish the composed task to access positional arguments, you must call this
-  function with `igniter.args.argv` as the `argv` argument.
-
   If the task doesn't exist, a `fallback` function may be provided. This
   function should accept and return the `igniter`.
+
+  ## Argument handling
+
+  This function calls the task's `igniter/1` (or `igniter/2`) callback, setting
+  `igniter.args` using the current `igniter.args.argv_flags`. This prevents
+  composed tasks from accidentally consuming positional arguments. If you
+  wish the composed task to access additional arguments, you must explicitly
+  pass an `argv` list.
+
+  Additionally, you must declare other tasks you are composing with in your
+  task's `Igniter.Mix.Task.Info` struct using the `:composes` key. Without
+  this, you'll see unexpected argument errors if a flag that a composed task
+  uses is passed without you explicitly declaring it in your `:schema`.
+
+  ## Example
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          ...,
+          composes: [
+            "other.task1",
+            "other.task2"
+          ]
+        }
+
+      def igniter(igniter) do
+        igniter
+        # other.task1 will see igniter.args.argv_flags as its args
+        |> Igniter.compose_task("other.task1")
+        # other.task2 will see an additional arg and flag
+        |> Igniter.compose_task("other.task2", ["arg", "--flag"] ++ igniter.argv.argv_flags)
+      end
+
   """
   @spec compose_task(
           t,
