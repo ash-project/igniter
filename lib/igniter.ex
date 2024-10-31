@@ -382,7 +382,7 @@ defmodule Igniter do
           t,
           task :: String.t() | module(),
           argv :: list(String.t()) | nil,
-          fallback :: (t -> t) | (t, list(String.t()) -> t)
+          fallback :: (t -> t) | (t, list(String.t()) -> t) | nil
         ) :: t
   def compose_task(igniter, task, argv \\ nil, fallback \\ nil)
 
