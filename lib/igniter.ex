@@ -3,7 +3,16 @@ defmodule Igniter do
   Tools for generating and patching code into an Elixir project.
   """
 
-  defstruct [:rewrite, issues: [], tasks: [], warnings: [], notices: [], assigns: %{}, moves: %{}]
+  defstruct [
+    :rewrite,
+    issues: [],
+    tasks: [],
+    warnings: [],
+    notices: [],
+    assigns: %{},
+    moves: %{},
+    args: %Igniter.Mix.Task.Args{}
+  ]
 
   alias Sourceror.Zipper
 
@@ -14,7 +23,8 @@ defmodule Igniter do
           warnings: [String.t()],
           notices: [String.t()],
           assigns: map(),
-          moves: %{optional(String.t()) => String.t()}
+          moves: %{optional(String.t()) => String.t()},
+          args: Igniter.Mix.Task.Args.t()
         }
 
   @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
@@ -333,16 +343,17 @@ defmodule Igniter do
   Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter.
   If the task doesn't exist, a fallback implementation may be provided as the last argument.
   """
-  def compose_task(igniter, task, argv \\ [], fallback \\ nil)
+  def compose_task(igniter, task, argv \\ nil, fallback \\ nil)
 
   def compose_task(igniter, task, argv, fallback) when is_atom(task) do
+    argv = argv || igniter.args.argv
     Code.ensure_compiled!(task)
 
-    if function_exported?(task, :igniter, 2) do
+    if function_exported?(task, :igniter, 1) or function_exported?(task, :igniter, 2) do
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
         add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
       else
-        task.igniter(igniter, argv)
+        Igniter.Mix.Task.configure(igniter, task, argv)
       end
     else
       if is_function(fallback) do
@@ -361,6 +372,8 @@ defmodule Igniter do
   end
 
   def compose_task(igniter, task_name, argv, fallback) do
+    argv = argv || igniter.args.argv
+
     if igniter.issues == [] do
       task_name
       |> Mix.Task.get()

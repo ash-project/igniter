@@ -10,6 +10,7 @@ defmodule Igniter.Mix.Task do
   """
 
   alias Igniter.Mix.Task.Info
+  alias Igniter.Mix.Task.Args
 
   @doc """
   Whether or not it supports being run in the root of an umbrella project
@@ -17,7 +18,12 @@ defmodule Igniter.Mix.Task do
   At the moment, this is still experimental and we suggest not turning it on.
   """
   @callback supports_umbrella?() :: boolean()
+
+  @doc "Main entrypoint for tasks. This callback accepts and returns an `Igniter` struct."
+  @callback igniter(igniter :: Igniter.t()) :: Igniter.t()
+
   @doc "All the generator behavior happens here, you take an igniter and task arguments, and return an igniter."
+  @doc deprecated: "Use igniter/1 instead"
   @callback igniter(igniter :: Igniter.t(), argv :: list(String.t())) :: Igniter.t()
 
   @doc """
@@ -39,7 +45,18 @@ defmodule Igniter.Mix.Task do
   @callback info(argv :: list(String.t()), composing_task :: nil | String.t()) ::
               Info.t()
 
+  @doc """
+  Returns an `Igniter.Mix.Task.Args` struct.
+
+  This callback can be implemented to private custom parsing and validation behavior for
+  command line arguments. By default, the options specified in `c:info/2` will be used
+  to inject a default implementation.
+  """
+  @callback parse_argv(argv :: list(String.t())) :: Args.t()
+
   @callback installer?() :: boolean()
+
+  @optional_callbacks [igniter: 1, igniter: 2]
 
   defmacro __using__(_opts) do
     quote do
@@ -72,7 +89,7 @@ defmodule Igniter.Mix.Task do
           Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
 
         Igniter.new()
-        |> igniter(argv)
+        |> Igniter.Mix.Task.configure(__MODULE__, argv)
         |> Igniter.do_or_dry_run(opts)
       end
 
@@ -89,7 +106,34 @@ defmodule Igniter.Mix.Task do
         %Info{extra_args?: true}
       end
 
+      @impl Igniter.Mix.Task
+      def parse_argv(argv) do
+        {positional, argv_flags} = positional_args!(argv)
+        options = options!(argv_flags)
+        %Args{positional: positional, options: options, argv: argv, argv_flags: argv_flags}
+      end
+
       defoverridable supports_umbrella?: 0, info: 2, installer?: 0
+    end
+  end
+
+  @doc false
+  def configure(igniter, task_module, argv) do
+    case task_module.parse_argv(argv) do
+      %Args{} = args ->
+        igniter = %{igniter | args: args}
+
+        if function_exported?(task_module, :igniter, 1) do
+          task_module.igniter(igniter)
+        else
+          task_module.igniter(igniter, argv)
+        end
+
+      other ->
+        raise """
+        Expected #{inspect(task_module)}.parse_argv/2 to return an Igniter.Mix.Task.Args struct,
+        but got: #{inspect(other)}
+        """
     end
   end
 
