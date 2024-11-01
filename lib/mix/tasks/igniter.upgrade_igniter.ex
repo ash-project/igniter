@@ -76,6 +76,8 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
   end
 
   defp igniter2_to_igniter1(igniter, _opts) do
+    Igniter.Mix.Task.module_info()[:compile][:source] |> List.to_string() |> Code.compile_file()
+
     Igniter.update_all_elixir_files(igniter, fn zipper ->
       Igniter.Upgrades.Igniter.rewrite_deprecated_igniter_callback(zipper)
     end)

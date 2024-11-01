@@ -72,6 +72,7 @@ defmodule Igniter.Mix.Task do
 
       @behaviour Igniter.Mix.Task
       @after_compile Igniter.Mix.Task
+      @before_compile Igniter.Mix.Task
 
       @impl Mix.Task
       def run(argv) do
@@ -130,18 +131,31 @@ defmodule Igniter.Mix.Task do
     igniter1_defined? = function_exported?(env.module, :igniter, 1)
     igniter2_defined? = function_exported?(env.module, :igniter, 2)
 
-    if igniter1_defined? and igniter2_defined? do
-      Logger.warning("""
-      #{inspect(env.module)} (#{env.file})
-
-          Module defines both igniter/1 and igniter/2, but igniter/2 is deprecated and will never be called.
-      """)
-    end
-
     if not (igniter1_defined? or igniter2_defined?) do
       raise CompileError,
         description:
           "#{inspect(env.module)} must define either igniter/1 or igniter/2 to implement the #{inspect(__MODULE__)} behaviour"
+    end
+  end
+
+  defmacro __before_compile__(_env) do
+    quote do
+      if Module.defines?(__MODULE__, {:igniter, 1}, :def) and
+           Module.defines?(__MODULE__, {:igniter, 2}, :def) do
+        Logger.warning("""
+        #{inspect(__MODULE__.module())} (#{__ENV__.file})
+
+            Module defines both igniter/1 and igniter/2, but igniter/2 is deprecated and will never be called.
+        """)
+      end
+
+      if !Module.defines?(__MODULE__, {:igniter, 2}, :def) do
+        @doc false
+        @impl true
+        def igniter(igniter, _argv) do
+          igniter(igniter)
+        end
+      end
     end
   end
 
