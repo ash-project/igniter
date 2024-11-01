@@ -140,16 +140,19 @@ defmodule Igniter.Mix.Task do
 
   defmacro __before_compile__(_env) do
     quote do
+      require Logger
+
       if Module.defines?(__MODULE__, {:igniter, 1}, :def) and
            Module.defines?(__MODULE__, {:igniter, 2}, :def) do
         Logger.warning("""
-        #{inspect(__MODULE__.module())} (#{__ENV__.file})
+        #{inspect(__MODULE__)} (#{__ENV__.file})
 
             Module defines both igniter/1 and igniter/2, but igniter/2 is deprecated and will never be called.
         """)
       end
 
-      if !Module.defines?(__MODULE__, {:igniter, 2}, :def) do
+      if !Module.defines?(__MODULE__, {:igniter, 2}, :def) &&
+           Module.defines?(__MODULE__, {:igniter, 1}, :def) do
         @doc false
         @impl true
         def igniter(igniter, _argv) do
