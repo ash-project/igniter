@@ -5,6 +5,38 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.77](https://github.com/ash-project/igniter/compare/v0.3.76...v0.3.77) (2024-11-01)
+
+### Bug Fixes:
+
+- don't skip igniter composition on existing issues
+
+- handle `Igniter.Project.Application.app_module/1` returning tuple
+
+- properly retain trailing newlines in `replace_code/2`
+
+- handle grouped options in positional args parsing
+
+- properly pass --with-args to generator
+
+- handle connected `=` in extract_positional_args
+
+- properly split args on equals symbol
+
+- `Igniter.Code.Common.replace_code/2`: Don't leave zipper at parent when extending blocks (#123)
+
+### Improvements:
+
+- Parse `argv` by default and store in `Igniter` struct (#131)
+
+- upgrade `igniter/2` to `igniter/1` in simple cases
+
+- optimize `Igniter.Project.Module.find_module/2` when all files haven't been loaded
+
+- add `Igniter.Test.diff/2` (#120)
+
+- add `Igniter.Test.diff/2`
+
 ## [v0.3.76](https://github.com/ash-project/igniter/compare/v0.3.75...v0.3.76) (2024-10-28)
 
 ### Bug Fixes:
