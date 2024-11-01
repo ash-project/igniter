@@ -81,4 +81,25 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniterTest do
       |    igniter
     """)
   end
+
+  test "doesn't upgrade igniter/2 when generated argv usage was modified" do
+    test_project(
+      files: %{
+        "lib/mix/tasks/my_task.ex" => """
+        defmodule Mix.Tasks.MyTask do
+          use Igniter.Mix.Task
+
+          def igniter(igniter, argv) do
+            foo = {arguments, argv} = positional_args!(argv)
+            bar = options = options!(argv)
+
+            igniter
+          end
+        end
+        """
+      }
+    )
+    |> Igniter.compose_task("igniter.upgrade_igniter", ["0.3.76", "0.4.0"])
+    |> assert_unchanged()
+  end
 end
