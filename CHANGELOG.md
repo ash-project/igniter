@@ -7,14 +7,9 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ## [v0.4.1](https://github.com/ash-project/igniter/compare/v0.4.0...v0.4.1) (2024-11-01)
 
-
-
-
 ### Bug Fixes:
 
-* fix igniter/1-igniter/2 adapter code
-
-* apply 0.3 compatibility fixes for upgrades
+- apply 0.3 compatibility fixes for upgrades
 
 ## [v0.3.77](https://github.com/ash-project/igniter/compare/v0.3.76...v0.3.77) (2024-11-01)
 
