@@ -150,7 +150,8 @@ defmodule Mix.Tasks.Igniter.Upgrade do
           yes: options[:yes],
           update_deps: Enum.map(package_names, &to_string/1),
           update_deps_args: update_deps_args,
-          force?: true
+          force?: true,
+          compile_deps?: false
         )
       end
 
@@ -181,11 +182,6 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         end)
         |> Enum.filter(&match?({:ok, v} when is_binary(v), &1.status))
 
-      Mix.Task.reenable("compile")
-      Mix.Task.reenable("loadpaths")
-      Mix.Task.run("compile")
-      Mix.Task.reenable("compile")
-
       dep_changes =
         dep_changes_in_order(original_deps_info, new_deps_info)
 
@@ -210,6 +206,13 @@ defmodule Mix.Tasks.Igniter.Upgrade do
             mix igniter.apply_upgrades #{upgrades}
         """)
       end
+
+      Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: true)
+
+      Mix.Task.reenable("compile")
+      Mix.Task.reenable("loadpaths")
+      Mix.Task.run("compile")
+      Mix.Task.reenable("compile")
 
       Enum.reduce(dep_changes, {igniter, []}, fn update, {igniter, missing} ->
         case apply_updates(igniter, update, argv) do

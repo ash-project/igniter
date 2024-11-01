@@ -170,7 +170,9 @@ defmodule Igniter.Util.Install do
 
         Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
 
-        Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
+        if Keyword.get(opts, :compile_deps?, true) do
+          Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
+        end
 
         igniter
 
