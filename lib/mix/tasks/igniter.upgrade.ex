@@ -186,9 +186,32 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       Mix.Task.run("compile")
       Mix.Task.reenable("compile")
 
-      original_deps_info
-      |> dep_changes_in_order(new_deps_info)
-      |> Enum.reduce({igniter, []}, fn update, {igniter, missing} ->
+      dep_changes =
+        dep_changes_in_order(original_deps_info, new_deps_info)
+
+      if !options[:git_ci] &&
+           Enum.any?(dep_changes, fn {app, _, _} ->
+             app in [:igniter, :glob_ex, :rewrite, :sourceror, :spitfire]
+           end) do
+        Process.put(:no_recover_mix_exs, true)
+
+        upgrades =
+          Enum.map_join(dep_changes, " ", fn {app, from, to} ->
+            "#{app}:#{from}:#{to}"
+          end)
+
+        Mix.raise("""
+        Cannot upgrade igniter or its dependencies with `mix igniter.upgrade` in one command.
+
+        The dependency changes have been saved.
+
+        To complete the upgrade, run the following command:
+
+            mix igniter.apply_upgrades #{upgrades}
+        """)
+      end
+
+      Enum.reduce(dep_changes, {igniter, []}, fn update, {igniter, missing} ->
         case apply_updates(igniter, update, argv) do
           {:ok, igniter} ->
             {igniter, missing}
@@ -209,7 +232,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       end
     rescue
       e ->
-        if !options[:git_ci] do
+        if !options[:git_ci] && !Process.get(:no_recover_mix_exs) do
           recover_mix_exs_and_lock(
             igniter,
             original_mix_exs,
@@ -222,7 +245,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         reraise e, __STACKTRACE__
     catch
       :exit, reason ->
-        if !options[:git_ci] do
+        if !options[:git_ci] && !Process.get(:no_recover_mix_exs) do
           recover_mix_exs_and_lock(
             igniter,
             original_mix_exs,
