@@ -92,7 +92,7 @@ defmodule Igniter do
   @doc "Returns a new igniter"
   @spec new() :: t()
   def new do
-    %__MODULE__{rewrite: Rewrite.new()}
+    %__MODULE__{rewrite: Rewrite.new(hooks: [Rewrite.Hook.DotFormatterUpdater])}
     |> include_existing_elixir_file(".igniter.exs", required?: false)
     |> parse_igniter_config()
   end
@@ -242,9 +242,9 @@ defmodule Igniter do
               igniter.rewrite,
               Rewrite.Source.update(
                 source,
-                :configure,
                 :quoted,
-                Sourceror.Zipper.topmost_root(zipper)
+                Sourceror.Zipper.topmost_root(zipper),
+                by: :configure
               )
             )
             |> then(&Map.put(igniter, :rewrite, &1))
@@ -481,8 +481,8 @@ defmodule Igniter do
         rescue
           _ ->
             ""
-            |> Rewrite.Source.Ex.from_string(path)
-            |> Rewrite.Source.update(:file_creator, :content, contents)
+            |> Rewrite.Source.Ex.from_string(path: path)
+            |> Rewrite.Source.update(:content, contents, by: :file_creator)
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -609,8 +609,8 @@ defmodule Igniter do
 
           source =
             ""
-            |> source_handler.from_string(path)
-            |> Rewrite.Source.update(:file_creator, :content, contents)
+            |> source_handler.from_string(path: path)
+            |> Rewrite.Source.update(:content, contents, by: :file_creator)
 
           if has_source? do
             {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
@@ -1140,49 +1140,22 @@ defmodule Igniter do
         end
 
       rewrite = igniter.rewrite
-
-      formatter_exs_files =
-        rewrite
-        |> Enum.filter(fn source ->
-          source
-          |> Rewrite.Source.get(:path)
-          |> Path.basename()
-          |> Kernel.==(".formatter.exs")
-        end)
-        |> Map.new(fn source ->
-          dir =
-            source
-            |> Rewrite.Source.get(:path)
-            |> Path.dirname()
-
-          {dir, source}
-        end)
+      dot_formatter = Rewrite.dot_formatter(rewrite)
 
       rewrite =
         Rewrite.map!(rewrite, fn source ->
           path = source |> Rewrite.Source.get(:path)
 
           if is_nil(adding_paths) || path in List.wrap(adding_paths) do
-            dir = Path.dirname(path)
-
-            opts =
-              case find_formatter_exs_file_options(dir, formatter_exs_files, Path.extname(path)) do
-                :error ->
-                  []
-
-                {:ok, opts} ->
-                  opts
-              end
-
             try do
               formatted =
                 with_evaled_configs(rewrite, fn ->
-                  Rewrite.Source.Ex.format(source, opts)
+                  source
+                  |> Rewrite.Source.format!(dot_formatter: dot_formatter)
+                  |> Rewrite.Source.get(:content)
                 end)
 
-              source
-              |> Rewrite.Source.Ex.put_formatter_opts(opts)
-              |> Rewrite.Source.update(:content, formatted)
+              Rewrite.Source.update(source, :content, formatted)
             rescue
               e ->
                 Rewrite.Source.add_issue(source, """
@@ -1262,86 +1235,6 @@ defmodule Igniter do
     end
   end
 
-  defp find_formatter_exs_file_options(path, formatter_exs_files, ext) do
-    case Map.fetch(formatter_exs_files, path) do
-      {:ok, source} ->
-        {opts, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
-
-        {:ok, opts |> eval_deps() |> filter_plugins(ext)}
-
-      :error ->
-        if path in ["/", "."] do
-          :error
-        else
-          new_path =
-            Path.join(path, "..")
-            |> Path.expand()
-            |> Path.relative_to_cwd()
-
-          find_formatter_exs_file_options(new_path, formatter_exs_files, ext)
-        end
-    end
-  end
-
-  # This can be removed if/when this PR is merged: https://github.com/hrzndhrn/rewrite/pull/34
-  defp eval_deps(formatter_opts) do
-    deps = Keyword.get(formatter_opts, :import_deps, [])
-
-    locals_without_parens = eval_deps_opts(deps)
-
-    formatter_opts =
-      Keyword.update(
-        formatter_opts,
-        :locals_without_parens,
-        locals_without_parens,
-        &(locals_without_parens ++ &1)
-      )
-
-    formatter_opts
-  end
-
-  defp eval_deps_opts([]) do
-    []
-  end
-
-  defp eval_deps_opts(deps) do
-    deps_paths = Mix.Project.deps_paths()
-
-    for dep <- deps,
-        dep_path = fetch_valid_dep_path(dep, deps_paths),
-        !is_nil(dep_path),
-        dep_dot_formatter = Path.join(dep_path, ".formatter.exs"),
-        File.regular?(dep_dot_formatter),
-        dep_opts = eval_file_with_keyword_list(dep_dot_formatter),
-        parenless_call <- dep_opts[:export][:locals_without_parens] || [],
-        uniq: true,
-        do: parenless_call
-  end
-
-  defp fetch_valid_dep_path(dep, deps_paths) when is_atom(dep) do
-    with %{^dep => path} <- deps_paths,
-         true <- File.dir?(path) do
-      path
-    else
-      _ ->
-        nil
-    end
-  end
-
-  defp fetch_valid_dep_path(_dep, _deps_paths) do
-    nil
-  end
-
-  defp eval_file_with_keyword_list(path) do
-    {opts, _} = Code.eval_file(path)
-
-    if !Keyword.keyword?(opts) do
-      raise "Expected #{inspect(path)} to return a keyword list, got: #{inspect(opts)}"
-    end
-
-    opts
-  end
-
   defp apply_func_with_zipper(igniter, path, func) do
     source = Rewrite.source!(igniter.rewrite, path)
     quoted = Rewrite.Source.get(source, :quoted)
@@ -1363,9 +1256,9 @@ defmodule Igniter do
             igniter.rewrite,
             Rewrite.Source.update(
               source,
-              :configure,
               :quoted,
-              Sourceror.Zipper.root(zipper)
+              Sourceror.Zipper.root(zipper),
+              by: :configure
             )
           )
           |> then(&Map.put(igniter, :rewrite, &1))
@@ -1386,19 +1279,6 @@ defmodule Igniter do
     end
   end
 
-  defp filter_plugins(opts, ext) do
-    Keyword.put(opts, :plugins, plugins_for_ext(opts, ext))
-  end
-
-  defp plugins_for_ext(formatter_opts, ext) do
-    formatter_opts
-    |> Keyword.get(:plugins, [])
-    |> Enum.filter(fn plugin ->
-      Code.ensure_loaded?(plugin) and function_exported?(plugin, :features, 1) and
-        ext in List.wrap(plugin.features(formatter_opts)[:extensions])
-    end)
-  end
-
   defp read_ex_source!(igniter, path) do
     read_source!(igniter, path, Rewrite.Source.Ex)
   end
@@ -1406,7 +1286,7 @@ defmodule Igniter do
   defp read_source!(igniter, path, source_handler) do
     if igniter.assigns[:test_mode?] do
       if content = igniter.assigns[:test_files][path] do
-        source_handler.from_string(content, path)
+        source_handler.from_string(content, path: path)
         |> Map.put(:from, :file)
       else
         raise "File #{path} not found in test files."

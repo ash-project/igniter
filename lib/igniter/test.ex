@@ -290,7 +290,7 @@ defmodule Igniter.Test do
 
           Diff, showing your assertion against the actual contents:
 
-          #{Rewrite.TextDiff.format(actual_content, content)}
+          #{TextDiff.format(actual_content, content)}
           """)
         end
       end
