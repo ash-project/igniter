@@ -407,31 +407,27 @@ defmodule Igniter do
   end
 
   def compose_task(igniter, task_name, argv, fallback) do
-    if igniter.issues == [] do
-      task_name
-      |> Mix.Task.get()
-      |> case do
-        nil ->
-          cond do
-            is_function(fallback, 1) ->
-              fallback.(igniter)
+    task_name
+    |> Mix.Task.get()
+    |> case do
+      nil ->
+        cond do
+          is_function(fallback, 1) ->
+            fallback.(igniter)
 
-            is_function(fallback, 2) ->
-              # TODO: Remove this clause when `igniter/2` is removed
-              fallback.(igniter, argv || igniter.args.argv)
+          is_function(fallback, 2) ->
+            # TODO: Remove this clause when `igniter/2` is removed
+            fallback.(igniter, argv || igniter.args.argv)
 
-            true ->
-              add_issue(
-                igniter,
-                "Task #{inspect(task_name)} could not be found."
-              )
-          end
+          true ->
+            add_issue(
+              igniter,
+              "Task #{inspect(task_name)} could not be found."
+            )
+        end
 
-        task ->
-          compose_task(igniter, task, argv, fallback)
-      end
-    else
-      igniter
+      task ->
+        compose_task(igniter, task, argv, fallback)
     end
   end
 
