@@ -16,7 +16,6 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
       installs: [],
       # An example invocation
       example: @example,
-
       # a list of positional arguments, i.e `[:file]`
       positional: [:from, :to],
       # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
@@ -33,17 +32,16 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
     }
   end
 
-  def igniter(igniter, argv) do
-    # extract positional arguments according to `positional` above
-    {arguments, argv} = positional_args!(argv)
-    # extract options according to `schema` and `aliases` above
-    options = options!(argv)
+  def igniter(igniter) do
+    arguments = igniter.args.positional
+    options = igniter.args.options
 
     upgrades =
       %{
         "0.3.66" => [&code_module_parse_to_project_module_parse/2],
         "0.3.71" => [&code_module_parse_to_project_module_parse/2],
-        "0.3.76" => [&code_common_nth_right_to_move_right/2]
+        "0.3.76" => [&code_common_nth_right_to_move_right/2],
+        "0.4.0" => [&igniter2_to_igniter1/2]
       }
 
     # For each version that requires a change, add it to this map
@@ -75,5 +73,11 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
     |> Igniter.add_notice(
       "Igniter.Code.Common.nth_right/2 was deprecated in favor of Igniter.Code.Common.move_right/2"
     )
+  end
+
+  defp igniter2_to_igniter1(igniter, _opts) do
+    Igniter.update_all_elixir_files(igniter, fn zipper ->
+      Igniter.Upgrades.Igniter.rewrite_deprecated_igniter_callback(zipper)
+    end)
   end
 end

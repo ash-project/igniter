@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Igniter.Setup do
   @shortdoc @moduledoc
   use Igniter.Mix.Task
 
-  def igniter(igniter, _argv) do
+  def igniter(igniter) do
     Igniter.Project.IgniterConfig.setup(igniter)
   end
 end

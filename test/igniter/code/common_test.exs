@@ -598,7 +598,7 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
-  describe "replace_code/1" do
+  describe "replace_code/2" do
     test "replaces simple values" do
       zipper =
         "[1, 2, 3]"
@@ -672,6 +672,42 @@ defmodule Igniter.Code.CommonTest do
           replaced1()
           replaced2()
           three()
+        end\
+        """
+
+      replaced = zipper |> Common.replace_code("replaced1()\nreplaced2()\n")
+      refute replaced.supertree
+      assert {:replaced1, _, []} = replaced.node
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced =
+        zipper |> Zipper.subtree() |> Common.replace_code("replaced1()\nreplaced2()\n")
+
+      assert subtree_replaced.supertree
+      assert {:replaced1, _, []} = replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "keeps newlines" do
+      zipper =
+        """
+        block do
+          one()
+
+          two()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("one()")
+
+      expected =
+        """
+        block do
+          replaced1()
+          replaced2()
+
+          two()
         end\
         """
 

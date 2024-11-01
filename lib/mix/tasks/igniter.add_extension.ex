@@ -26,8 +26,8 @@ defmodule Mix.Tasks.Igniter.AddExtension do
     }
   end
 
-  def igniter(igniter, argv) do
-    {%{extension: extension}, _argv} = positional_args!(argv)
+  def igniter(igniter) do
+    extension = igniter.args.positional.extension
 
     extension =
       if extension == "phoenix" do

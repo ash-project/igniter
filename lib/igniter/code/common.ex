@@ -470,13 +470,18 @@ defmodule Igniter.Code.Common do
       at_supertree_root? = Zipper.up(zipper) == nil and !!zipper.supertree
       zipper = if at_supertree_root?, do: supertree(zipper), else: zipper
 
-      {:__block__, _, [new_code_head | new_code_tail]} = new_code
+      {:__block__, _, new_code} = new_code
+      {new_code_last, new_code} = List.pop_at(new_code, -1)
 
       zipper =
-        new_code_tail
-        |> Enum.reverse()
-        |> Enum.reduce(zipper, &Zipper.insert_right(&2, &1))
-        |> replace_node(new_code_head)
+        new_code
+        # We insert to the left and explicitly replace the node with new_code_last
+        # so that the last node retains the metadata of the node we're replacing.
+        # That metadata includes things like the number of trailing newlines.
+        |> Enum.reduce(zipper, &Zipper.insert_left(&2, &1))
+        |> replace_node(new_code_last)
+
+      {:ok, zipper} = move_left(zipper, length(new_code))
 
       if at_supertree_root?, do: Zipper.subtree(zipper), else: zipper
     else

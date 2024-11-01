@@ -3,7 +3,16 @@ defmodule Igniter do
   Tools for generating and patching code into an Elixir project.
   """
 
-  defstruct [:rewrite, issues: [], tasks: [], warnings: [], notices: [], assigns: %{}, moves: %{}]
+  defstruct [
+    :rewrite,
+    issues: [],
+    tasks: [],
+    warnings: [],
+    notices: [],
+    assigns: %{},
+    moves: %{},
+    args: %Igniter.Mix.Task.Args{}
+  ]
 
   alias Sourceror.Zipper
 
@@ -14,7 +23,8 @@ defmodule Igniter do
           warnings: [String.t()],
           notices: [String.t()],
           assigns: map(),
-          moves: %{optional(String.t()) => String.t()}
+          moves: %{optional(String.t()) => String.t()},
+          args: Igniter.Mix.Task.Args.t()
         }
 
   @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
@@ -315,32 +325,83 @@ defmodule Igniter do
   end
 
   @doc """
-  Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter.
-  If the task doesn't exist, a fallback implementation may be provided as the last argument.
+  Finds the `Igniter.Mix.Task` task by name and composes it with `igniter`.
+
+  If the task doesn't exist, a `fallback` function may be provided. This
+  function should accept and return the `igniter`.
+
+  ## Argument handling
+
+  This function calls the task's `igniter/1` (or `igniter/2`) callback, setting
+  `igniter.args` using the current `igniter.args.argv_flags`. This prevents
+  composed tasks from accidentally consuming positional arguments. If you
+  wish the composed task to access additional arguments, you must explicitly
+  pass an `argv` list.
+
+  Additionally, you must declare other tasks you are composing with in your
+  task's `Igniter.Mix.Task.Info` struct using the `:composes` key. Without
+  this, you'll see unexpected argument errors if a flag that a composed task
+  uses is passed without you explicitly declaring it in your `:schema`.
+
+  ## Example
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          ...,
+          composes: [
+            "other.task1",
+            "other.task2"
+          ]
+        }
+
+      def igniter(igniter) do
+        igniter
+        # other.task1 will see igniter.args.argv_flags as its args
+        |> Igniter.compose_task("other.task1")
+        # other.task2 will see an additional arg and flag
+        |> Igniter.compose_task("other.task2", ["arg", "--flag"] ++ igniter.argv.argv_flags)
+      end
+
   """
-  def compose_task(igniter, task, argv \\ [], fallback \\ nil)
+  @spec compose_task(
+          t,
+          task :: String.t() | module(),
+          argv :: list(String.t()) | nil,
+          fallback :: (t -> t) | (t, list(String.t()) -> t) | nil
+        ) :: t
+  def compose_task(igniter, task, argv \\ nil, fallback \\ nil)
 
   def compose_task(igniter, task, argv, fallback) when is_atom(task) do
     Code.ensure_compiled!(task)
 
-    if function_exported?(task, :igniter, 2) do
+    original_args = igniter.args
+
+    if Igniter.Mix.Task.igniter_task?(task) do
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
         add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
       else
-        task.igniter(igniter, argv)
+        igniter
+        |> Igniter.Mix.Task.configure_and_run(task, argv || igniter.args.argv_flags)
+        |> Map.replace!(:args, original_args)
       end
     else
-      if is_function(fallback) do
-        fallback.(igniter, argv)
-      else
-        # we don't warn because not all packages know about igniter, but they may have their own installers
-        # we can't assume that we should call them because they may have required arguments.
+      cond do
+        is_function(fallback, 1) ->
+          fallback.(igniter)
 
-        # add_issue(
-        #   igniter,
-        #   "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
-        # )
-        igniter
+        is_function(fallback, 2) ->
+          # TODO: Remove this clause when `igniter/2` is removed
+          fallback.(igniter, argv || igniter.args.argv)
+
+        true ->
+          # we don't warn because not all packages know about igniter, but they may have their own installers
+          # we can't assume that we should call them because they may have required arguments.
+
+          # add_issue(
+          #   igniter,
+          #   "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
+          # )
+          igniter
       end
     end
   end
@@ -351,13 +412,19 @@ defmodule Igniter do
       |> Mix.Task.get()
       |> case do
         nil ->
-          if is_function(fallback) do
-            fallback.(igniter, argv)
-          else
-            add_issue(
-              igniter,
-              "Task #{inspect(task_name)}  could not be found."
-            )
+          cond do
+            is_function(fallback, 1) ->
+              fallback.(igniter)
+
+            is_function(fallback, 2) ->
+              # TODO: Remove this clause when `igniter/2` is removed
+              fallback.(igniter, argv || igniter.args.argv)
+
+            true ->
+              add_issue(
+                igniter,
+                "Task #{inspect(task_name)} could not be found."
+              )
           end
 
         task ->

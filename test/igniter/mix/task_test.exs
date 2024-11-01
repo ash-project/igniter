@@ -19,12 +19,9 @@ defmodule Igniter.Mix.TaskTest do
       }
     end
 
-    def igniter(igniter, argv) do
-      options = options!(argv)
-      {args, _argv} = positional_args!(argv)
-
-      send(self(), {:args, args})
-      send(self(), {:options, options})
+    def igniter(igniter) do
+      send(self(), {:args, igniter.args.positional})
+      send(self(), {:options, igniter.args.options})
       igniter
     end
   end
@@ -40,14 +37,14 @@ defmodule Igniter.Mix.TaskTest do
   end
 
   test "it parses options" do
-    ExampleTask.igniter(Igniter.new(), ["foo", "--option", "foo"])
+    ExampleTask.run(["foo", "--option", "foo"])
     assert_received {:options, options}
     assert options[:option] == "foo"
     assert_received {:args, %{a: "foo"}}
   end
 
   test "it parses rest options" do
-    ExampleTask.igniter(Igniter.new(), ["foo", "--option", "foo"])
+    ExampleTask.run(["foo", "--option", "foo"])
     assert_received {:options, options}
     assert options[:option] == "foo"
     assert_received {:args, %{a: "foo"}}
@@ -72,7 +69,7 @@ defmodule Igniter.Mix.TaskTest do
         }
       end
 
-      def igniter(igniter, _argv) do
+      def igniter(igniter) do
         igniter
       end
     end
@@ -92,7 +89,7 @@ defmodule Igniter.Mix.TaskTest do
         }
       end
 
-      def igniter(igniter, _argv) do
+      def igniter(igniter) do
         igniter
       end
     end
@@ -109,7 +106,7 @@ defmodule Igniter.Mix.TaskTest do
         }
       end
 
-      def igniter(igniter, _argv) do
+      def igniter(igniter) do
         igniter
       end
     end
@@ -133,7 +130,7 @@ defmodule Igniter.Mix.TaskTest do
         }
       end
 
-      def igniter(igniter, _argv) do
+      def igniter(igniter) do
         igniter
       end
     end
@@ -157,9 +154,47 @@ defmodule Igniter.Mix.TaskTest do
         }
       end
 
-      def igniter(igniter, argv) do
-        {_, argv} = positional_args!(argv)
-        send(self(), {:options, options!(argv)})
+      def igniter(igniter) do
+        send(self(), {:options, igniter.args.options})
+        igniter
+      end
+    end
+
+    defmodule Elixir.Mix.Tasks.ExampleTask1GroupC do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          group: :c,
+          positional: [:task1_positional],
+          schema: [
+            task1_option: :string
+          ],
+          composes: [
+            "example_task2_group_c"
+          ]
+        }
+      end
+
+      def igniter(igniter) do
+        igniter = Igniter.compose_task(igniter, Elixir.Mix.Tasks.ExampleTask2GroupC)
+        send(self(), {:task1_group_c, igniter.args})
+        igniter
+      end
+    end
+
+    defmodule Elixir.Mix.Tasks.ExampleTask2GroupC do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          group: :c,
+          schema: [task2_option: :string]
+        }
+      end
+
+      def igniter(igniter) do
+        send(self(), {:task2_group_c, igniter.args})
         igniter
       end
     end
@@ -219,6 +254,90 @@ defmodule Igniter.Mix.TaskTest do
 
       assert_received {:options, options}
       assert options[:other] == "foo"
+    end
+
+    test "composed tasks do not consume current task args" do
+      Mix.Tasks.ExampleTask1GroupC.run([
+        "positional_1",
+        "--task1-option",
+        "task1",
+        "--task2-option",
+        "task2"
+      ])
+
+      assert_received {:task2_group_c,
+                       %{
+                         positional: task2_positional,
+                         options: [task1_option: "task1", task2_option: "task2"]
+                       }}
+
+      assert task2_positional == %{}
+
+      assert_received {:task1_group_c,
+                       %{
+                         positional: %{
+                           task1_positional: "positional_1"
+                         },
+                         options: [task1_option: "task1", task2_option: "task2"]
+                       }}
+    end
+  end
+
+  describe "igniter/2 deprecation" do
+    defp define_module do
+      original_opts = Code.compiler_options()
+      Code.put_compiler_option(:ignore_module_conflict, true)
+
+      {:module, module, _, _} =
+        defmodule ExampleTaskWithIgniter1AndIgniter2 do
+          use Igniter.Mix.Task
+
+          def info(_argv, _parent) do
+            %Igniter.Mix.Task.Info{}
+          end
+
+          def igniter(igniter) do
+            send(self(), {:igniter1, igniter.args})
+            igniter
+          end
+
+          def igniter(igniter, _argv) do
+            send(self(), :igniter2)
+            igniter
+          end
+        end
+
+      Code.compiler_options(original_opts)
+
+      module
+    end
+
+    test "igniter/2 is not called if igniter/1 is defined" do
+      ExUnit.CaptureLog.capture_log(fn ->
+        task = define_module()
+        task.run([])
+      end)
+
+      assert_receive {:igniter1, %Igniter.Mix.Task.Args{}}
+      refute_receive :igniter2
+    end
+
+    test "warning is logged if both igniter/1 and igniter/2 are defined" do
+      {module, logged} =
+        ExUnit.CaptureLog.with_log(fn ->
+          define_module()
+        end)
+
+      assert logged =~ inspect(module)
+      assert logged =~ "defines both igniter/1 and igniter/2"
+    end
+
+    test "compilation error is raised if neither igniter/1 nor igniter/2 are defined" do
+      assert_raise CompileError, ~r"must define either igniter/1 or igniter/2", fn ->
+        defmodule ShouldRaise do
+          use Igniter.Mix.Task
+        end
+      end
     end
   end
 end

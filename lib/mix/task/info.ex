@@ -20,16 +20,33 @@ defmodule Igniter.Mix.Task.Info do
 
   ## Options and Arguments
 
-  To get the options (values for flags specified by the schema), use the `positional_args!/1` and `options!/` macros,
-  like so:
+  Command line args are automatically parsed into `igniter.args` using this struct's configuration.
 
-  ```elixir
-  def igniter(igniter, argv) do
-    {arguments, argv} = positional_args!(argv)
-    options = options!(argv)
-    ...
-  end
-  ```
+      @impl Igniter.Mix.Task
+      def igniter(igniter) do
+        positional = igniter.args.positional
+        options = igniter.args.options
+      end
+
+  If you need to do custom validation or parsing, you can implement `c:Igniter.Mix.Task.parse_argv/1`
+  and return an `Igniter.Mix.Task.Args` struct. If helpful, the `positional_args!/1` and
+  `options!/1` macros can be used to parse positional arguments and options/flags using your
+  info configuration.
+
+      @impl Igniter.Mix.Task
+      def parse_argv(argv) do
+        {positional, argv_flags} = positional_args!(argv)
+        options = options!(argv_flags)
+
+        # custom validation or additional parsing
+
+        %Igniter.Mix.Task.Args{
+          argv: argv,
+          argv_flags: argv_flags,
+          positional: positional,
+          options: options
+        }
+      end
 
   ## Options
 

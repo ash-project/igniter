@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Igniter.UpdateGettext do
     %Igniter.Mix.Task.Info{group: :igniter}
   end
 
-  def igniter(igniter, _argv) do
+  def igniter(igniter) do
     {igniter, modules} = find_use_gettext_modules(igniter)
 
     modules
