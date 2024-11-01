@@ -109,7 +109,7 @@ end
 
 You may notice an issue running `mix igniter.upgrade` if you are using `0.3.x` versions.
 you must manually upgrade igniter (by editing your `mix.exs` file or running `mix deps.update`)
-to a version greater than or equal to `0.3.77` before running `mix igniter.upgrade`. A problem
+to a version greater than or equal to `0.3.78` before running `mix igniter.upgrade`. A problem
 was discovered with the process of igniter upgrading itself or one of its dependencies.
 
 In any case where igniter must both download and compile a new version of itself, it will exit
