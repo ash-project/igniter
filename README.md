@@ -64,7 +64,7 @@ mix igniter.new app_name --install ash
 Or if you want to use a different project creator, specify the mix task name with the `--with` flag. Any arguments will be passed through to that task, with the exception of `--install` and `--example`.
 
 ```
-mix igniter.new app_name --install ash --with phx.new --no-ecto
+mix igniter.new app_name --install ash --with phx.new --with-args="--no-ecto"
 ```
 
 ## Patterns
@@ -75,27 +75,44 @@ Mix tasks built with igniter are both individually callable, _and_ composable. T
 
 Igniter will look for a task called `<your_package>.install` when the user runs `mix igniter.install <your_package>`, and will run it after installing and fetching dependencies.
 
+To create your installer, use `mix igniter.gen.task <your_package>.install`
+
 ### Generators/Patchers
 
 These can be run like any other mix task, or composed together. For example, lets say that you wanted to have your own `Ash.Resource` generator, that starts with the default `mix ash.gen.resource` task, but then adds or modifies files:
+
+To create your generator, use `mix igniter.gen.task <your_package>.task.name`
 
 ```elixir
 # in lib/mix/tasks/my_app.gen.resource.ex
 defmodule Mix.Tasks.MyApp.Gen.Resource do
   use Igniter.Mix.Task
 
-  def igniter(igniter, [resource | _] = argv) do
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
+    [resource | _] = igniter.args.argv
+
     resource = Igniter.Code.Module.parse(resource)
     my_special_thing = Module.concat([resource, SpecialThing])
     location = Igniter.Code.Module.proper_location(my_special_thing)
 
     igniter
-    |> Igniter.compose_task("ash.gen.resource", argv)
-    |> Igniter.create_new_elixir_file(location, """
-    defmodule #{inspect(my_special_thing)} do
+    |> Igniter.compose_task("ash.gen.resource", igniter.args.argv)
+    |> Igniter.Project.Module.create_module(my_special_thing, """
       # this is the special thing for #{inspect()}
-    end
     """)
   end
 end
 ```
+
+## Upgrading to 0.4.x
+
+You may notice an issue running `mix igniter.upgrade` if you are using `0.3.x` versions.
+you must manually upgrade igniter (by editing your `mix.exs` file or running `mix deps.update`)
+to a version greater than or equal to `0.3.78` before running `mix igniter.upgrade`. A problem
+was discovered with the process of igniter upgrading itself or one of its dependencies.
+
+In any case where igniter must both download and compile a new version of itself, it will exit
+and print instructions with a command you can run to complete the upgrade. For example:
+
+`mix igniter.apply_upgrades igniter:0.4.0:0.5.0 package:0.1.3:0.1.4`

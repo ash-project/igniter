@@ -206,7 +206,10 @@ defmodule Igniter.Project.Module do
                   |> Zipper.node()
 
                 new_source = Rewrite.Source.update(source, :quoted, new_quoted)
-                {:ok, %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}}
+
+                {:ok,
+                 %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
+                 |> Igniter.format([source.path])}
 
               {:error, error} ->
                 {:ok, Igniter.add_issue(igniter, error)}
@@ -285,8 +288,6 @@ defmodule Igniter.Project.Module do
   @spec find_module(Igniter.t(), module()) ::
           {:ok, {Igniter.t(), Rewrite.Source.t(), Zipper.t()}} | {:error, Igniter.t()}
   def find_module(igniter, module_name) do
-    igniter = Igniter.include_all_elixir_files(igniter)
-
     check_first =
       if Code.ensure_loaded?(module_name) do
         if source = module_name.module_info()[:compile][:source] do
@@ -295,6 +296,7 @@ defmodule Igniter.Project.Module do
       end
 
     with check_first when not is_nil(check_first) <- check_first,
+         igniter <- Igniter.include_existing_file(igniter, check_first),
          {:ok, source} <- Rewrite.source(igniter.rewrite, check_first),
          {:ok, zipper} <-
            source
@@ -304,6 +306,8 @@ defmodule Igniter.Project.Module do
       {:ok, {igniter, source, zipper}}
     else
       _ ->
+        igniter = Igniter.include_all_elixir_files(igniter)
+
         igniter
         |> Map.get(:rewrite)
         |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))

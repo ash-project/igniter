@@ -130,6 +130,48 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
+  describe "rightmost/1" do
+    test "moves the zipper to the right most node with one element" do
+      {:ok, zipper} =
+        """
+        defmodule RightmostTest do
+          def foo do
+            [a: 1, b: 2]
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+        |> Igniter.Code.Function.move_to_def(:foo, 0)
+
+      zipper = zipper |> Zipper.down() |> Igniter.Code.Common.rightmost()
+
+      assert Igniter.Util.Debug.code_at_node(zipper) ==
+               "[a: 1, b: 2]"
+    end
+
+    test "moves the zipper to the right most node with multiple elements" do
+      {:ok, zipper} =
+        """
+        defmodule RightmostTest do
+          def foo do
+            opts = %{}
+
+            [a: 1, b: 2]
+          end
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+        |> Igniter.Code.Function.move_to_def(:foo, 0)
+
+      zipper = zipper |> Zipper.down() |> Igniter.Code.Common.rightmost()
+
+      assert Igniter.Util.Debug.code_at_node(zipper) ==
+               "[a: 1, b: 2]"
+    end
+  end
+
   describe "add_code" do
     test "adding multiple blocks" do
       zipper =
@@ -527,6 +569,9 @@ defmodule Igniter.Code.CommonTest do
   describe "expand_literal/1" do
     test "it resolves basic literals" do
       assert {:ok, :literal} = :literal |> Zipper.zip() |> Igniter.Code.Common.expand_literal()
+
+      assert {:ok, {Module, []}} =
+               {Module, []} |> Zipper.zip() |> Igniter.Code.Common.expand_literal()
     end
 
     test "it resolves literals that are the single child of a :__block__" do
@@ -542,6 +587,141 @@ defmodule Igniter.Code.CommonTest do
                |> Sourceror.parse_string!()
                |> Zipper.zip()
                |> Igniter.Code.Common.expand_literal()
+    end
+
+    test "it can expand a tuple" do
+      assert {:ok, {Module, []}} =
+               "{Module, []}"
+               |> Sourceror.parse_string!()
+               |> Zipper.zip()
+               |> Igniter.Code.Common.expand_literal()
+    end
+  end
+
+  describe "replace_code/2" do
+    test "replaces simple values" do
+      zipper =
+        "[1, 2, 3]"
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("2")
+        |> Common.replace_code(":replaced")
+
+      expected = "[1, :replaced, 3]"
+
+      replaced = Common.replace_code(zipper, ":replaced")
+      refute replaced.supertree
+      assert {:__block__, _, [:replaced]} = replaced.node
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code(":replaced")
+      assert subtree_replaced.supertree
+      assert {:__block__, _, [:replaced]} = subtree_replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "replaces in blocks" do
+      zipper =
+        """
+        block do
+          one()
+          two()
+          three()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("two()")
+
+      expected = """
+      block do
+        one()
+        replaced()
+        three()
+      end\
+      """
+
+      replaced = Common.replace_code(zipper, "replaced()")
+      refute replaced.supertree
+      assert {:replaced, _, []} = replaced.node
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code("replaced()")
+      assert subtree_replaced.supertree
+      assert {:replaced, _, []} = subtree_replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "extends in blocks" do
+      zipper =
+        """
+        block do
+          one()
+          two()
+          three()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("two()")
+
+      expected =
+        """
+        block do
+          one()
+          replaced1()
+          replaced2()
+          three()
+        end\
+        """
+
+      replaced = zipper |> Common.replace_code("replaced1()\nreplaced2()\n")
+      refute replaced.supertree
+      assert {:replaced1, _, []} = replaced.node
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced =
+        zipper |> Zipper.subtree() |> Common.replace_code("replaced1()\nreplaced2()\n")
+
+      assert subtree_replaced.supertree
+      assert {:replaced1, _, []} = replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "keeps newlines" do
+      zipper =
+        """
+        block do
+          one()
+
+          two()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("one()")
+
+      expected =
+        """
+        block do
+          replaced1()
+          replaced2()
+
+          two()
+        end\
+        """
+
+      replaced = zipper |> Common.replace_code("replaced1()\nreplaced2()\n")
+      refute replaced.supertree
+      assert {:replaced1, _, []} = replaced.node
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced =
+        zipper |> Zipper.subtree() |> Common.replace_code("replaced1()\nreplaced2()\n")
+
+      assert subtree_replaced.supertree
+      assert {:replaced1, _, []} = replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
   end
 end

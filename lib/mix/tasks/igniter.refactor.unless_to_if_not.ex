@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Igniter.Refactor.UnlessToIfNot do
     }
   end
 
-  def igniter(igniter, _argv) do
+  def igniter(igniter) do
     Igniter.Refactors.Elixir.unless_to_if_not(igniter)
   end
 end

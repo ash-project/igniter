@@ -1,28 +1,33 @@
 defmodule Installer.Lib.Private.SharedUtils do
   @moduledoc false
   @doc false
-  def extract_positional_args(argv, argv \\ [], positional \\ [])
-  def extract_positional_args([], argv, positional), do: {argv, positional}
+  def extract_positional_args(argv) do
+    do_extract_positional_args(argv, [], [])
+  end
 
-  def extract_positional_args(argv, got_argv, positional) do
+  def do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+  def do_extract_positional_args(argv, got_argv, positional) do
     case OptionParser.next(argv, switches: []) do
       {_, _key, true, rest} ->
-        extract_positional_args(
+        do_extract_positional_args(
           rest,
           got_argv ++ [Enum.at(argv, 0)],
           positional
         )
 
       {_, _key, _value, rest} ->
-        extract_positional_args(
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
+        do_extract_positional_args(
           rest,
-          got_argv ++ [Enum.at(argv, 0), Enum.at(argv, 1)],
+          got_argv ++ Enum.take(argv, count_consumed),
           positional
         )
 
       {:error, rest} ->
         [first | rest] = rest
-        extract_positional_args(rest, got_argv, positional ++ [first])
+        do_extract_positional_args(rest, got_argv, positional ++ [first])
     end
   end
 

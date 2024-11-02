@@ -7,6 +7,10 @@ defmodule Igniter.Project.Deps do
   @doc """
   Adds a dependency to the mix.exs file.
 
+  ```elixir
+  |> Igniter.Project.Deps.add_dep({:my_dependency, "~> X.Y.Z"})
+  ```
+
   # Options
 
   - `:yes?` - Automatically answer yes to any prompts.

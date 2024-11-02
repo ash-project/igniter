@@ -13,7 +13,10 @@ Since an example is worth a thousand words, lets take a look at an example that 
 defmodule Mix.Tasks.YourLib.Gen.YourThing do
   use Igniter.Mix.Task
 
-  def igniter(igniter, [module_name | _ ] = argv) do
+  @impl Igniter.Mix.Task
+  def igniter(igniter) do
+    [module_name | _] = igniter.args.argv
+
     module_name = Igniter.Code.Module.parse(module_name)
     path = Igniter.Code.Module.proper_location(module_name)
     app_name = Igniter.Project.Application.app_name(igniter)

@@ -3,7 +3,16 @@ defmodule Igniter do
   Tools for generating and patching code into an Elixir project.
   """
 
-  defstruct [:rewrite, issues: [], tasks: [], warnings: [], notices: [], assigns: %{}, moves: %{}]
+  defstruct [
+    :rewrite,
+    issues: [],
+    tasks: [],
+    warnings: [],
+    notices: [],
+    assigns: %{},
+    moves: %{},
+    args: %Igniter.Mix.Task.Args{}
+  ]
 
   alias Sourceror.Zipper
 
@@ -14,7 +23,8 @@ defmodule Igniter do
           warnings: [String.t()],
           notices: [String.t()],
           assigns: map(),
-          moves: %{optional(String.t()) => String.t()}
+          moves: %{optional(String.t()) => String.t()},
+          args: Igniter.Mix.Task.Args.t()
         }
 
   @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
@@ -92,7 +102,7 @@ defmodule Igniter do
   @doc "Returns a new igniter"
   @spec new() :: t()
   def new do
-    %__MODULE__{rewrite: Rewrite.new()}
+    %__MODULE__{rewrite: Rewrite.new(hooks: [Rewrite.Hook.DotFormatterUpdater])}
     |> include_existing_elixir_file(".igniter.exs", required?: false)
     |> parse_igniter_config()
   end
@@ -159,42 +169,39 @@ defmodule Igniter do
   def include_glob(igniter, glob) do
     glob =
       case glob do
-        %{__struct__: GlobEx} = glob -> glob
-        string -> GlobEx.compile!(Path.expand(string))
+        %{__struct__: GlobEx} = glob ->
+          if Path.type(glob.source) == :relative do
+            GlobEx.compile!(Path.expand(glob.source))
+          else
+            glob
+          end
+
+        string ->
+          GlobEx.compile!(Path.expand(string))
       end
 
-    paths =
-      if igniter.assigns[:test_mode?] do
-        igniter.assigns[:test_files]
-        |> Map.keys()
-        |> Enum.filter(&GlobEx.match?(glob, Path.expand(&1)))
-      else
-        glob
-        |> GlobEx.ls()
-      end
-      |> Stream.filter(fn path ->
-        if Path.extname(path) in [".ex", ".exs"] do
-          true
-        else
-          raise ArgumentError,
-                "Cannot include #{inspect(path)} because it is not an Elixir file. This can be supported in the future, but the work hasn't been done yet."
-        end
+    if igniter.assigns[:test_mode?] do
+      igniter.assigns[:test_files]
+      |> Map.keys()
+      |> Enum.filter(fn key ->
+        expanded = Path.expand(key)
+        glob.source == expanded || GlobEx.match?(glob, expanded)
       end)
-      |> Stream.map(&Path.relative_to_cwd/1)
+      |> Enum.map(&Path.relative_to_cwd/1)
       |> Enum.reject(fn path ->
         Rewrite.has_source?(igniter.rewrite, path)
       end)
+      |> Enum.map(fn path ->
+        source_handler = source_handler(path)
 
-    paths
-    |> Task.async_stream(
-      fn path ->
-        read_ex_source!(igniter, path)
-      end,
-      timeout: :infinity
-    )
-    |> Enum.reduce(igniter, fn {:ok, source}, igniter ->
-      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-    end)
+        read_source!(igniter, path, source_handler)
+      end)
+      |> Enum.reduce(igniter, fn source, igniter ->
+        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+      end)
+    else
+      %{igniter | rewrite: Rewrite.read!(igniter.rewrite, glob)}
+    end
   end
 
   @doc """
@@ -257,9 +264,9 @@ defmodule Igniter do
               igniter.rewrite,
               Rewrite.Source.update(
                 source,
-                :configure,
                 :quoted,
-                Sourceror.Zipper.topmost_root(zipper)
+                Sourceror.Zipper.topmost_root(zipper),
+                by: :configure
               )
             )
             |> then(&Map.put(igniter, :rewrite, &1))
@@ -330,56 +337,109 @@ defmodule Igniter do
   end
 
   @doc """
-  Finds the `Igniter.Mix.Task` task by name and composes it (calls its `igniter/2`) into the current igniter.
-  If the task doesn't exist, a fallback implementation may be provided as the last argument.
+  Finds the `Igniter.Mix.Task` task by name and composes it with `igniter`.
+
+  If the task doesn't exist, a `fallback` function may be provided. This
+  function should accept and return the `igniter`.
+
+  ## Argument handling
+
+  This function calls the task's `igniter/1` (or `igniter/2`) callback, setting
+  `igniter.args` using the current `igniter.args.argv_flags`. This prevents
+  composed tasks from accidentally consuming positional arguments. If you
+  wish the composed task to access additional arguments, you must explicitly
+  pass an `argv` list.
+
+  Additionally, you must declare other tasks you are composing with in your
+  task's `Igniter.Mix.Task.Info` struct using the `:composes` key. Without
+  this, you'll see unexpected argument errors if a flag that a composed task
+  uses is passed without you explicitly declaring it in your `:schema`.
+
+  ## Example
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          ...,
+          composes: [
+            "other.task1",
+            "other.task2"
+          ]
+        }
+
+      def igniter(igniter) do
+        igniter
+        # other.task1 will see igniter.args.argv_flags as its args
+        |> Igniter.compose_task("other.task1")
+        # other.task2 will see an additional arg and flag
+        |> Igniter.compose_task("other.task2", ["arg", "--flag"] ++ igniter.argv.argv_flags)
+      end
+
   """
-  def compose_task(igniter, task, argv \\ [], fallback \\ nil)
+  @spec compose_task(
+          t,
+          task :: String.t() | module(),
+          argv :: list(String.t()) | nil,
+          fallback :: (t -> t) | (t, list(String.t()) -> t) | nil
+        ) :: t
+  def compose_task(igniter, task, argv \\ nil, fallback \\ nil)
 
   def compose_task(igniter, task, argv, fallback) when is_atom(task) do
     Code.ensure_compiled!(task)
 
-    if function_exported?(task, :igniter, 2) do
+    original_args = igniter.args
+
+    if Igniter.Mix.Task.igniter_task?(task) do
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
         add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
       else
-        task.igniter(igniter, argv)
+        igniter
+        |> Igniter.Mix.Task.configure_and_run(task, argv || igniter.args.argv_flags)
+        |> Map.replace!(:args, original_args)
       end
     else
-      if is_function(fallback) do
-        fallback.(igniter, argv)
-      else
-        # we don't warn because not all packages know about igniter, but they may have their own installers
-        # we can't assume that we should call them because they may have required arguments.
+      cond do
+        is_function(fallback, 1) ->
+          fallback.(igniter)
 
-        # add_issue(
-        #   igniter,
-        #   "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
-        # )
-        igniter
+        is_function(fallback, 2) ->
+          # TODO: Remove this clause when `igniter/2` is removed
+          fallback.(igniter, argv || igniter.args.argv)
+
+        true ->
+          # we don't warn because not all packages know about igniter, but they may have their own installers
+          # we can't assume that we should call them because they may have required arguments.
+
+          # add_issue(
+          #   igniter,
+          #   "#{inspect(task)} does not implement `Igniter.igniter/2` and no alternative implementation was provided."
+          # )
+          igniter
       end
     end
   end
 
   def compose_task(igniter, task_name, argv, fallback) do
-    if igniter.issues == [] do
-      task_name
-      |> Mix.Task.get()
-      |> case do
-        nil ->
-          if is_function(fallback) do
-            fallback.(igniter, argv)
-          else
+    task_name
+    |> Mix.Task.get()
+    |> case do
+      nil ->
+        cond do
+          is_function(fallback, 1) ->
+            fallback.(igniter)
+
+          is_function(fallback, 2) ->
+            # TODO: Remove this clause when `igniter/2` is removed
+            fallback.(igniter, argv || igniter.args.argv)
+
+          true ->
             add_issue(
               igniter,
-              "Task #{inspect(task_name)}  could not be found."
+              "Task #{inspect(task_name)} could not be found."
             )
-          end
+        end
 
-        task ->
-          compose_task(igniter, task, argv, fallback)
-      end
-    else
-      igniter
+      task ->
+        compose_task(igniter, task, argv, fallback)
     end
   end
 
@@ -496,8 +556,8 @@ defmodule Igniter do
         rescue
           _ ->
             ""
-            |> Rewrite.Source.Ex.from_string(path)
-            |> Rewrite.Source.update(:file_creator, :content, contents)
+            |> Rewrite.Source.Ex.from_string(path: path)
+            |> Rewrite.Source.update(:content, contents, by: :file_creator)
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -624,8 +684,8 @@ defmodule Igniter do
 
           source =
             ""
-            |> source_handler.from_string(path)
-            |> Rewrite.Source.update(:file_creator, :content, contents)
+            |> source_handler.from_string(path: path)
+            |> Rewrite.Source.update(:content, contents, by: :file_creator)
 
           if has_source? do
             {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
@@ -1135,7 +1195,8 @@ defmodule Igniter do
     """)
   end
 
-  defp format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
+  @doc false
+  def format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
     igniter =
       igniter
       |> include_existing_elixir_file("config/config.exs", require?: false)
@@ -1161,63 +1222,38 @@ defmodule Igniter do
         end
 
       rewrite = igniter.rewrite
-
-      formatter_exs_files =
-        rewrite
-        |> Enum.filter(fn source ->
-          source
-          |> Rewrite.Source.get(:path)
-          |> Path.basename()
-          |> Kernel.==(".formatter.exs")
-        end)
-        |> Map.new(fn source ->
-          dir =
-            source
-            |> Rewrite.Source.get(:path)
-            |> Path.dirname()
-
-          {dir, source}
-        end)
+      dot_formatter = Rewrite.dot_formatter(rewrite)
 
       rewrite =
-        Rewrite.map!(rewrite, fn source ->
+        Enum.reduce(rewrite, rewrite, fn source, rewrite ->
           path = source |> Rewrite.Source.get(:path)
 
-          if source_handler(path) == Rewrite.Source.Ex &&
-               (is_nil(adding_paths) || path in List.wrap(adding_paths)) do
-            dir = Path.dirname(path)
+          if is_nil(adding_paths) || path in List.wrap(adding_paths) do
+            source =
+              try do
+                formatted =
+                  with_evaled_configs(rewrite, fn ->
+                    source
+                    |> Rewrite.Source.format!(dot_formatter: dot_formatter)
+                    |> Rewrite.Source.get(:content)
+                  end)
 
-            opts =
-              case find_formatter_exs_file_options(dir, formatter_exs_files, Path.extname(path)) do
-                :error ->
-                  []
+                Rewrite.Source.update(source, :content, formatted)
+              rescue
+                e ->
+                  Rewrite.Source.add_issue(source, """
+                  Igniter would have produced invalid syntax.
 
-                {:ok, opts} ->
-                  opts
+                  This is almost certainly a bug in Igniter, or in the implementation
+                  of the task/function you are using.
+
+                  #{Exception.format(:error, e, __STACKTRACE__)}
+                  """)
               end
 
-            try do
-              formatted =
-                with_evaled_configs(rewrite, fn ->
-                  Rewrite.Source.Ex.format(source, opts)
-                end)
-
-              source
-              |> Rewrite.Source.Ex.put_formatter_opts(opts)
-              |> Rewrite.Source.update(:content, formatted)
-            rescue
-              e ->
-                Rewrite.Source.add_issue(source, """
-                Igniter would have produced invalid syntax.
-
-                This is almost certainly a bug in Igniter, or in the implementation
-                of the task/function you are using.
-
-                #{Exception.format(:error, e, __STACKTRACE__)}
-                """)
-            end
+            Rewrite.update!(rewrite, source)
           else
-            source
+            rewrite
           end
         end)
 
@@ -1284,86 +1320,6 @@ defmodule Igniter do
     end
   end
 
-  defp find_formatter_exs_file_options(path, formatter_exs_files, ext) do
-    case Map.fetch(formatter_exs_files, path) do
-      {:ok, source} ->
-        {opts, _} = Rewrite.Source.get(source, :quoted) |> Code.eval_quoted()
-
-        {:ok, opts |> eval_deps() |> filter_plugins(ext)}
-
-      :error ->
-        if path in ["/", "."] do
-          :error
-        else
-          new_path =
-            Path.join(path, "..")
-            |> Path.expand()
-            |> Path.relative_to_cwd()
-
-          find_formatter_exs_file_options(new_path, formatter_exs_files, ext)
-        end
-    end
-  end
-
-  # This can be removed if/when this PR is merged: https://github.com/hrzndhrn/rewrite/pull/34
-  defp eval_deps(formatter_opts) do
-    deps = Keyword.get(formatter_opts, :import_deps, [])
-
-    locals_without_parens = eval_deps_opts(deps)
-
-    formatter_opts =
-      Keyword.update(
-        formatter_opts,
-        :locals_without_parens,
-        locals_without_parens,
-        &(locals_without_parens ++ &1)
-      )
-
-    formatter_opts
-  end
-
-  defp eval_deps_opts([]) do
-    []
-  end
-
-  defp eval_deps_opts(deps) do
-    deps_paths = Mix.Project.deps_paths()
-
-    for dep <- deps,
-        dep_path = fetch_valid_dep_path(dep, deps_paths),
-        !is_nil(dep_path),
-        dep_dot_formatter = Path.join(dep_path, ".formatter.exs"),
-        File.regular?(dep_dot_formatter),
-        dep_opts = eval_file_with_keyword_list(dep_dot_formatter),
-        parenless_call <- dep_opts[:export][:locals_without_parens] || [],
-        uniq: true,
-        do: parenless_call
-  end
-
-  defp fetch_valid_dep_path(dep, deps_paths) when is_atom(dep) do
-    with %{^dep => path} <- deps_paths,
-         true <- File.dir?(path) do
-      path
-    else
-      _ ->
-        nil
-    end
-  end
-
-  defp fetch_valid_dep_path(_dep, _deps_paths) do
-    nil
-  end
-
-  defp eval_file_with_keyword_list(path) do
-    {opts, _} = Code.eval_file(path)
-
-    if !Keyword.keyword?(opts) do
-      raise "Expected #{inspect(path)} to return a keyword list, got: #{inspect(opts)}"
-    end
-
-    opts
-  end
-
   defp apply_func_with_zipper(igniter, path, func) do
     source = Rewrite.source!(igniter.rewrite, path)
     quoted = Rewrite.Source.get(source, :quoted)
@@ -1385,9 +1341,9 @@ defmodule Igniter do
             igniter.rewrite,
             Rewrite.Source.update(
               source,
-              :configure,
               :quoted,
-              Sourceror.Zipper.root(zipper)
+              Sourceror.Zipper.root(zipper),
+              by: :configure
             )
           )
           |> then(&Map.put(igniter, :rewrite, &1))
@@ -1408,19 +1364,6 @@ defmodule Igniter do
     end
   end
 
-  defp filter_plugins(opts, ext) do
-    Keyword.put(opts, :plugins, plugins_for_ext(opts, ext))
-  end
-
-  defp plugins_for_ext(formatter_opts, ext) do
-    formatter_opts
-    |> Keyword.get(:plugins, [])
-    |> Enum.filter(fn plugin ->
-      Code.ensure_loaded?(plugin) and function_exported?(plugin, :features, 1) and
-        ext in List.wrap(plugin.features(formatter_opts)[:extensions])
-    end)
-  end
-
   defp read_ex_source!(igniter, path) do
     read_source!(igniter, path, Rewrite.Source.Ex)
   end
@@ -1428,7 +1371,7 @@ defmodule Igniter do
   defp read_source!(igniter, path, source_handler) do
     if igniter.assigns[:test_mode?] do
       if content = igniter.assigns[:test_files][path] do
-        source_handler.from_string(content, path)
+        source_handler.from_string(content, path: path)
         |> Map.put(:from, :file)
       else
         raise "File #{path} not found in test files."

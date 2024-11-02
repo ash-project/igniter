@@ -173,16 +173,7 @@ defmodule Igniter.Code.Common do
   def expand_literal(zipper) do
     zipper = maybe_move_to_single_child_block(zipper)
 
-    quoted_literal? =
-      case zipper.node do
-        {:__block__, _, _} = value ->
-          !extendable_block?(value)
-
-        node ->
-          Macro.quoted_literal?(node)
-      end
-
-    if quoted_literal? do
+    if quoted_literal?(zipper) do
       {v, _} = Code.eval_quoted(zipper.node)
       {:ok, v}
     else
@@ -468,89 +459,53 @@ defmodule Igniter.Code.Common do
       v
   end
 
-  def replace_code(zipper, code) when is_binary(code) do
+  def replace_code(%Zipper{} = zipper, code) when is_binary(code) do
     replace_code(zipper, Sourceror.parse_string!(code))
   end
 
-  def replace_code(zipper, new_code) do
+  def replace_code(%Zipper{} = zipper, new_code) do
     new_code = use_aliases(new_code, zipper)
 
-    with upwards when not is_nil(upwards) <- Zipper.up(zipper),
-         {:__block__, _, upwards_code} <- upwards.node,
-         true <- extendable_block?(upwards.node) do
-      index = Enum.count(zipper.path.left || [])
+    if extendable_block?(new_code) and in_extendable_block?(zipper) do
+      at_supertree_root? = Zipper.up(zipper) == nil and !!zipper.supertree
+      zipper = if at_supertree_root?, do: supertree(zipper), else: zipper
 
-      to_insert =
-        if extendable_block?(new_code) do
-          {:__block__, _, new_code} = new_code
-          new_code
-        else
-          [new_code]
-        end
+      {:__block__, _, new_code} = new_code
+      {new_code_last, new_code} = List.pop_at(new_code, -1)
 
-      {head, tail} =
-        Enum.split(upwards_code, index)
+      zipper =
+        new_code
+        # We insert to the left and explicitly replace the node with new_code_last
+        # so that the last node retains the metadata of the node we're replacing.
+        # That metadata includes things like the number of trailing newlines.
+        |> Enum.reduce(zipper, &Zipper.insert_left(&2, &1))
+        |> replace_node(new_code_last)
 
-      Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ Enum.drop(tail, 1)})
+      {:ok, zipper} = move_left(zipper, length(new_code))
+
+      if at_supertree_root?, do: Zipper.subtree(zipper), else: zipper
     else
-      _ ->
-        with nil <- Zipper.up(zipper),
-             supertree when not is_nil(supertree) <- zipper.supertree,
-             super_upwards when not is_nil(super_upwards) <- Zipper.up(supertree),
-             true <- extendable_block?(super_upwards.node),
-             {:__block__, _, upwards_code} <- super_upwards.node do
-          index = Enum.count(zipper.supertree.path.left || [])
+      replace_node(zipper, new_code)
+    end
+  end
 
-          to_insert =
-            if extendable_block?(new_code) do
-              {:__block__, _, new_code} = new_code
-              new_code
-            else
-              [new_code]
-            end
+  defp replace_node(zipper, new_code) do
+    new_code =
+      with true <- multi_element_pipe?(zipper),
+           {call, meta, [first_arg | rest]} when call != :|> <- new_code,
+           {:ok, rewritten} <- rewrite_pipe(call, meta, first_arg, rest) do
+        rewritten
+      else
+        _ ->
+          new_code
+      end
 
-          {head, tail} =
-            Enum.split(upwards_code, index)
+    case {zipper.node, new_code} do
+      {{_, meta, _}, {new_call, _, new_children}} ->
+        Zipper.replace(zipper, {new_call, meta, new_children})
 
-          new_super_upwards =
-            Zipper.replace(
-              super_upwards,
-              {:__block__, [], head ++ to_insert ++ tl(tail)}
-            )
-
-          %{
-            zipper
-            | supertree: %{
-                zipper.supertree
-                | path: %{
-                    zipper.supertree.path
-                    | parent: new_super_upwards,
-                      left: zipper.supertree.path.left,
-                      right: tl(to_insert) ++ zipper.supertree.path.right
-                  }
-              },
-              node: List.first(to_insert)
-          }
-        else
-          _ ->
-            new_code =
-              with true <- multi_element_pipe?(zipper),
-                   {call, meta, [first_arg | rest]} when call != :|> <- new_code,
-                   {:ok, rewritten} <- rewrite_pipe(call, meta, first_arg, rest) do
-                rewritten
-              else
-                _ ->
-                  new_code
-              end
-
-            case {zipper.node, new_code} do
-              {{_, meta, _}, {new_call, _, new_children}} ->
-                Zipper.replace(zipper, {new_call, meta, new_children})
-
-              {_node, _new_node} ->
-                Zipper.replace(zipper, new_code)
-            end
-        end
+      {_node, _new_node} ->
+        Zipper.replace(zipper, new_code)
     end
   end
 
@@ -583,6 +538,15 @@ defmodule Igniter.Code.Common do
   end
 
   def extendable_block?(_), do: false
+
+  defp in_extendable_block?(%Zipper{} = zipper) do
+    case Zipper.up(zipper) do
+      %Zipper{} = zipper -> extendable_block?(zipper)
+      nil -> in_extendable_block?(zipper.supertree)
+    end
+  end
+
+  defp in_extendable_block?(nil), do: false
 
   @doc """
   Replaces full module names in `new_code` with any aliases for that
@@ -1191,4 +1155,26 @@ defmodule Igniter.Code.Common do
 
   defp into(%Zipper{path: nil} = zipper, %Zipper{path: path, supertree: supertree}),
     do: %{zipper | path: path, supertree: supertree}
+
+  defp supertree(%Zipper{supertree: supertree} = zipper) when not is_nil(supertree) do
+    zipper
+    |> Zipper.top()
+    |> into(supertree)
+  end
+
+  defp supertree(_), do: nil
+
+  defp quoted_literal?(%Zipper{} = zipper) do
+    quoted_literal?(zipper.node)
+  end
+
+  defp quoted_literal?(node) do
+    node
+    |> Sourceror.to_string()
+    |> Code.string_to_quoted()
+    |> case do
+      {:ok, quoted} -> Macro.quoted_literal?(quoted)
+      _ -> false
+    end
+  end
 end

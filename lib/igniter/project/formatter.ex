@@ -27,7 +27,7 @@ defmodule Igniter.Project.Formatter do
               [import_deps: [unquote(dep)]]
             end
 
-          Common.add_code(zipper, code)
+          {:ok, Common.add_code(zipper, code)}
 
         zipper ->
           zipper
@@ -57,6 +57,52 @@ defmodule Igniter.Project.Formatter do
   end
 
   @doc """
+  Removes an imported dep from the list of imported deps in the root `.formatter.exs`
+  """
+  @spec remove_imported_dep(Igniter.t(), dep :: atom) :: Igniter.t()
+  def remove_imported_dep(igniter, dep) do
+    igniter
+    |> Igniter.include_or_create_file(".formatter.exs", @default_formatter)
+    |> Igniter.update_elixir_file(".formatter.exs", fn zipper ->
+      zipper
+      |> Zipper.down()
+      |> case do
+        nil ->
+          {:ok, zipper}
+
+        zipper ->
+          zipper
+          |> Zipper.rightmost()
+          |> Igniter.Code.Keyword.put_in_keyword([:import_deps], [], fn nested_zipper ->
+            Igniter.Code.List.remove_from_list(
+              nested_zipper,
+              &Igniter.Code.Common.nodes_equal?(&1, dep)
+            )
+          end)
+          |> case do
+            {:ok, zipper} ->
+              zipper
+
+            :error ->
+              {:warning,
+               """
+               Could not remove imported dependency #{inspect(dep)} from `.formatter.exs`.
+
+               Please remove the import manually, i.e replacing
+
+
+                   import_deps: [:foo, #{inspect(dep)}, :bar]
+
+               with
+
+                   import_deps: [:foo, :bar]
+               """}
+          end
+      end
+    end)
+  end
+
+  @doc """
   Adds a new plugin to the list of plugins in the root `.formatter.exs`
   """
   @spec add_formatter_plugin(Igniter.t(), plugin :: module()) :: Igniter.t()
@@ -73,8 +119,7 @@ defmodule Igniter.Project.Formatter do
               [plugins: [unquote(plugin)]]
             end
 
-          zipper
-          |> Common.add_code(code)
+          {:ok, Common.add_code(zipper, code)}
 
         zipper ->
           zipper
@@ -91,16 +136,65 @@ defmodule Igniter.Project.Formatter do
           )
           |> case do
             {:ok, zipper} ->
-              zipper
+              {:ok, zipper}
 
             _ ->
               {:warning,
                """
                Could not add formatter plugin #{inspect(plugin)} into `.formatter.exs`.
 
-               Please add the import manually, i.e
+               Please add the plugin manually, i.e
 
                    plugins: [#{inspect(plugin)}]
+               """}
+          end
+      end
+    end)
+  end
+
+  @doc """
+  REmoves a plugin to the list of plugins in the root `.formatter.exs`
+  """
+  @spec remove_formatter_plugin(Igniter.t(), plugin :: module()) :: Igniter.t()
+  def remove_formatter_plugin(igniter, plugin) do
+    igniter
+    |> Igniter.include_or_create_file(".formatter.exs", @default_formatter)
+    |> Igniter.update_elixir_file(".formatter.exs", fn zipper ->
+      zipper
+      |> Zipper.down()
+      |> case do
+        nil ->
+          {:ok, zipper}
+
+        zipper ->
+          zipper
+          |> Zipper.rightmost()
+          |> Igniter.Code.Keyword.put_in_keyword(
+            [:plugins],
+            [],
+            fn nested_zipper ->
+              Igniter.Code.List.remove_from_list(
+                nested_zipper,
+                &Igniter.Code.Common.nodes_equal?(&1, plugin)
+              )
+            end
+          )
+          |> case do
+            {:ok, zipper} ->
+              zipper
+
+            _ ->
+              {:warning,
+               """
+               Could not remove formatter plugin #{inspect(plugin)} from `.formatter.exs`.
+
+               Please remove the plugin manually, i.e by replacing
+
+                   plugins: [Foo, #{inspect(plugin)}, Bar]
+
+               with
+
+                   plugins: [Foo, Bar]
                """}
           end
       end

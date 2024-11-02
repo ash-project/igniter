@@ -1,7 +1,7 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.3.76"
+  @version "0.4.3"
 
   @description """
   A code generation and project patching framework
@@ -51,6 +51,14 @@ defmodule Igniter.MixProject do
         "documentation/upgrades.md",
         "CHANGELOG.md"
       ],
+      groups_for_modules: [
+        "Writing Mix tasks": [~r"Igniter\.Mix\..*"],
+        "Project modifications": [~r"Igniter\.Refactors\..*", ~r"Igniter\.Project\..*"],
+        "Code modifications": [~r"Igniter\.Code\..*"],
+        Extensions: [Igniter.Extension, ~r"Igniter\.Extensions\..*"],
+        "Library support": [~r"Igniter\.Libs\..*"],
+        Utilities: [~r"Igniter\.Util\..*"]
+      ],
       before_closing_head_tag: fn type ->
         if type == :html do
           """
@@ -79,7 +87,7 @@ defmodule Igniter.MixProject do
         GitHub: "https://github.com/ash-project/igniter",
         Discord: "https://discord.gg/HTHRaaVPUc",
         Website: "https://ash-hq.org",
-        Forum: "https://elixirforum.com/c/elixir-framework-forums/ash-framework-forum"
+        Forum: "https://elixirforum.com/c/ash-framework-forum/"
       }
     ]
   end
@@ -87,7 +95,7 @@ defmodule Igniter.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rewrite, "~> 0.9"},
+      {:rewrite, "~> 1.0"},
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
