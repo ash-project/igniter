@@ -298,7 +298,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
     with task when not is_nil(task) <- Mix.Task.get(task),
          true <- function_exported?(task, :info, 2) do
-      {:ok, task.igniter(igniter, [from, to] ++ igniter.args.argv_flags)}
+      {:ok, Igniter.compose_task(igniter, task, [from, to] ++ igniter.args.argv_flags)}
     else
       _ ->
         {:missing, package}
