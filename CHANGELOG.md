@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.2](https://github.com/ash-project/igniter/compare/v0.4.1...v0.4.2) (2024-11-02)
+
+
+
+
+### Bug Fixes:
+
+* properly compose upgrade tasks
+
+### Improvements:
+
+* update rewrite to 1.0.0 (#135)
+
 ## [v0.4.1](https://github.com/ash-project/igniter/compare/v0.4.0...v0.4.1) (2024-11-01)
 
 ### Bug Fixes:
