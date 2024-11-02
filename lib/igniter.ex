@@ -1124,7 +1124,8 @@ defmodule Igniter do
         end
 
       cond do
-        source.filetype && Rewrite.Source.from?(source, :string) ->
+        Rewrite.Source.from?(source, :string) &&
+            String.valid?(Rewrite.Source.get(source, :content)) ->
           content_lines =
             source
             |> Rewrite.Source.get(:content)
@@ -1155,7 +1156,7 @@ defmodule Igniter do
             ""
           end
 
-        source.filetype ->
+        String.valid?(Rewrite.Source.get(source, :content)) ->
           diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
 
           if String.trim(diff) != "" do
@@ -1168,8 +1169,15 @@ defmodule Igniter do
             ""
           end
 
-        # FIXME: binary files
+        !String.valid?(Rewrite.Source.get(source, :content)) ->
+          """
+          Create: #{Rewrite.Source.get(source, :path)}
+
+          (content diff can't be displayed)
+          """
+
         :else ->
+          dbg(source)
           ""
       end
     end)
@@ -1423,7 +1431,8 @@ defmodule Igniter do
         warnings: Enum.uniq(igniter.warnings),
         tasks: Enum.uniq(igniter.tasks)
     }
-    |> Igniter.Project.Module.move_files()
+    # FIXME
+    # |> Igniter.Project.Module.move_files()
     |> remove_unchanged_files()
     |> then(fn igniter ->
       if needs_test_support? do

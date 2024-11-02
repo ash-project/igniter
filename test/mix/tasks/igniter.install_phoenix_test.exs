@@ -5,6 +5,6 @@ defmodule Mix.Tasks.Igniter.InstallPhoenixTest do
   test "config_inject" do
     test_project()
     |> Igniter.compose_task("igniter.install_phoenix", ["my_app"])
-    |> assert_creates("config/dev.exs")
+    |> assert_creates("lib/my_app_web/components/core_components.ex")
   end
 end

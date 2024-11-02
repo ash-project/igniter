@@ -190,7 +190,7 @@ defmodule Igniter.Project.Config do
   end
 
   @doc false
-  def ensure_default_configs_exist(igniter, file)
+  defp ensure_default_configs_exist(igniter, file)
       when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
     igniter
     |> Igniter.include_or_create_file("config/config.exs", """
@@ -208,7 +208,7 @@ defmodule Igniter.Project.Config do
     """)
   end
 
-  def ensure_default_configs_exist(igniter, _), do: igniter
+  defp ensure_default_configs_exist(igniter, _), do: igniter
 
   defp ensure_config_evaluates_env(igniter) do
     Igniter.update_elixir_file(igniter, "config/config.exs", fn zipper ->

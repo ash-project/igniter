@@ -27,11 +27,10 @@ defmodule Mix.Tasks.Igniter.InstallPhoenix do
     }
   end
 
-  def igniter(igniter, argv) do
+  def igniter(igniter) do
     # TODO: check elixir version - https://github.com/phoenixframework/phoenix/blob/7586cbee9e37afbe0b3cdbd560b9e6aa60d32bf6/installer/lib/mix/tasks/phx.new.ex#L380
 
-    {%{base_path: base_path}, argv} = positional_args!(argv)
-    _options = options!(argv)
+    %{base_path: base_path} = igniter.args.positional
 
     # TODO: umbrella
     generate(igniter, base_path, {Phx.New.Single, Igniter.Phoenix.Single}, :base_path)
