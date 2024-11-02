@@ -1063,48 +1063,54 @@ defmodule Igniter do
           source -> source
         end
 
-      if Rewrite.Source.from?(source, :string) do
-        content_lines =
-          source
-          |> Rewrite.Source.get(:content)
-          |> String.split("\n")
-          |> Enum.with_index()
+      cond do
+        source.filetype && Rewrite.Source.from?(source, :string) ->
+          content_lines =
+            source
+            |> Rewrite.Source.get(:content)
+            |> String.split("\n")
+            |> Enum.with_index()
 
-        space_padding =
-          content_lines
-          |> Enum.map(&elem(&1, 1))
-          |> Enum.max()
-          |> to_string()
-          |> String.length()
+          space_padding =
+            content_lines
+            |> Enum.map(&elem(&1, 1))
+            |> Enum.max()
+            |> to_string()
+            |> String.length()
 
-        diffish_looking_text =
-          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-            line_number = line_number_minus_one + 1
+          diffish_looking_text =
+            Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+              line_number = line_number_minus_one + 1
 
-            "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}| #{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
-          end)
+              "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}| #{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
+            end)
 
-        if String.trim(diffish_looking_text) != "" do
-          """
-          Create: #{Rewrite.Source.get(source, :path)}
+          if String.trim(diffish_looking_text) != "" do
+            """
+            Create: #{Rewrite.Source.get(source, :path)}
 
-          #{diffish_looking_text}
-          """
-        else
+            #{diffish_looking_text}
+            """
+          else
+            ""
+          end
+
+        source.filetype ->
+          diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
+
+          if String.trim(diff) != "" do
+            """
+            Update: #{Rewrite.Source.get(source, :path)}
+
+            #{diff}
+            """
+          else
+            ""
+          end
+
+        # FIXME: binary files
+        :else ->
           ""
-        end
-      else
-        diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
-
-        if String.trim(diff) != "" do
-          """
-          Update: #{Rewrite.Source.get(source, :path)}
-
-          #{diff}
-          """
-        else
-          ""
-        end
       end
     end)
   end
@@ -1177,7 +1183,8 @@ defmodule Igniter do
         Rewrite.map!(rewrite, fn source ->
           path = source |> Rewrite.Source.get(:path)
 
-          if is_nil(adding_paths) || path in List.wrap(adding_paths) do
+          if source_handler(path) == Rewrite.Source.Ex &&
+               (is_nil(adding_paths) || path in List.wrap(adding_paths)) do
             dir = Path.dirname(path)
 
             opts =
