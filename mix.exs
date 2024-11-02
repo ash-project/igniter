@@ -87,7 +87,7 @@ defmodule Igniter.MixProject do
         GitHub: "https://github.com/ash-project/igniter",
         Discord: "https://discord.gg/HTHRaaVPUc",
         Website: "https://ash-hq.org",
-        Forum: "https://elixirforum.com/c/elixir-framework-forums/ash-framework-forum"
+        Forum: "https://elixirforum.com/c/ash-framework-forum/"
       }
     ]
   end
