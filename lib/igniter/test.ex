@@ -34,7 +34,14 @@ defmodule Igniter.Test do
   def test_project(opts \\ []) do
     Igniter.new()
     |> Igniter.assign(:test_mode?, true)
-    |> Igniter.assign(:test_files, add_mix_new(opts))
+    |> Igniter.assign(
+      :test_files,
+      add_mix_new(opts)
+    )
+    # need them all back in the igniter
+    |> Igniter.include_glob("**/.formatter.exs")
+    |> Igniter.include_glob(".formatter.exs")
+    |> Igniter.include_glob("**/*.*")
     |> Igniter.Project.IgniterConfig.setup()
     |> apply_igniter!()
   end
@@ -324,7 +331,13 @@ defmodule Igniter.Test do
     end)
     |> then(fn test_files ->
       igniter
-      |> Map.put(:rewrite, Rewrite.new())
+      |> Map.put(
+        :rewrite,
+        Rewrite.new(
+          hooks: [Rewrite.Hook.DotFormatterUpdater],
+          dot_formatter: igniter.rewrite.dot_formatter
+        )
+      )
       |> Map.put(:tasks, [])
       |> Map.put(:warnings, [])
       |> Map.put(:notices, [])
@@ -334,6 +347,10 @@ defmodule Igniter.Test do
         test_files: test_files,
         igniter_exs: igniter.assigns[:igniter_exs]
       })
+      # need them all back in the igniter
+      |> Igniter.include_glob("**/.formatter.exs")
+      |> Igniter.include_glob(".formatter.exs")
+      |> Igniter.include_glob("**/*.*")
     end)
   end
 

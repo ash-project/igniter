@@ -14,8 +14,8 @@ defmodule Igniter.Mix.Task do
   from `c:info/2`. See `Igniter.Mix.Task.Info` for more.
   """
 
-  alias Igniter.Mix.Task.Info
   alias Igniter.Mix.Task.Args
+  alias Igniter.Mix.Task.Info
 
   require Logger
 

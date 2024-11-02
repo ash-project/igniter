@@ -64,7 +64,7 @@ mix igniter.new app_name --install ash
 Or if you want to use a different project creator, specify the mix task name with the `--with` flag. Any arguments will be passed through to that task, with the exception of `--install` and `--example`.
 
 ```
-mix igniter.new app_name --install ash --with phx.new --no-ecto
+mix igniter.new app_name --install ash --with phx.new --with-args="--no-ecto"
 ```
 
 ## Patterns

@@ -130,7 +130,7 @@ defmodule Igniter.Code.ModuleTest do
         """)
         |> Igniter.create_new_file("test.txt", "Foo")
 
-      assert {_igniter, [Foo, Test, TestTest]} =
+      assert {_igniter, [Foo, Test, Test.MixProject, TestTest]} =
                Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, _zipper ->
                  true
                end)

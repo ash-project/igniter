@@ -206,7 +206,10 @@ defmodule Igniter.Project.Module do
                   |> Zipper.node()
 
                 new_source = Rewrite.Source.update(source, :quoted, new_quoted)
-                {:ok, %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}}
+
+                {:ok,
+                 %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
+                 |> Igniter.format([source.path])}
 
               {:error, error} ->
                 {:ok, Igniter.add_issue(igniter, error)}

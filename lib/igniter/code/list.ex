@@ -92,17 +92,27 @@ defmodule Igniter.Code.List do
       Common.within(zipper, fn zipper ->
         zipper
         |> Zipper.down()
-        |> Common.move_right(predicate)
         |> case do
-          :error ->
-            :error
+          nil ->
+            {:ok, zipper}
 
-          {:ok, zipper} ->
-            {:ok, Zipper.remove(zipper)}
+          zipper ->
+            zipper
+            |> Common.move_right(predicate)
+            |> case do
+              :error ->
+                :error
+
+              {:ok, zipper} ->
+                {:ok, Zipper.remove(zipper)}
+            end
         end
       end)
       |> case do
         :error ->
+          {:ok, zipper}
+
+        {:ok, ^zipper} ->
           {:ok, zipper}
 
         {:ok, zipper} ->

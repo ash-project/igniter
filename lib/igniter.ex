@@ -169,20 +169,32 @@ defmodule Igniter do
   def include_glob(igniter, glob) do
     glob =
       case glob do
-        %{__struct__: GlobEx} = glob -> glob
-        string -> GlobEx.compile!(Path.expand(string))
+        %{__struct__: GlobEx} = glob ->
+          if Path.type(glob.source) == :relative do
+            GlobEx.compile!(Path.expand(glob.source))
+          else
+            glob
+          end
+
+        string ->
+          GlobEx.compile!(Path.expand(string))
       end
 
     if igniter.assigns[:test_mode?] do
       igniter.assigns[:test_files]
       |> Map.keys()
-      |> Enum.filter(&GlobEx.match?(glob, Path.expand(&1)))
+      |> Enum.filter(fn key ->
+        expanded = Path.expand(key)
+        glob.source == expanded || GlobEx.match?(glob, expanded)
+      end)
       |> Enum.map(&Path.relative_to_cwd/1)
       |> Enum.reject(fn path ->
         Rewrite.has_source?(igniter.rewrite, path)
       end)
       |> Enum.map(fn path ->
-        read_ex_source!(igniter, path)
+        source_handler = source_handler(path)
+
+        read_source!(igniter, path, source_handler)
       end)
       |> Enum.reduce(igniter, fn source, igniter ->
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -1177,7 +1189,8 @@ defmodule Igniter do
     """)
   end
 
-  defp format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
+  @doc false
+  def format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
     igniter =
       igniter
       |> include_existing_elixir_file("config/config.exs", require?: false)
@@ -1206,32 +1219,35 @@ defmodule Igniter do
       dot_formatter = Rewrite.dot_formatter(rewrite)
 
       rewrite =
-        Rewrite.map!(rewrite, fn source ->
+        Enum.reduce(rewrite, rewrite, fn source, rewrite ->
           path = source |> Rewrite.Source.get(:path)
 
           if is_nil(adding_paths) || path in List.wrap(adding_paths) do
-            try do
-              formatted =
-                with_evaled_configs(rewrite, fn ->
-                  source
-                  |> Rewrite.Source.format!(dot_formatter: dot_formatter)
-                  |> Rewrite.Source.get(:content)
-                end)
+            source =
+              try do
+                formatted =
+                  with_evaled_configs(rewrite, fn ->
+                    source
+                    |> Rewrite.Source.format!(dot_formatter: dot_formatter)
+                    |> Rewrite.Source.get(:content)
+                  end)
 
-              Rewrite.Source.update(source, :content, formatted)
-            rescue
-              e ->
-                Rewrite.Source.add_issue(source, """
-                Igniter would have produced invalid syntax.
+                Rewrite.Source.update(source, :content, formatted)
+              rescue
+                e ->
+                  Rewrite.Source.add_issue(source, """
+                  Igniter would have produced invalid syntax.
 
-                This is almost certainly a bug in Igniter, or in the implementation
-                of the task/function you are using.
+                  This is almost certainly a bug in Igniter, or in the implementation
+                  of the task/function you are using.
 
-                #{Exception.format(:error, e, __STACKTRACE__)}
-                """)
-            end
+                  #{Exception.format(:error, e, __STACKTRACE__)}
+                  """)
+              end
+
+            Rewrite.update!(rewrite, source)
           else
-            source
+            rewrite
           end
         end)
 
