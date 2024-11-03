@@ -191,7 +191,7 @@ defmodule Igniter.Project.Config do
 
   @doc false
   defp ensure_default_configs_exist(igniter, file)
-      when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
+       when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
     igniter
     |> Igniter.include_or_create_file("config/config.exs", """
     import Config
