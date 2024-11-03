@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.4](https://github.com/ash-project/igniter/compare/v0.4.3...v0.4.4) (2024-11-03)
+
+
+
+
+### Improvements:
+
+* support replace_or_append instruction when modifying task aliases
+
 ## [v0.4.3](https://github.com/ash-project/igniter/compare/v0.4.2...v0.4.3) (2024-11-02)
 
 
