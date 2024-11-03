@@ -297,7 +297,7 @@ defmodule Igniter.Libs.Phoenix do
               :error ->
                 {:warning,
                  Igniter.Util.Warning.formatted_warning(
-                   "Could not add the #{name} pipline to your router. Please add it manually.",
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
                    pipeline_code
                  )}
             end
@@ -310,7 +310,7 @@ defmodule Igniter.Libs.Phoenix do
               :error ->
                 {:warning,
                  Igniter.Util.Warning.formatted_warning(
-                   "Could not add the #{name} pipline to your router. Please add it manually.",
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
                    pipeline_code
                  )}
             end
@@ -320,7 +320,7 @@ defmodule Igniter.Libs.Phoenix do
       Igniter.add_warning(
         igniter,
         Igniter.Util.Warning.formatted_warning(
-          "Could not append the following contents to the #{name} pipline to your router. Please add it manually.",
+          "Could not append the following contents to the #{name} pipeline to your router. Please add it manually.",
           contents
         )
       )
@@ -381,7 +381,7 @@ defmodule Igniter.Libs.Phoenix do
               :error ->
                 {:warning,
                  Igniter.Util.Warning.formatted_warning(
-                   "Could not add the #{name} pipline to your router. Please add it manually.",
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
                    pipeline_code
                  )}
             end
@@ -391,7 +391,7 @@ defmodule Igniter.Libs.Phoenix do
       Igniter.add_warning(
         igniter,
         Igniter.Util.Warning.formatted_warning(
-          "Could not add the #{name} pipline to your router. Please add it manually.",
+          "Could not add the #{name} pipeline to your router. Please add it manually.",
           pipeline_code
         )
       )
