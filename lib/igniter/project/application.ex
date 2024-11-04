@@ -78,6 +78,14 @@ defmodule Igniter.Project.Application do
     end
   end
 
+  @doc "Returns the path of the application's priv directory."
+  @spec priv_dir(Igniter.t(), [String.t()]) :: String.t()
+  def priv_dir(igniter, subpath \\ []) do
+    igniter
+    |> app_name()
+    |> Application.app_dir(["priv"] ++ subpath)
+  end
+
   @doc "Returns the name of the application module."
   def app_module(igniter) do
     zipper =

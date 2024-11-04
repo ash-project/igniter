@@ -379,4 +379,51 @@ defmodule Igniter.Project.ApplicationTest do
       assert is_nil(Igniter.Project.Application.app_module(igniter))
     end
   end
+
+  describe "priv_dir/1" do
+    test "it returns the path of the application's priv directory as string" do
+      igniter = Igniter.new()
+
+      assert String.ends_with?(
+               Igniter.Project.Application.priv_dir(igniter),
+               "_build/test/lib/igniter/priv"
+             )
+    end
+
+    test "it returns the path of the application's priv directory and subpath string" do
+      igniter = Igniter.new()
+
+      assert String.ends_with?(
+               Igniter.Project.Application.priv_dir(igniter, ["test1", ["test2"]]),
+               "_build/test/lib/igniter/priv/test1/test2"
+             )
+    end
+
+    test "it raises if the application name can't be resolved as Application priv_dir" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: @app
+                ]
+              end
+
+              @app :igniter_test
+            end
+            """
+          }
+        )
+
+      assert_raise RuntimeError, fn -> Igniter.Project.Application.priv_dir(igniter) end
+
+      assert_raise RuntimeError, fn ->
+        Igniter.Project.Application.priv_dir(igniter, ["test1", ["test2"]])
+      end
+    end
+  end
 end
