@@ -106,7 +106,7 @@ defmodule Igniter do
       rewrite:
         Rewrite.new(
           hooks: [Igniter.Rewrite.DotFormatterUpdater],
-          dot_formatter: Rewrite.DotFormatter.read!(ignore_unknown_deps: true)
+          dot_formatter: Rewrite.DotFormatter.read!(nil, ignore_unknown_deps: true)
         )
     }
     |> include_existing_elixir_file(".igniter.exs", required?: false)
