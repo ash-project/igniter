@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.5](https://github.com/ash-project/igniter/compare/v0.4.4...v0.4.5) (2024-11-04)
+
+
+
+
+### Bug Fixes:
+
+* skip unknown deps in dot formatter
+
 ## [v0.4.4](https://github.com/ash-project/igniter/compare/v0.4.3...v0.4.4) (2024-11-03)
 
 
