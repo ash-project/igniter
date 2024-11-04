@@ -334,7 +334,7 @@ defmodule Igniter.Test do
       |> Map.put(
         :rewrite,
         Rewrite.new(
-          hooks: [Rewrite.Hook.DotFormatterUpdater],
+          hooks: [Igniter.Rewrite.DotFormatterUpdater],
           dot_formatter: igniter.rewrite.dot_formatter
         )
       )

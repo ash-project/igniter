@@ -102,7 +102,13 @@ defmodule Igniter do
   @doc "Returns a new igniter"
   @spec new() :: t()
   def new do
-    %__MODULE__{rewrite: Rewrite.new(hooks: [Rewrite.Hook.DotFormatterUpdater])}
+    %__MODULE__{
+      rewrite:
+        Rewrite.new(
+          hooks: [Igniter.Rewrite.DotFormatterUpdater],
+          dot_formatter: Rewrite.DotFormatter.read!(ignore_unknown_deps: true)
+        )
+    }
     |> include_existing_elixir_file(".igniter.exs", required?: false)
     |> parse_igniter_config()
   end
