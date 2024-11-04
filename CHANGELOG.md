@@ -22,6 +22,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 ### Improvements:
 
 * support replace_or_append instruction when modifying task aliases
+* Add `priv_dir` functions to return priv directory (#141)
 
 ## [v0.4.3](https://github.com/ash-project/igniter/compare/v0.4.2...v0.4.3) (2024-11-02)
 
