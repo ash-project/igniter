@@ -268,8 +268,9 @@ defmodule Igniter do
           try do
             Rewrite.update!(
               igniter.rewrite,
-              Rewrite.Source.update(
+              update_source(
                 source,
+                igniter,
                 :quoted,
                 Sourceror.Zipper.topmost_root(zipper),
                 by: :configure
@@ -563,7 +564,7 @@ defmodule Igniter do
           _ ->
             ""
             |> Rewrite.Source.Ex.from_string(path: path)
-            |> Rewrite.Source.update(:content, contents, by: :file_creator)
+            |> update_source(igniter, :content, contents, by: :file_creator)
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -586,7 +587,7 @@ defmodule Igniter do
             {true,
              ""
              |> Rewrite.Source.Ex.from_string(path)
-             |> Rewrite.Source.update(:file_creator, :content, contents)}
+             |> update_source(igniter, :content, contents, by: :file_creator)}
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -617,7 +618,7 @@ defmodule Igniter do
             {true,
              ""
              |> source_handler.from_string(path)
-             |> Rewrite.Source.update(:file_creator, :content, contents)}
+             |> update_source(igniter, :content, contents, by: :file_creator)}
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -679,8 +680,7 @@ defmodule Igniter do
       try do
         source = read_source!(igniter, path, source_handler)
 
-        source =
-          Rewrite.Source.update(source, :content, contents)
+        source = update_source(source, igniter, :content, contents)
 
         {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
       rescue
@@ -691,7 +691,7 @@ defmodule Igniter do
           source =
             ""
             |> source_handler.from_string(path: path)
-            |> Rewrite.Source.update(:content, contents, by: :file_creator)
+            |> update_source(igniter, :content, contents, by: :file_creator)
 
           if has_source? do
             {already_exists(igniter, path, Keyword.get(opts, :on_exists, :error)), source}
@@ -782,7 +782,7 @@ defmodule Igniter do
           |> Zipper.topmost()
           |> Zipper.node()
 
-        source = Rewrite.Source.update(source, :quoted, quoted_with_only_deps_change)
+        source = update_source(source, igniter, :quoted, quoted_with_only_deps_change)
         rewrite = Rewrite.update!(igniter.rewrite, source)
 
         if opts[:force?] || changed?(source) do
@@ -804,7 +804,7 @@ defmodule Igniter do
               end
 
             source = Rewrite.source!(rewrite, "mix.exs")
-            source = Rewrite.Source.update(source, :quoted, quoted)
+            source = update_source(source, igniter, :quoted, quoted)
 
             igniter =
               %{igniter | rewrite: Rewrite.update!(rewrite, source)}
@@ -1238,7 +1238,7 @@ defmodule Igniter do
                     |> Rewrite.Source.get(:content)
                   end)
 
-                Rewrite.Source.update(source, :content, formatted)
+                update_source(source, igniter, :content, formatted)
               rescue
                 e ->
                   Rewrite.Source.add_issue(source, """
@@ -1339,8 +1339,9 @@ defmodule Igniter do
         try do
           Rewrite.update!(
             igniter.rewrite,
-            Rewrite.Source.update(
+            update_source(
               source,
+              igniter,
               :quoted,
               Sourceror.Zipper.root(zipper),
               by: :configure
@@ -1495,6 +1496,12 @@ defmodule Igniter do
     diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
 
     String.trim(diff) != ""
+  end
+
+  @doc false
+  def update_source(%Rewrite.Source{} = source, %Igniter{} = igniter, key, value, opts \\ []) do
+    opts = Keyword.put_new(opts, :dot_formatter, Rewrite.dot_formatter(igniter.rewrite))
+    Rewrite.Source.update(source, key, value, opts)
   end
 
   defp display_warnings(%{warnings: []}, _title), do: :ok
