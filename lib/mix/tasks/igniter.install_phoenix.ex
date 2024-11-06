@@ -138,7 +138,7 @@ defmodule Mix.Tasks.Igniter.InstallPhoenix do
     |> igniter_generator.generate(project)
   end
 
-  defp validate_project(%Phx.New.Project{opts: opts} = project) do
+  defp validate_project(%{opts: opts} = project) do
     check_app_name!(project.app, !!opts[:app])
     check_module_name_validity!(project.root_mod)
 
