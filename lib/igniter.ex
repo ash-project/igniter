@@ -1438,8 +1438,7 @@ defmodule Igniter do
         warnings: Enum.uniq(igniter.warnings),
         tasks: Enum.uniq(igniter.tasks)
     }
-    # FIXME
-    # |> Igniter.Project.Module.move_files()
+    |> Igniter.Project.Module.move_files()
     |> remove_unchanged_files()
     |> then(fn igniter ->
       if needs_test_support? do

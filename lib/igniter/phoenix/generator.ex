@@ -10,7 +10,6 @@ defmodule Igniter.Phoenix.Generator do
       for {format, _project_location, files} <- mapping,
           {source, target_path} <- files,
           source = to_string(source) do
-        # target = Phx.New.Project.join_path(project, project_location, target_path)
         target = expand_path_with_bindings(target_path, project)
         {format, source, target}
       end
