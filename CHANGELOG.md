@@ -5,10 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.6](https://github.com/ash-project/igniter/compare/v0.4.5...v0.4.6) (2024-11-06)
+
+### Bug Fixes:
+
+* suppress module conflict warning when running upgrade_igniter
+
+* pass dot_formatter when updating rewrite sources (#144)
+
+* skip unknown deps in dot formatter
+
+### Improvements:
+
+* Add `priv_dir` functions to return priv directory (#141)
+
 ## [v0.4.5](https://github.com/ash-project/igniter/compare/v0.4.4...v0.4.5) (2024-11-04)
-
-
-
 
 ### Bug Fixes:
 
@@ -16,18 +27,12 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ## [v0.4.4](https://github.com/ash-project/igniter/compare/v0.4.3...v0.4.4) (2024-11-03)
 
-
-
-
 ### Improvements:
 
 * support replace_or_append instruction when modifying task aliases
 * Add `priv_dir` functions to return priv directory (#141)
 
 ## [v0.4.3](https://github.com/ash-project/igniter/compare/v0.4.2...v0.4.3) (2024-11-02)
-
-
-
 
 ### Bug Fixes:
 
@@ -38,9 +43,6 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 * Tools for removing formatter plugins & imported deps
 
 ## [v0.4.2](https://github.com/ash-project/igniter/compare/v0.4.1...v0.4.2) (2024-11-02)
-
-
-
 
 ### Bug Fixes:
 
