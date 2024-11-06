@@ -76,10 +76,20 @@ defmodule Mix.Tasks.Igniter.UpgradeIgniter do
   end
 
   defp igniter2_to_igniter1(igniter, _opts) do
-    Igniter.Mix.Task.module_info()[:compile][:source] |> List.to_string() |> Code.compile_file()
+    ignore_module_conflict(fn ->
+      Igniter.Mix.Task.module_info()[:compile][:source] |> List.to_string() |> Code.compile_file()
+    end)
 
     Igniter.update_all_elixir_files(igniter, fn zipper ->
       Igniter.Upgrades.Igniter.rewrite_deprecated_igniter_callback(zipper)
     end)
+  end
+
+  defp ignore_module_conflict(fun) when is_function(fun, 0) do
+    original_compiler_opts = Code.compiler_options()
+    Code.put_compiler_option(:ignore_module_conflict, true)
+    result = fun.()
+    Code.compiler_options(original_compiler_opts)
+    result
   end
 end
