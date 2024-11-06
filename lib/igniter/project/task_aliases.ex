@@ -7,17 +7,19 @@ defmodule Igniter.Project.TaskAliases do
   # Options
 
   - `:if_exists` - How to alter the alias if it already exists. Options are:
-    - `:ignore` - Do nothing if the alias already exists. This is the default.
-    - `:prepend` - Add the new alias to the beginning of the list.
-    - `{:prepend, value}` - Add a different value than the originally supplied alias to the beginning of the list.
-    - `:append` - Add the new alias to the end of the list.
-    - `{:append, value}` - Add a different value than the originally supplied alias to the end of the list.
-    - `:warn` - Print a warning if the alias already exists.
+  - `:ignore` - Do nothing if the alias already exists. This is the default.
+  - `:prepend` - Add the new alias to the beginning of the list (if it is not already present).
+  - `{:prepend, value}` - Add a different value than the originally supplied alias to the beginning of the list (if it is not already present).
+  - `{:replace_or_append, old, new}` - If the old value is in the list, it is replaced with the new value. Otherwise the new value is appended (if it is not already present).
+  - `:append` - Add the new alias to the end of the list (if it is not already present).
+  - `{:append, value}` - Add a different value than the originally supplied alias to the end of the list (if it is not already present).
+  - `:warn` - Print a warning if the alias already exists.
   """
+
   @spec add_alias(
           Igniter.t(),
           atom() | String.t(),
-          String.t() | list(String.t()),
+          String.t() | {:code, term()} | list(String.t() | {:code, term()}),
           opts :: Keyword.t()
         ) :: Igniter.t()
   def add_alias(igniter, name, value, opts \\ []) do
@@ -40,6 +42,27 @@ defmodule Igniter.Project.TaskAliases do
       case go_to_aliases(zipper) do
         {:ok, zipper} ->
           case alter do
+            {:replace_or_append, old, new} ->
+              case Igniter.Code.Keyword.set_keyword_key(
+                     zipper,
+                     name,
+                     value,
+                     &replace_or_append(&1, old, new, value)
+                   ) do
+                {:ok, zipper} ->
+                  {:ok, zipper}
+
+                :error ->
+                  {:warning,
+                   """
+                   Could not modify mix task aliases. Attempted to alias `#{name}` to:
+
+                       #{Sourceror.to_string(value)}
+
+                   Please manually modify your `mix.exs` file accordingly.
+                   """}
+              end
+
             {prepend_or_append, add_value} when prepend_or_append in [:prepend, :append] ->
               case Igniter.Code.Keyword.set_keyword_key(
                      zipper,
@@ -175,6 +198,23 @@ defmodule Igniter.Project.TaskAliases do
       end
 
     Igniter.Code.List.prepend_new_to_list(zipper, value)
+  end
+
+  defp replace_or_append(zipper, old, new, value) do
+    zipper =
+      if Igniter.Code.List.list?(zipper) do
+        zipper
+      else
+        Igniter.Code.Common.replace_code(zipper, [zipper.node])
+      end
+
+    case Igniter.Code.List.move_to_list_item(zipper, &Igniter.Code.Common.nodes_equal?(&1, old)) do
+      {:ok, zipper} ->
+        {:ok, Igniter.Code.Common.replace_code(zipper, new)}
+
+      _ ->
+        Igniter.Code.List.append_new_to_list(zipper, value)
+    end
   end
 
   defp go_to_aliases(zipper) do

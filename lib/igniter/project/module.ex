@@ -205,7 +205,7 @@ defmodule Igniter.Project.Module do
                   |> Zipper.topmost()
                   |> Zipper.node()
 
-                new_source = Rewrite.Source.update(source, :quoted, new_quoted)
+                new_source = Igniter.update_source(source, igniter, :quoted, new_quoted)
 
                 {:ok,
                  %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}

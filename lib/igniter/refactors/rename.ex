@@ -189,7 +189,7 @@ defmodule Igniter.Refactors.Rename do
   end
 
   defp write_source(igniter, source, zipper) do
-    new_source = Rewrite.Source.update(source, :quoted, Zipper.topmost_root(zipper))
+    new_source = Igniter.update_source(source, igniter, :quoted, Zipper.topmost_root(zipper))
     %{igniter | rewrite: Rewrite.update!(igniter.rewrite, new_source)}
   end
 
