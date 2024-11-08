@@ -996,7 +996,7 @@ defmodule Igniter do
                   igniter
                   |> Map.put(:rewrite, rewrite)
                   |> Igniter.add_issue(error)
-                  |> igniter_issues()
+                  |> display_issues()
 
                   :issues
               end
@@ -1009,7 +1009,7 @@ defmodule Igniter do
         end
 
       igniter ->
-        igniter_issues(igniter)
+        display_issues(igniter)
         :issues
     end
   end
@@ -1027,7 +1027,7 @@ defmodule Igniter do
 
       !Enum.empty?(igniter.issues) ->
         Mix.shell().error("Errors would have been emitted and the --check flag was specified.")
-        igniter_issues(igniter)
+        display_issues(igniter)
 
         System.halt(3)
 
@@ -1134,20 +1134,29 @@ defmodule Igniter do
           source
           |> Rewrite.Source.get(:content)
           |> String.split("\n")
-          |> Enum.with_index()
 
         space_padding =
           content_lines
-          |> Enum.map(&elem(&1, 1))
-          |> Enum.max()
+          |> length()
           |> to_string()
           |> String.length()
 
         diffish_looking_text =
-          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-            line_number = line_number_minus_one + 1
-
-            "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}|#{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
+          content_lines
+          |> Enum.with_index(1)
+          |> Enum.map_join(fn {line, line_number} ->
+            IO.ANSI.format(
+              [
+                String.pad_trailing(to_string(line_number), space_padding),
+                " ",
+                :yellow,
+                "|",
+                :green,
+                line,
+                "\n"
+              ],
+              color?
+            )
           end)
 
         if String.trim(diffish_looking_text) != "" do
@@ -1156,7 +1165,6 @@ defmodule Igniter do
           Create: #{Rewrite.Source.get(source, :path)}
 
           #{diffish_looking_text}
-
           """
         else
           ""
@@ -1176,26 +1184,6 @@ defmodule Igniter do
         end
       end
     end)
-  end
-
-  defp color(color, true), do: color
-  defp color(_, _), do: ""
-
-  defp igniter_issues(igniter) do
-    issues =
-      Enum.map_join(igniter.issues, "\n", fn error ->
-        if is_binary(error) do
-          "* #{IO.ANSI.red()}#{error}#{IO.ANSI.reset()}"
-        else
-          "* #{IO.ANSI.red()}#{Exception.format(:error, error)}#{IO.ANSI.red()}"
-        end
-      end)
-
-    Mix.shell().info("""
-    Issues during code generation
-
-    #{issues}
-    """)
   end
 
   @doc false
@@ -1507,67 +1495,81 @@ defmodule Igniter do
     Rewrite.Source.update(source, key, value, opts)
   end
 
-  defp display_warnings(%{warnings: []}, _title), do: :ok
-
-  defp display_warnings(%{warnings: warnings}, title) do
-    Mix.shell().info("\n#{title} - #{IO.ANSI.yellow()}Warnings:#{IO.ANSI.reset()}\n")
-
-    warnings =
-      warnings
-      |> Enum.map_join("\n\n", fn error ->
-        if is_binary(error) do
-          "* #{IO.ANSI.yellow()}#{error}#{IO.ANSI.reset()}"
-        else
-          "* #{IO.ANSI.yellow()}#{Exception.format(:error, error)}#{IO.ANSI.reset()}"
-        end
-      end)
-
-    Mix.shell().info(warnings <> "\n\n")
-  end
-
-  defp display_notices(igniter) do
-    case igniter.notices do
-      [] ->
-        :ok
-
-      notices ->
-        notices =
-          Enum.map_join(notices, "\n\n", fn notice ->
-            "#{IO.ANSI.green()}#{notice}#{IO.ANSI.reset()}"
-          end)
-
-        Mix.shell().info("\n" <> notices)
-    end
-  end
-
-  defp display_moves(%{moves: moves}) when moves == %{}, do: :ok
-
-  defp display_moves(%{moves: moves}) do
-    Mix.shell().info("The following files will be moved:")
-
-    Enum.each(moves, fn {from, to} ->
-      Mix.shell().info(
-        "#{IO.ANSI.red()}#{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
-      )
+  @doc false
+  def display_issues(igniter) do
+    igniter.issues
+    |> Enum.reverse()
+    |> Enum.map(fn error ->
+      ["* ", :red, format_error(error)]
     end)
+    |> display_list([:red, "Issues:"])
   end
 
-  defp display_tasks(igniter, result_of_dry_run, opts) do
-    if igniter.tasks != [] && !opts[:yes] do
-      message =
+  @doc false
+  def display_warnings(igniter, title) do
+    igniter.warnings
+    |> Enum.reverse()
+    |> Enum.map(fn error ->
+      ["* ", :yellow, format_error(error)]
+    end)
+    |> display_list([title, " - ", :yellow, "Warnings:"])
+  end
+
+  @doc false
+  def display_notices(igniter) do
+    igniter.notices
+    |> Enum.reverse()
+    |> Enum.map(fn notice ->
+      [:green, "Notice: ", :reset, notice]
+    end)
+    |> display_list()
+  end
+
+  @doc false
+  def display_moves(igniter) do
+    igniter.moves
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.map(fn {from, to} ->
+      [:red, from, :reset, ": ", :green, to]
+    end)
+    |> display_list("These files will be moved:")
+  end
+
+  @doc false
+  def display_tasks(igniter, result_of_dry_run, opts) do
+    if !opts[:yes] do
+      title =
         if result_of_dry_run == :dry_run_with_no_changes do
-          "The following tasks will be run"
+          "These tasks will be run:"
         else
-          "The following tasks will be run after the above changes:"
+          "These tasks will be run after the above changes:"
         end
 
-      Mix.shell().info("""
-      #{message}
-
-      #{Enum.map_join(igniter.tasks, "\n", fn {task, args} -> "* #{IO.ANSI.red()}#{task}#{IO.ANSI.yellow()} #{Enum.join(args, " ")}#{IO.ANSI.reset()}" end)}
-      """)
+      igniter.tasks
+      |> Enum.map(fn {task, args} ->
+        ["* ", :red, task, " ", :yellow, Enum.intersperse(args, " ")]
+      end)
+      |> display_list(title)
     end
   end
+
+  @spec display_list(IO.ANSI.ansidata(), IO.ANSI.ansidata()) :: :ok
+  defp display_list(list, title \\ nil)
+
+  defp display_list([], _title), do: :ok
+
+  defp display_list(list, title) do
+    title = if title, do: [IO.ANSI.format(title), "\n\n"], else: []
+    formatted_list = Enum.map_join(list, "\n", &IO.ANSI.format/1)
+
+    Mix.shell().info(["\n", title, formatted_list, "\n"])
+  end
+
+  defp format_error(%{__exception__: true} = exception) do
+    Exception.format(:error, exception)
+  end
+
+  defp format_error(error) when is_binary(error), do: error
 
   defp check_git_status do
     case System.cmd("git", ["status", "-s", "--porcelain"], stderr_to_stdout: true) do
