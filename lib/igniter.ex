@@ -1122,7 +1122,7 @@ defmodule Igniter do
   def diff(sources, opts \\ []) do
     color? = Keyword.get(opts, :color?, true)
 
-    Enum.map_join(sources, "\n", fn source ->
+    Enum.map_join(sources, fn source ->
       source =
         case source do
           {_, source} -> source
@@ -1147,14 +1147,16 @@ defmodule Igniter do
           Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
             line_number = line_number_minus_one + 1
 
-            "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}| #{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
+            "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}|#{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
           end)
 
         if String.trim(diffish_looking_text) != "" do
           """
+
           Create: #{Rewrite.Source.get(source, :path)}
 
           #{diffish_looking_text}
+
           """
         else
           ""
@@ -1164,6 +1166,7 @@ defmodule Igniter do
 
         if String.trim(diff) != "" do
           """
+
           Update: #{Rewrite.Source.get(source, :path)}
 
           #{diff}
