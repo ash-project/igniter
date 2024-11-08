@@ -1129,48 +1129,62 @@ defmodule Igniter do
           source -> source
         end
 
-      if Rewrite.Source.from?(source, :string) do
-        content_lines =
-          source
-          |> Rewrite.Source.get(:content)
-          |> String.split("\n")
-          |> Enum.with_index()
+      cond do
+        Rewrite.Source.from?(source, :string) &&
+            String.valid?(Rewrite.Source.get(source, :content)) ->
+          content_lines =
+            source
+            |> Rewrite.Source.get(:content)
+            |> String.split("\n")
+            |> Enum.with_index()
 
-        space_padding =
-          content_lines
-          |> Enum.map(&elem(&1, 1))
-          |> Enum.max()
-          |> to_string()
-          |> String.length()
+          space_padding =
+            content_lines
+            |> Enum.map(&elem(&1, 1))
+            |> Enum.max()
+            |> to_string()
+            |> String.length()
 
-        diffish_looking_text =
-          Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
-            line_number = line_number_minus_one + 1
+          diffish_looking_text =
+            Enum.map_join(content_lines, "\n", fn {line, line_number_minus_one} ->
+              line_number = line_number_minus_one + 1
 
-            "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}| #{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
-          end)
+              "#{String.pad_trailing(to_string(line_number), space_padding)} #{color(IO.ANSI.yellow(), color?)}| #{color(IO.ANSI.green(), color?)}#{line}#{color(IO.ANSI.reset(), color?)}"
+            end)
 
-        if String.trim(diffish_looking_text) != "" do
+          if String.trim(diffish_looking_text) != "" do
+            """
+            Create: #{Rewrite.Source.get(source, :path)}
+
+            #{diffish_looking_text}
+            """
+          else
+            ""
+          end
+
+        String.valid?(Rewrite.Source.get(source, :content)) ->
+          diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
+
+          if String.trim(diff) != "" do
+            """
+            Update: #{Rewrite.Source.get(source, :path)}
+
+            #{diff}
+            """
+          else
+            ""
+          end
+
+        !String.valid?(Rewrite.Source.get(source, :content)) ->
           """
           Create: #{Rewrite.Source.get(source, :path)}
 
-          #{diffish_looking_text}
+          (content diff can't be displayed)
           """
-        else
-          ""
-        end
-      else
-        diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
 
-        if String.trim(diff) != "" do
-          """
-          Update: #{Rewrite.Source.get(source, :path)}
-
-          #{diff}
-          """
-        else
+        :else ->
+          dbg(source)
           ""
-        end
       end
     end)
   end

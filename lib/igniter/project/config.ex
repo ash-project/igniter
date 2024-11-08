@@ -189,6 +189,7 @@ defmodule Igniter.Project.Config do
     end)
   end
 
+  @doc false
   defp ensure_default_configs_exist(igniter, file)
        when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
     igniter
