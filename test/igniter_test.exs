@@ -5,6 +5,14 @@ defmodule IgniterTest do
   import Igniter.Test
   import ExUnit.CaptureIO
 
+  setup_all do
+    ansi_enabled? = Application.get_env(:elixir, :ansi_enabled)
+    Application.put_env(:elixir, :ansi_enabled, true)
+    on_exit(fn -> Application.put_env(:elixir, :ansi_enabled, ansi_enabled?) end)
+
+    :ok
+  end
+
   describe "Igniter.copy_template/4" do
     test "it evaluates and writes the template" do
       test_project()
