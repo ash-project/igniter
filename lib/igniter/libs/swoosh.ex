@@ -5,7 +5,7 @@ defmodule Igniter.Libs.Swoosh do
   @spec list_mailers(Igniter.t()) :: {Igniter.t(), [module()]}
   def list_mailers(igniter) do
     Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
-      move_to_mailer_use(igniter, zipper) != :error
+      move_to_mailer_use(zipper) != :error
     end)
   end
 
