@@ -248,7 +248,7 @@ defmodule Igniter.Refactors.Rename do
                      Igniter.Code.Common.add_code(
                        zipper,
                        deprecation,
-                       :before
+                       placement: :before
                      )}
                   end
                 else

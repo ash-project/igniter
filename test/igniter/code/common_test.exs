@@ -3,6 +3,7 @@ defmodule Igniter.Code.CommonTest do
   alias Sourceror.Zipper
   use ExUnit.Case
   require Igniter.Code.Function
+  import ExUnit.CaptureLog
 
   describe "topmost/1" do
     test "escapes subtrees using `within`" do
@@ -126,6 +127,81 @@ defmodule Igniter.Code.CommonTest do
       else
         _ ->
           flunk("Should not reach this case")
+      end
+    end
+
+    test "doesn't use existing aliases with expand_env?: false" do
+      zipper =
+        """
+        defmodule Foo do
+          alias Foo.Bar
+          alias Foo.Bar.Baz
+
+          [Baz]
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
+           {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, Foo.Bar.Baz) do
+        assert zipper
+               |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]", expand_env?: false)
+               |> Sourceror.Zipper.top()
+               |> Igniter.Util.Debug.code_at_node() ==
+                 String.trim_trailing("""
+                 defmodule Foo do
+                   alias Foo.Bar
+                   alias Foo.Bar.Baz
+
+                   [Baz]
+                   [Foo.Bar.Baz.Blart]
+                 end
+                 """)
+      else
+        _ ->
+          flunk("Should not reach this case")
+      end
+    end
+
+    test "warns on deprecated placement argument" do
+      zipper =
+        """
+        defmodule Foo do
+          alias Foo.Bar
+          alias Foo.Bar.Baz
+
+          [Baz]
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
+           {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, Foo.Bar.Baz) do
+        log =
+          capture_log(fn ->
+            assert zipper
+                   |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]", :after)
+                   |> Sourceror.Zipper.top()
+                   |> Igniter.Util.Debug.code_at_node() ==
+                     String.trim_trailing("""
+                     defmodule Foo do
+                       alias Foo.Bar
+                       alias Foo.Bar.Baz
+
+                       [Baz]
+                       [Baz.Blart]
+                     end
+                     """)
+          end)
+
+        assert log =~
+                 "Passing an atom as the third argument to `Igniter.Code.Common.add_code/3` is deprecated in favor of an options list."
       end
     end
   end

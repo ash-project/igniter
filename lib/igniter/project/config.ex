@@ -319,7 +319,7 @@ defmodule Igniter.Project.Config do
                       {:ok, Common.add_code(zipper, config)}
 
                     zipper ->
-                      {:ok, Common.add_code(zipper, config, :before)}
+                      {:ok, Common.add_code(zipper, config, placement: :before)}
                   end
 
                 :error ->
@@ -330,7 +330,7 @@ defmodule Igniter.Project.Config do
                       {:ok, Common.add_code(zipper, config)}
 
                     zipper ->
-                      {:ok, Common.add_code(zipper, config, :before)}
+                      {:ok, Common.add_code(zipper, config, placement: :before)}
                   end
               end
           end
