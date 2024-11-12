@@ -195,7 +195,6 @@ defmodule Igniter.Code.Common do
     end
   end
 
-  @type add_code_opts :: [placement: :after | :before, expand_env?: boolean()]
   @doc """
   Adds the provided code to the zipper.
 
@@ -232,7 +231,8 @@ defmodule Igniter.Code.Common do
   \"\"\"
   ```
   """
-  @spec add_code(Zipper.t(), String.t() | Macro.t(), add_code_opts() | atom()) :: Zipper.t()
+  @spec add_code(Zipper.t(), String.t() | Macro.t(), [opt]) :: Zipper.t()
+        when opt: {:placement, :after | :before} | {:expand_env?, boolean()}
   def add_code(zipper, new_code, opts \\ [])
 
   def add_code(zipper, new_code, placement) when is_atom(placement) do
