@@ -1,7 +1,7 @@
 defmodule Igniter.Libs.Swoosh do
   @moduledoc "Codemods & utilities for working with Swoosh"
 
-  @doc "Lists all mailers found in the project."
+  @doc "Lists all project modules that call `use Swoosh.Mailer`."
   @spec list_mailers(Igniter.t()) :: {Igniter.t(), [module()]}
   def list_mailers(igniter) do
     Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
