@@ -10,9 +10,9 @@ defmodule Igniter.Libs.Swoosh do
   end
 
   @doc "Moves to the use statement in a module that matches `use Swoosh.Mailer`"
-  @spec move_to_mailer_use(Igniter.t(), Sourceror.Zipper.t()) ::
+  @spec move_to_mailer_use(Sourceror.Zipper.t()) ::
           :error | {:ok, Sourceror.Zipper.t()}
-  def move_to_mailer_use(_igniter, zipper) do
+  def move_to_mailer_use(zipper) do
     Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
       Igniter.Code.Function.argument_equals?(
         zipper,
