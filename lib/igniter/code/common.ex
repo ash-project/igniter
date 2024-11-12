@@ -233,7 +233,7 @@ defmodule Igniter.Code.Common do
   ```
   """
   @spec add_code(Zipper.t(), String.t() | Macro.t(), add_code_opts() | atom()) :: Zipper.t()
-  def add_code(zipper, new_code, opts \\ [placement: :after, expand_env?: true])
+  def add_code(zipper, new_code, opts \\ [])
 
   def add_code(zipper, new_code, placement) when is_atom(placement) do
     Logger.warning("""
