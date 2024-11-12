@@ -141,7 +141,7 @@ defmodule Igniter.Libs.Phoenix do
       Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
         case move_to_scope_location(igniter, zipper) do
           {:ok, zipper, append_or_prepend} ->
-            {:ok, Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)}
+            {:ok, Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
 
           :error ->
             {:warning,
@@ -228,7 +228,8 @@ defmodule Igniter.Libs.Phoenix do
           :error ->
             case move_to_scope_location(igniter, zipper) do
               {:ok, zipper, append_or_prepend} ->
-                {:ok, Igniter.Code.Common.add_code(zipper, scope_code, append_or_prepend)}
+                {:ok,
+                 Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
 
               :error ->
                 {:warning,
@@ -305,7 +306,8 @@ defmodule Igniter.Libs.Phoenix do
           _ ->
             case move_to_pipeline_location(igniter, zipper) do
               {:ok, zipper, append_or_prepend} ->
-                {:ok, Igniter.Code.Common.add_code(zipper, pipeline_code, append_or_prepend)}
+                {:ok,
+                 Igniter.Code.Common.add_code(zipper, pipeline_code, placement: append_or_prepend)}
 
               :error ->
                 {:warning,
@@ -376,7 +378,8 @@ defmodule Igniter.Libs.Phoenix do
           _ ->
             case move_to_pipeline_location(igniter, zipper) do
               {:ok, zipper, append_or_prepend} ->
-                {:ok, Igniter.Code.Common.add_code(zipper, pipeline_code, append_or_prepend)}
+                {:ok,
+                 Igniter.Code.Common.add_code(zipper, pipeline_code, placement: append_or_prepend)}
 
               :error ->
                 {:warning,

@@ -193,10 +193,14 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @type add_code_opts :: [placement: :after | :before, expand_env?: boolean()]
   @doc """
   Adds the provided code to the zipper.
 
-  Use `placement` to determine if the code goes `:after` or `:before` the current node.
+  ## Options
+
+  - `:placement` - `:after` | `:before`. Determines if the code goes `:after` or `:before` the current node. Defaults to `:after`.
+  - `:expand_env?` - boolean. Whether or not to read the current file to use it's aliases for added code. Defaults to `false`.
 
   ## Example:
 
@@ -226,20 +230,29 @@ defmodule Igniter.Code.Common do
   \"\"\"
   ```
   """
-  @spec add_code(Zipper.t(), String.t() | Macro.t(), :after | :before) :: Zipper.t()
-  def add_code(zipper, new_code, placement \\ :after)
+  @spec add_code(Zipper.t(), String.t() | Macro.t(), add_code_opts() | atom()) :: Zipper.t()
+  def add_code(zipper, new_code, opts \\ [placement: :after, expand_env?: true])
 
-  def add_code(zipper, new_code, placement) when is_binary(new_code) do
+  def add_code(_zipper, _new_code, placement) when is_atom(placement) do
+    raise ArgumentError, """
+    The `placement` argument is deprecated. Use an opts list of `placement: #{inspect(placement)}` instead.
+    """
+  end
+
+  def add_code(zipper, new_code, opts) when is_binary(new_code) do
     code = Sourceror.parse_string!(new_code)
 
-    add_code(zipper, code, placement)
+    add_code(zipper, code, opts)
   end
 
-  def add_code(zipper, new_code, placement) do
-    do_add_code(zipper, new_code, placement)
+  def add_code(zipper, new_code, opts) do
+    do_add_code(zipper, new_code, opts)
   end
 
-  defp do_add_code(zipper, new_code, placement, expand_env? \\ true) do
+  defp do_add_code(zipper, new_code, opts) do
+    expand_env? = Keyword.get(opts, :expand_env?, true)
+    placement = Keyword.get(opts, :placement, :after)
+
     new_code =
       if expand_env? do
         use_aliases(new_code, zipper)
@@ -976,7 +989,7 @@ defmodule Igniter.Code.Common do
     Process.put(:elixir_code_diagnostics, {[], false})
 
     zipper
-    |> do_add_code({:__cursor__, [], []}, :after, false)
+    |> do_add_code({:__cursor__, [], []}, placement: :after, expand_env?: false)
     |> Zipper.topmost_root()
     |> Sourceror.to_string()
     |> String.split("__cursor__()", parts: 2)

@@ -128,6 +128,68 @@ defmodule Igniter.Code.CommonTest do
           flunk("Should not reach this case")
       end
     end
+
+    test "doesn't use existing aliases with expand_env?: false" do
+      zipper =
+        """
+        defmodule Foo do
+          alias Foo.Bar
+          alias Foo.Bar.Baz
+
+          [Baz]
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
+           {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, Foo.Bar.Baz) do
+        assert zipper
+               |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]", expand_env?: false)
+               |> Sourceror.Zipper.top()
+               |> Igniter.Util.Debug.code_at_node() ==
+                 String.trim_trailing("""
+                 defmodule Foo do
+                   alias Foo.Bar
+                   alias Foo.Bar.Baz
+
+                   [Baz]
+                   [Foo.Bar.Baz.Blart]
+                 end
+                 """)
+      else
+        _ ->
+          flunk("Should not reach this case")
+      end
+    end
+
+    test "raises on deprecated placement argument" do
+      zipper =
+        """
+        defmodule Foo do
+          alias Foo.Bar
+          alias Foo.Bar.Baz
+
+          [Baz]
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
+           {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
+           {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, Foo.Bar.Baz) do
+        assert_raise ArgumentError,
+                     "The `placement` argument is deprecated. Use an opts list of `placement: :after` instead.\n",
+                     fn ->
+                       zipper
+                       |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]", :after)
+                     end
+      end
+    end
   end
 
   describe "rightmost/1" do
