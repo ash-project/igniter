@@ -2,6 +2,8 @@ defmodule Igniter.Code.Common do
   @moduledoc """
   General purpose utilities for working with `Sourceror.Zipper`.
   """
+  require Logger
+
   alias Sourceror.Zipper
 
   @doc """
@@ -233,10 +235,20 @@ defmodule Igniter.Code.Common do
   @spec add_code(Zipper.t(), String.t() | Macro.t(), add_code_opts() | atom()) :: Zipper.t()
   def add_code(zipper, new_code, opts \\ [placement: :after, expand_env?: true])
 
-  def add_code(_zipper, _new_code, placement) when is_atom(placement) do
-    raise ArgumentError, """
-    The `placement` argument is deprecated. Use an opts list of `placement: #{inspect(placement)}` instead.
-    """
+  def add_code(zipper, new_code, placement) when is_atom(placement) do
+    Logger.warning("""
+    Passing an atom as the third argument to `Igniter.Code.Common.add_code/3` is deprecated in favor of an options list.
+
+    Instead of:
+
+        Igniter.Code.Common.add_code(zipper, new_code, #{inspect(placement)})
+
+    You should now write:
+
+        Igniter.Code.Common.add_code(zipper, new_code, placement: #{inspect(placement)})
+    """)
+
+    add_code(zipper, new_code, placement: placement)
   end
 
   def add_code(zipper, new_code, opts) when is_binary(new_code) do

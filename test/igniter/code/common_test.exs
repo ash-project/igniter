@@ -3,6 +3,7 @@ defmodule Igniter.Code.CommonTest do
   alias Sourceror.Zipper
   use ExUnit.Case
   require Igniter.Code.Function
+  import ExUnit.CaptureLog
 
   describe "topmost/1" do
     test "escapes subtrees using `within`" do
@@ -165,7 +166,7 @@ defmodule Igniter.Code.CommonTest do
       end
     end
 
-    test "raises on deprecated placement argument" do
+    test "warns on deprecated placement argument" do
       zipper =
         """
         defmodule Foo do
@@ -182,12 +183,25 @@ defmodule Igniter.Code.CommonTest do
            {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper),
            {:ok, zipper} <- Igniter.Code.Common.move_right(zipper, &Igniter.Code.List.list?/1),
            {:ok, zipper} <- Igniter.Code.List.prepend_new_to_list(zipper, Foo.Bar.Baz) do
-        assert_raise ArgumentError,
-                     "The `placement` argument is deprecated. Use an opts list of `placement: :after` instead.\n",
-                     fn ->
-                       zipper
-                       |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]", :after)
+        log =
+          capture_log(fn ->
+            assert zipper
+                   |> Igniter.Code.Common.add_code("[Foo.Bar.Baz.Blart]", :after)
+                   |> Sourceror.Zipper.top()
+                   |> Igniter.Util.Debug.code_at_node() ==
+                     String.trim_trailing("""
+                     defmodule Foo do
+                       alias Foo.Bar
+                       alias Foo.Bar.Baz
+
+                       [Baz]
+                       [Baz.Blart]
                      end
+                     """)
+          end)
+
+        assert log =~
+                 "Passing an atom as the third argument to `Igniter.Code.Common.add_code/3` is deprecated in favor of an options list."
       end
     end
   end
