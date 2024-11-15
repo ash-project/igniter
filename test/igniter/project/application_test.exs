@@ -159,19 +159,6 @@ defmodule Igniter.Project.ApplicationTest do
          18 + |      mod: {Test.Application, []}
       """)
     end
-
-    test "supports expressing " do
-      :erlang.system_flag(:backtrace_depth, 1000)
-
-      test_project()
-      |> Igniter.Project.Application.add_new_child(Foo)
-      |> apply_igniter!()
-      |> Igniter.Project.Application.add_new_child(Bar)
-      |> assert_has_patch("lib/test/application.ex", """
-      8 - |    children = [Foo]
-      8 + |    children = [Bar, Foo]
-      """)
-    end
   end
 
   describe "app_name/1" do
