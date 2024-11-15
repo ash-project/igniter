@@ -143,17 +143,86 @@ defmodule Igniter.Project.Application do
 
   ## Options
 
-  - `after` - A list of other modules that this supervisor should appear after,
+  - `:after` - A list of other modules that this supervisor should appear after,
      or a function that takes a module and returns `true` if this module should be placed after it.
-  - `opts_updater` - A function that takes the current options (second element of the child tuple),
+  - `:opts_updater` - A function that takes the current options (second element of the child tuple),
      and returns a new value. If the existing value of the module is not a tuple, the value passed into
      your function will be `[]`. Your function *must* return `{:ok, zipper}` or
      `{:error | :warning, "error_or_warning"}`.
+  - `:force?` - If `true`, forces adding a new child, even if an existing child uses the
+    same child module. Defaults to `false`.
 
   ## Ordering
 
   We will put the new child as the earliest item in the list that we can, skipping any modules
   in the `after` option.
+
+  ## Examples
+
+  Given an application `start/2` that looks like this:
+
+      def start(_type, _args) do
+        children = [
+          ChildOne,
+          {ChildTwo, opt: 1}
+        ]
+
+        Supervisor.start_link(children, strategy: :one_for_one)
+      end
+
+  Add a new child that isn't currently present:
+
+      Igniter.Project.Application.add_new_child(igniter, NewChild)
+      # =>
+      children = [
+        NewChild,
+        ChildOne,
+        {ChildTwo, opt: 1}
+      ]
+
+  Add a new child after some existing ones:
+
+      Igniter.Project.Application.add_new_child(igniter, NewChild, after: [ChildOne, ChildTwo])
+      # =>
+      children = [
+        ChildOne,
+        {ChildTwo, opt: 1},
+        NewChild
+      ]
+
+  If the given child module is already present, `add_new_child/3` is a no-op by default:
+
+      Igniter.Project.Application.add_new_child(igniter, {ChildOne, opt: 1})
+      # =>
+      children = [
+        ChildOne,
+        {ChildTwo, opt: 1}
+      ]
+
+  You can explicitly handle module conflicts by passing an `:opts_updater`:
+
+      Igniter.Project.Application.add_new_child(igniter, {ChildOne, opt: 1},
+        opts_updater: fn opts ->
+          {:ok, Sourceror.Zipper.replace(opts, [opt: 1])}
+        end
+      )
+      # =>
+      children = [
+        {ChildOne, opt: 1},
+        {ChildTwo, opt: 1}
+      ]
+
+  Using `force?: true`, you can force a child to be added, even if the module
+  conflicts with an existing one:
+
+      Igniter.Project.Application.add_new_child(igniter, {ChildOne, opt: 1}, force?: true)
+      # =>
+      children = [
+        {ChildOne, opt: 1},
+        ChildOne,
+        {ChildTwo, opt: 1}
+      ]
+
   """
   @spec add_new_child(
           Igniter.t(),
@@ -162,21 +231,20 @@ defmodule Igniter.Project.Application do
         ) ::
           Igniter.t()
   def add_new_child(igniter, to_supervise, opts \\ []) do
+    opts =
+      opts
+      |> Keyword.update(:after, fn _ -> false end, fn
+        fun when is_function(fun, 1) -> fun
+        list -> fn item -> item in List.wrap(list) end
+      end)
+      |> Keyword.put_new(:force?, false)
+
     to_perform =
       case app_module(igniter) do
         nil -> {:create_an_app, Igniter.Project.Module.module_name(igniter, "Application")}
         {mod, _} -> {:modify, mod}
         mod -> {:modify, mod}
       end
-
-    opts =
-      Keyword.update(opts, :after, fn _ -> false end, fn list ->
-        if is_list(list) do
-          fn item -> item in list end
-        else
-          list
-        end
-      end)
 
     case to_perform do
       {:create_an_app, mod} ->
@@ -195,7 +263,7 @@ defmodule Igniter.Project.Application do
     |> create_application_file(application)
   end
 
-  def do_add_child(igniter, application, to_supervise, opts) do
+  defp do_add_child(igniter, application, to_supervise, opts) do
     path = Igniter.Project.Module.proper_location(igniter, application, :source_folder)
 
     to_supervise =
@@ -229,56 +297,34 @@ defmodule Igniter.Project.Application do
                end
              ),
            {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1) do
-        case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-               if Igniter.Code.Tuple.tuple?(item) do
-                 with {:ok, item} <- Igniter.Code.Tuple.tuple_elem(item, 0),
-                      item <- Igniter.Code.Common.expand_alias(item) do
-                   Igniter.Code.Common.nodes_equal?(item, to_supervise_module)
-                 else
-                   _ -> false
+        if opts[:force?] do
+          insert_child(zipper, to_supervise, opts)
+        else
+          case Igniter.Code.List.move_to_list_item(zipper, fn item ->
+                 case extract_child_module(item) do
+                   {:ok, module} -> Igniter.Code.Common.nodes_equal?(module, to_supervise_module)
+                   :error -> false
                  end
-               else
-                 item
-                 |> Igniter.Code.Common.expand_alias()
-                 |> Igniter.Code.Common.nodes_equal?(to_supervise_module)
-               end
-             end) do
-          {:ok, zipper} ->
-            if updater = opts[:opts_updater] do
-              zipper =
-                if Igniter.Code.Tuple.tuple?(zipper) do
-                  zipper
-                else
-                  Zipper.replace(zipper, {zipper.node, []})
-                end
-
-              {:ok, zipper} = Igniter.Code.Tuple.tuple_elem(zipper, 1)
-
-              updater.(zipper)
-            else
-              {:ok, zipper}
-            end
-
-          :error ->
-            zipper
-            |> Zipper.down()
-            |> then(fn zipper ->
-              case Zipper.down(zipper) do
-                nil ->
-                  Zipper.insert_child(zipper, to_supervise)
-
-                zipper ->
-                  zipper
-                  |> skip_after(opts)
-                  |> case do
-                    {:after, zipper} ->
-                      Zipper.insert_right(zipper, to_supervise)
-
-                    {:before, zipper} ->
-                      Zipper.insert_left(zipper, to_supervise)
+               end) do
+            {:ok, zipper} ->
+              if updater = opts[:opts_updater] do
+                zipper =
+                  if Igniter.Code.Tuple.tuple?(zipper) do
+                    zipper
+                  else
+                    Zipper.replace(zipper, {zipper.node, []})
                   end
+
+                {:ok, zipper} = Igniter.Code.Tuple.tuple_elem(zipper, 1)
+
+                updater.(zipper)
+              else
+                {:ok, zipper}
               end
-            end)
+
+            :error ->
+              insert_child(zipper, to_supervise, opts)
+          end
         end
       else
         _ ->
@@ -289,6 +335,38 @@ defmodule Igniter.Project.Application do
            """}
       end
     end)
+  end
+
+  defp insert_child(zipper, child, opts) do
+    zipper
+    |> Zipper.down()
+    |> then(fn zipper ->
+      case Zipper.down(zipper) do
+        nil ->
+          Zipper.insert_child(zipper, child)
+
+        zipper ->
+          zipper
+          |> skip_after(opts)
+          |> case do
+            {:after, zipper} ->
+              Zipper.insert_right(zipper, child)
+
+            {:before, zipper} ->
+              Zipper.insert_left(zipper, child)
+          end
+      end
+    end)
+  end
+
+  defp extract_child_module(zipper) do
+    if Igniter.Code.Tuple.tuple?(zipper) do
+      with {:ok, elem} <- Igniter.Code.Tuple.tuple_elem(zipper, 0) do
+        {:ok, Igniter.Code.Common.expand_alias(elem)}
+      end
+    else
+      {:ok, Igniter.Code.Common.expand_alias(zipper)}
+    end
   end
 
   def skip_after(zipper, opts) do

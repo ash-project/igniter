@@ -159,6 +159,31 @@ defmodule Igniter.Project.ApplicationTest do
          18 + |      mod: {Test.Application, []}
       """)
     end
+
+    test "adds a duplicate module with force?: true" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.One})
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.Two}, force?: true)
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [{Foo, [name: Foo.One]}]
+      + |    children = [{Foo, [name: Foo.Two]}, {Foo, [name: Foo.One]}]
+      """)
+    end
+
+    test "adds a duplicate module after an existing one with :after and force?: true" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.One})
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.Two},
+        after: Foo,
+        force?: true
+      )
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [{Foo, [name: Foo.One]}]
+      + |    children = [{Foo, [name: Foo.One]}, {Foo, [name: Foo.Two]}]
+      """)
+    end
   end
 
   describe "app_name/1" do
