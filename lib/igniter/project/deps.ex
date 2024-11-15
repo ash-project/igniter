@@ -266,93 +266,93 @@ defmodule Igniter.Project.Deps do
 
   @doc false
   def determine_dep_type_and_version(requirement) do
-    case String.split(requirement, "@", trim: true, parts: 2) do
-      [package] ->
-        if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
-          :inets.start()
-          :ssl.start()
-          url = ~c"https://hex.pm/api/packages/#{package}"
+    [package | maybe_version] = String.split(requirement, "@", trim: true, parts: 2)
 
-          case :httpc.request(:get, {url, [{~c"User-Agent", ~c"igniter-installer"}]}, [], []) do
-            {:ok, {{_version, _, _reason_phrase}, _headers, body}} ->
-              case Jason.decode(body) do
-                {:ok,
-                 %{
-                   "releases" => releases
-                 } = body} ->
-                  case first_non_rc_version_or_first_version(releases, body) do
-                    %{"version" => version} ->
-                      {String.to_atom(package),
-                       Igniter.Util.Version.version_string_to_general_requirement!(version)}
+    {package, repo_opts} =
+      case String.split(package, ":", parts: 2) do
+        [repo, package] -> {package, repo: repo}
+        [package] -> {package, []}
+      end
 
-                    _ ->
-                      :error
-                  end
+    {package, org_opts} =
+      case String.split(package, "/", parts: 2) do
+        [org, package] -> {package, organization: org}
+        [package] -> {package, []}
+      end
 
-                _ ->
-                  :error
-              end
-
-            _ ->
-              :error
-          end
-        else
-          :error
+    case maybe_version do
+      [] ->
+        with {:ok, version} <- fetch_latest_version(package) do
+          {version, []}
         end
 
-      [package, version] ->
-        case version do
-          "git:" <> requirement ->
-            if String.contains?(requirement, "@") do
-              case String.split(requirement, ["@"], trim: true) do
-                [url, ref] ->
-                  [git: url, ref: ref, override: true]
+      ["git:" <> requirement] ->
+        {nil, git_dep_opts(requirement, :git)}
 
-                _ ->
-                  :error
-              end
-            else
-              [git: requirement, override: true]
-            end
+      ["github:" <> requirement] ->
+        {nil, git_dep_opts(requirement, :github)}
 
-          "github:" <> requirement ->
-            if String.contains?(requirement, "@") do
-              case String.split(requirement, ["/", "@"], trim: true) do
-                [org, project, ref] ->
-                  [github: "#{org}/#{project}", ref: ref, override: true]
+      ["path:" <> requirement] ->
+        {nil, path: requirement, override: true}
 
-                _ ->
-                  :error
-              end
-            else
-              [github: requirement, override: true]
-            end
+      [version] ->
+        case Version.parse(version) do
+          {:ok, version} ->
+            {"== #{version}", []}
 
-          "path:" <> requirement ->
-            [path: requirement, override: true]
-
-          version ->
-            case Version.parse(version) do
-              {:ok, version} ->
-                "== #{version}"
+          _ ->
+            case Igniter.Util.Version.version_string_to_general_requirement(version) do
+              {:ok, requirement} ->
+                {requirement, []}
 
               _ ->
-                case Igniter.Util.Version.version_string_to_general_requirement(version) do
-                  {:ok, requirement} ->
-                    requirement
-
-                  _ ->
-                    :error
-                end
+                :error
             end
         end
-        |> case do
-          :error ->
-            :error
 
-          requirement ->
-            {String.to_atom(package), requirement}
-        end
+      _ ->
+        :error
+    end
+    |> case do
+      {version, additional_opts} ->
+        to_dependency_spec(package, version, additional_opts ++ repo_opts ++ org_opts)
+
+      :error ->
+        :error
+    end
+  end
+
+  defp to_dependency_spec(package, version, opts)
+  defp to_dependency_spec(package, version, []), do: {String.to_atom(package), version}
+  defp to_dependency_spec(package, nil, opts), do: {String.to_atom(package), opts}
+  defp to_dependency_spec(package, version, opts), do: {String.to_atom(package), version, opts}
+
+  defp git_dep_opts(string, kind) do
+    case String.split(string, "@", trim: true) do
+      [git_dep, ref] ->
+        [{kind, git_dep}, {:ref, ref}, {:override, true}]
+
+      [git_dep] ->
+        [{kind, git_dep}, {:override, true}]
+    end
+  end
+
+  defp fetch_latest_version(package) do
+    if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
+      :inets.start()
+      :ssl.start()
+      url = ~c"https://hex.pm/api/packages/#{package}"
+
+      with {:ok, {{_version, _, _reason_phrase}, _headers, body}} <-
+             :httpc.request(:get, {url, [{~c"User-Agent", ~c"igniter-installer"}]}, [], []),
+           {:ok, %{"releases" => releases} = body} <- Jason.decode(body),
+           %{"version" => version} <- first_non_rc_version_or_first_version(releases, body) do
+        {:ok, Igniter.Util.Version.version_string_to_general_requirement!(version)}
+      else
+        _ -> :error
+      end
+    else
+      :error
     end
   end
 
