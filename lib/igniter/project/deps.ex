@@ -312,7 +312,8 @@ defmodule Igniter.Project.Deps do
 
           "github:" <> requirement ->
             if String.contains?(requirement, "@") do
-              case String.split(requirement, ["/", "@"], trim: true) do
+              # adding parts will allow for branch names with forward slashes
+              case String.split(requirement, ["/", "@"], trim: true, parts: 3) do
                 [org, project, ref] ->
                   [github: "#{org}/#{project}", ref: ref, override: true]
 
