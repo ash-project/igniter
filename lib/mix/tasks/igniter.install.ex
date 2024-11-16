@@ -13,8 +13,10 @@ defmodule Mix.Tasks.Igniter.Install do
   * `package@version` - The package will be installed at the specified version.
      If the version given is generic, like `3.0`, it will be pinned as described above.
      if it is specific, like `3.0.1`, it will be pinned at that *exact* version with `==`.
-  * `package@git:git_url` - The package will be installed from the specified git url.
-  * `package@github:project/repo` - The package will be installed from the specified github repo.
+  * `package@git:https://project/repo.git@git_ref` - The package will be installed from the
+     specified git url and `ref` option will be set to `git_ref`. `ref` can be a branch, tag or commit SHA.
+  * `package@github:project/repo@git_ref` - The package will be installed from the specified
+     github repo and `ref` option will be set to `git_ref`. `ref` can be a branch, tag or commit SHA.
   * `package@path:path/to/dep` - The package will be installed from the specified path.
 
   ## Switches
