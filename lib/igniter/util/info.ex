@@ -36,7 +36,7 @@ defmodule Igniter.Util.Info do
 
       installs ->
         schema = %{schema | installs: []}
-        install_names = Keyword.keys(installs)
+        install_names = Enum.map(installs, &elem(&1, 0))
 
         igniter
         |> add_deps(

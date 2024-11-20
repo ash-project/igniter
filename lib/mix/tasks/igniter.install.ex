@@ -18,12 +18,6 @@ defmodule Mix.Tasks.Igniter.Install do
   * `package@path:path/to/dep` - The package will be installed from the specified path.
   * `org/package` - The package exists in a private Hex organization. This can be used
     along with all the options above, e.g. `org/package@version`.
-  * `repo:package` - The package exists in a private Hex repo. This can b e used along
-    with all the options above, e.g. `repo:package@version`.
-
-  If you are specifying a private repo and organization, the repo must come first:
-
-      mix igniter.install repo:org/package@version
 
   Additionally, a Git ref can be specified when using `git` or `github`:
 

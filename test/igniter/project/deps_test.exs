@@ -63,10 +63,12 @@ defmodule Igniter.Project.DepsTest do
           {:dep, github: "user/repo", override: true, organization: "org"},
         "org/dep@github:user/repo@ref":
           {:dep, github: "user/repo", ref: "ref", override: true, organization: "org"},
+        "org/dep@github:user/repo@branch@name":
+          {:dep, github: "user/repo", ref: "branch@name", override: true, organization: "org"},
+        "org/dep@github:user/repo@branch/name":
+          {:dep, github: "user/repo", ref: "branch/name", override: true, organization: "org"},
         "org/dep@path:path/to/dep":
-          {:dep, path: "path/to/dep", override: true, organization: "org"},
-        "repo:dep@1.0.0": {:dep, "== 1.0.0", repo: "repo"},
-        "repo:org/dep@1.0.0": {:dep, "== 1.0.0", repo: "repo", organization: "org"}
+          {:dep, path: "path/to/dep", override: true, organization: "org"}
       ]
 
       for {spec, expected} <- tests do
