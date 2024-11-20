@@ -373,6 +373,7 @@ defmodule Igniter.Project.Deps do
 
   @dialyzer {:nowarn_function, {:fetch_hex_repos!, 0}}
   defp fetch_hex_repos! do
+    # This is a private API, but unlikely to change.
     Hex.State.fetch!(:repos)
   end
 
