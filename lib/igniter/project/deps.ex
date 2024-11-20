@@ -361,7 +361,7 @@ defmodule Igniter.Project.Deps do
         url = ~c"https://hex.pm/api/repos/#{org}/packages/#{package}"
         repo_name = "hexpm:#{org}"
 
-        case Hex.State.fetch!(:repos) do
+        case fetch_hex_repos!() do
           %{^repo_name => repo} ->
             {:ok, url, [{~c"authorization", repo.auth_key}] ++ default_headers}
 
@@ -369,6 +369,11 @@ defmodule Igniter.Project.Deps do
             :error
         end
     end
+  end
+
+  @dialyzer {:nowarn_function, {:fetch_hex_repos!, 0}}
+  defp fetch_hex_repos! do
+    Hex.State.fetch!(:repos)
   end
 
   defp first_non_rc_version_or_first_version(releases, body) do
