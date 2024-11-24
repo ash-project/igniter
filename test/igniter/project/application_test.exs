@@ -160,16 +160,28 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
 
-    test "supports expressing " do
-      :erlang.system_flag(:backtrace_depth, 1000)
-
+    test "adds a duplicate module with force?: true" do
       test_project()
-      |> Igniter.Project.Application.add_new_child(Foo)
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.One})
       |> apply_igniter!()
-      |> Igniter.Project.Application.add_new_child(Bar)
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.Two}, force?: true)
       |> assert_has_patch("lib/test/application.ex", """
-      8 - |    children = [Foo]
-      8 + |    children = [Bar, Foo]
+      - |    children = [{Foo, [name: Foo.One]}]
+      + |    children = [{Foo, [name: Foo.Two]}, {Foo, [name: Foo.One]}]
+      """)
+    end
+
+    test "adds a duplicate module after an existing one with :after and force?: true" do
+      test_project()
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.One})
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child({Foo, name: Foo.Two},
+        after: Foo,
+        force?: true
+      )
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [{Foo, [name: Foo.One]}]
+      + |    children = [{Foo, [name: Foo.One]}, {Foo, [name: Foo.Two]}]
       """)
     end
   end
