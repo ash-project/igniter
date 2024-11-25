@@ -1534,7 +1534,7 @@ defmodule Igniter do
     igniter.moves
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(fn {from, to} ->
-      [:red, from, :reset, ": ", :green, to]
+      [:red, Path.relative_to_cwd(from), :reset, ": ", :green, to]
     end)
     |> display_list("These files will be moved:")
   end
