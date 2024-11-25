@@ -95,7 +95,7 @@ defmodule Igniter.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rewrite, "~> 1.0"},
+      {:rewrite, "~> 1.1 and >= 1.1.1"},
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
