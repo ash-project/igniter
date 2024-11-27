@@ -5,6 +5,29 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.8](https://github.com/ash-project/igniter/compare/v0.4.7...v0.4.8) (2024-11-27)
+### Breaking Changes:
+
+* add `expand_env?` option to `Igniter.Code.Common.add_code/3` (#151)
+
+
+
+### Bug Fixes:
+
+* if alias elements are strings ensure they aren't interpreted as AST
+
+* don't move modules back to their "proper" location
+
+* use new `ignore_missing_sub_formatters` option in rewrite
+
+### Improvements:
+
+* add `:force?` option to `Igniter.Project.Application.add_child/3` (#156)
+
+* handle io formatting more uniformly (#148)
+
+* handle io formatting more uniformly
+
 ## [v0.4.7](https://github.com/ash-project/igniter/compare/v0.4.6...v0.4.7) (2024-11-12)
 
 ### Improvements:
