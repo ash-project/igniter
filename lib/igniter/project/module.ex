@@ -360,6 +360,7 @@ defmodule Igniter.Project.Module do
            module when not is_nil(module) <- to_module_name(module),
            new_path when not is_nil(new_path) <-
              should_move_file_to(igniter, source, module, module_location_config, opts) do
+        new_path = Path.rootname(new_path) <> Path.extname(source.path)
         Igniter.move_file(igniter, source.path, new_path, error_if_exists?: false)
       else
         _ ->
