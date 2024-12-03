@@ -39,4 +39,20 @@ defmodule Igniter.Code.FileTest do
            |> Rewrite.source!("README.md")
            |> Rewrite.Source.get(:content) == "Hello Test"
   end
+
+  test "can create folder" do
+    assert %{mkdirs: mkdirs} =
+             Igniter.new()
+             |> Igniter.mkdir("empty_folder")
+
+    assert mkdirs == ["empty_folder"]
+  end
+
+  test "can only create folder inside project directory" do
+    %{mkdirs: mkdirs} =
+      Igniter.new()
+      |> Igniter.mkdir("../empty_folder")
+
+    assert mkdirs == []
+  end
 end

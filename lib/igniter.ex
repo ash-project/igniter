@@ -10,6 +10,7 @@ defmodule Igniter do
     warnings: [],
     notices: [],
     assigns: %{},
+    mkdirs: [],
     moves: %{},
     args: %Igniter.Mix.Task.Args{}
   ]
@@ -23,6 +24,7 @@ defmodule Igniter do
           warnings: [String.t()],
           notices: [String.t()],
           assigns: map(),
+          mkdirs: [String.t()],
           moves: %{optional(String.t()) => String.t()},
           args: Igniter.Mix.Task.Args.t()
         }
@@ -666,6 +668,22 @@ defmodule Igniter do
   end
 
   @doc """
+  Creates a folder in the project.
+  """
+
+  @spec mkdir(t(), Path.t()) :: Igniter.t()
+  def mkdir(igniter, path) do
+    current_dir = Path.expand(".")
+    target_path = Path.expand(path)
+
+    if String.starts_with?(target_path, current_dir) do
+      %{igniter | mkdirs: List.wrap(path) ++ igniter.mkdirs}
+    else
+      add_issue(igniter, "Igniter.mkdir invalid path: #{path} is outside the current directory.")
+    end
+  end
+
+  @doc """
   Creates a new file in the project with the provided string contents. Adds an error if it already exists.
 
   ## Options
@@ -955,6 +973,8 @@ defmodule Igniter do
 
         display_warnings(igniter, title)
 
+        display_mkdirs(igniter)
+
         display_moves(igniter)
 
         display_tasks(igniter, result_of_dry_run, opts)
@@ -980,6 +1000,13 @@ defmodule Igniter do
                   if !Enum.empty?(igniter.tasks) do
                     Mix.shell().cmd("mix deps.get")
                   end
+
+                  igniter.mkdirs
+                  |> Enum.map(&Path.expand(&1, ""))
+                  |> Enum.uniq()
+                  |> Enum.each(fn path ->
+                    File.mkdir_p!(path)
+                  end)
 
                   igniter.moves
                   |> Enum.each(fn {from, to} ->
@@ -1527,6 +1554,21 @@ defmodule Igniter do
       [:green, "Notice: ", :reset, notice]
     end)
     |> display_list()
+  end
+
+  @doc false
+  def display_mkdirs(igniter) do
+    igniter.mkdirs
+    |> Enum.map(&Path.expand(&1, ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.map(fn path ->
+      if not File.exists?(path) do
+        [:green, path]
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> display_list("These folders will be created:")
   end
 
   @doc false
