@@ -881,6 +881,25 @@ defmodule Igniter do
     end
   end
 
+  @doc """
+  Installs a package as if calling `mix igniter.install`
+
+  See `mix igniter.install` for information on the package format.
+
+  ## Options
+
+  - `append?` - If `true`, appends the package to the existing list of packages instead of prepending. Defaults to `false`.
+
+  ## Examples
+
+    Igniter.install(igniter, "ash")
+
+    Igniter.install(igniter, "ash_authentication@2.0", ["--authentication-strategies", "password,magic_link"])
+  """
+  def install(igniter, package, argv \\ [], opts \\ []) when is_binary(package) do
+    Igniter.Util.Install.install(List.wrap(package), argv, igniter, opts)
+  end
+
   @doc "This function stores in the igniter if its been run before, so it is only run once, which is expensive."
   def include_all_elixir_files(igniter) do
     if igniter.assigns[:private][:included_all_elixir_files?] do
