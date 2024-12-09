@@ -123,7 +123,7 @@ defmodule Igniter.Mix.Task do
         %Args{positional: positional, options: options, argv: argv, argv_flags: argv_flags}
       end
 
-      defoverridable supports_umbrella?: 0, info: 2, installer?: 0
+      defoverridable supports_umbrella?: 0, info: 2, installer?: 0, parse_argv: 1
     end
   end
 
