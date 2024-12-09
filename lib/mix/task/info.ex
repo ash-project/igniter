@@ -102,14 +102,19 @@ defmodule Igniter.Mix.Task.Info do
           composes: [String.t()],
           only: [atom()] | nil,
           positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
-          installs: [{atom(), String.t()}],
-          adds_deps: [{atom(), String.t()}],
+          installs: [dep],
+          adds_deps: [dep],
           example: String.t() | nil,
           extra_args?: boolean(),
           # used internally
           flag_conflicts: %{optional(atom) => list(String.t())},
           alias_conflicts: %{optional(atom) => list(String.t())}
         }
+
+  @type dep ::
+          {atom(), String.t()}
+          | {atom(), Keyword.t()}
+          | {atom(), String.t(), Keyword.t()}
 
   def global_options, do: @global_options
 end
