@@ -283,6 +283,29 @@ defmodule Igniter.Mix.TaskTest do
     end
   end
 
+  describe "parse_argv/1" do
+    defmodule ExampleTaskWithOverridenParseArgv do
+      use Igniter.Mix.Task
+
+      def parse_argv(_argv) do
+        %Igniter.Mix.Task.Args{
+          argv: :overridden
+        }
+      end
+
+      def igniter(igniter) do
+        send(self(), {:args, igniter.args})
+        igniter
+      end
+    end
+
+    test "can be overriden" do
+      ExampleTaskWithOverridenParseArgv.run([])
+
+      assert_received {:args, %Igniter.Mix.Task.Args{argv: :overridden}}
+    end
+  end
+
   describe "igniter/2 deprecation" do
     defp define_module do
       original_opts = Code.compiler_options()
