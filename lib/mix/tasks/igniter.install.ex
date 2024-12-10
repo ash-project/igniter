@@ -17,6 +17,10 @@ defmodule Mix.Tasks.Igniter.Install do
   * `package@github:project/repo` - The package will be installed from the specified github repo.
   * `package@path:path/to/dep` - The package will be installed from the specified path.
 
+  Additionally, a Git ref can be specified when using `git` or `github`:
+
+  * `package@git:git_url@ref`
+
   ## Switches
 
   * `--dry-run` - Run the task without making any changes.
