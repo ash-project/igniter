@@ -524,23 +524,44 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @doc "Gets the name of a local function call, or `:error` if the node is not a function call or it cannot be determined"
+  @doc """
+  Gets the name of a local function call.
+
+  Returns `:error` if the node is not a function call or cannot be determined.
+  """
+  @spec get_local_function_call_name(Zipper.t()) :: {:ok, atom()} | :error
   def get_local_function_call_name(%Zipper{} = zipper) do
+    case get_local_function_call(zipper) do
+      {:ok, {name, _arity}} -> {:ok, name}
+      :error -> :error
+    end
+  end
+
+  @doc """
+  Gets the name and arity of a local function call.
+
+  Returns `:error` if the node is not a function call or cannot be determined.
+  """
+  @spec get_local_function_call(Zipper.t()) :: {:ok, {atom(), non_neg_integer()}} | :error
+  def get_local_function_call(%Zipper{} = zipper) do
     zipper
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
-      {:|>, _, [_, {{name, _, context}, _, _}]} when is_atom(context) and is_atom(name) ->
-        {:ok, name}
+      {:__block__, _, _} ->
+        :error
 
-      {:|>, _, [_, {name, _, _}]} when is_atom(name) ->
-        {:ok, name}
+      {:|>, _, [_, {{name, _, context}, _, args}]} when is_atom(context) and is_atom(name) ->
+        {:ok, {name, length(args) + 1}}
 
-      {name, _, _args} when is_atom(name) ->
-        {:ok, name}
+      {:|>, _, [_, {name, _, args}]} when is_atom(name) ->
+        {:ok, {name, length(args) + 1}}
 
-      {{name, _, context}, _, _args} when is_atom(context) and is_atom(name) ->
-        {:ok, name}
+      {name, _, args} when is_atom(name) ->
+        {:ok, {name, length(args)}}
+
+      {{name, _, context}, _, args} when is_atom(context) and is_atom(name) and is_list(args) ->
+        {:ok, {name, length(args)}}
 
       _ ->
         :error

@@ -54,7 +54,7 @@ defmodule Igniter.Project.Application do
 
   defp expand_attribute(zipper) do
     with {:@, _, [{attr, _, nil}]} <- zipper.node,
-         {:ok, zipper} <- find_prev(zipper, &match?({:@, _, [{^attr, _, [_]}]}, &1.node)) do
+         {:ok, zipper} <- Common.find_prev(zipper, &match?({:@, _, [{^attr, _, [_]}]}, &1.node)) do
       zipper
       |> Zipper.down()
       |> Zipper.down()
@@ -62,19 +62,6 @@ defmodule Igniter.Project.Application do
     else
       _ ->
         :error
-    end
-  end
-
-  defp find_prev(zipper, pred) do
-    case Common.move_left(zipper, pred) do
-      {:ok, zipper} ->
-        {:ok, zipper}
-
-      :error ->
-        case Common.move_upwards(zipper, 1) do
-          {:ok, zipper} -> find_prev(zipper, pred)
-          :error -> :error
-        end
     end
   end
 

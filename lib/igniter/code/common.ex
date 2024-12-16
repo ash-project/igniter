@@ -46,6 +46,20 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @doc false
+  def find_prev(%Zipper{} = zipper, pred) when is_function(pred, 1) do
+    case move_left(zipper, pred) do
+      {:ok, zipper} ->
+        {:ok, zipper}
+
+      :error ->
+        case move_upwards(zipper, 1) do
+          {:ok, zipper} -> find_prev(zipper, pred)
+          :error -> :error
+        end
+    end
+  end
+
   @doc """
   Moves a zipper upwards.
 
