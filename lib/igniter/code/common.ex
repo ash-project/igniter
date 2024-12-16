@@ -1033,10 +1033,7 @@ defmodule Igniter.Code.Common do
     |> fun.()
     |> case do
       {:ok, %Zipper{} = zipper} ->
-        {:ok,
-         zipper
-         |> Zipper.top()
-         |> into(zipper.supertree || top_zipper)}
+        {:ok, Zipper.supertree(zipper)}
 
       other ->
         other
