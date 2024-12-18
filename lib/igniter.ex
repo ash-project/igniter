@@ -29,7 +29,10 @@ defmodule Igniter do
           args: Igniter.Mix.Task.Args.t()
         }
 
-  @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
+  @type zipper_updater :: (Zipper.t() ->
+                             {:ok, Zipper.t()}
+                             | {:error, String.t() | [String.t()]}
+                             | {:warning, String.t() | [String.t()]})
 
   defimpl Inspect do
     import Inspect.Algebra

@@ -11,61 +11,34 @@ defmodule Igniter.Code.Keyword do
   def keyword_has_path?(_zipper, []), do: true
 
   def keyword_has_path?(zipper, [key | rest]) do
-    if Common.node_matches_pattern?(zipper, value when is_list(value)) do
-      case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-             if Igniter.Code.Tuple.tuple?(item) do
-               case Igniter.Code.Tuple.tuple_elem(item, 0) do
-                 {:ok, first_elem} ->
-                   Common.nodes_equal?(first_elem, key)
-
-                 :error ->
-                   false
-               end
-             end
-           end) do
-        {:ok, zipper} ->
-          case Igniter.Code.Tuple.tuple_elem(zipper, 1) do
-            {:ok, second_elem} ->
-              keyword_has_path?(second_elem, rest)
-
-            _ ->
-              false
-          end
-
-        _ ->
-          false
-      end
-    else
-      false
+    case get_key(zipper, key) do
+      {:ok, zipper} -> keyword_has_path?(zipper, rest)
+      :error -> false
     end
   end
 
-  @doc "Returns true if the node is a nested keyword list containing a value at the given path."
-  @spec get_key(Zipper.t(), atom()) :: term()
+  @doc "Moves the zipper to the value of `key` in a keyword list."
+  @spec get_key(Zipper.t(), atom()) :: {:ok, Zipper.t()} | :error
   def get_key(zipper, key) do
+    zipper = Common.maybe_move_to_single_child_block(zipper)
+
     if Igniter.Code.List.list?(zipper) do
-      case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-             if Igniter.Code.Tuple.tuple?(item) do
-               case Igniter.Code.Tuple.tuple_elem(item, 0) do
-                 {:ok, first_elem} ->
-                   Common.nodes_equal?(first_elem, key)
+      item =
+        Igniter.Code.List.move_to_list_item(zipper, fn item ->
+          if Igniter.Code.Tuple.tuple?(item) do
+            case Igniter.Code.Tuple.tuple_elem(item, 0) do
+              {:ok, first_elem} ->
+                Common.nodes_equal?(first_elem, key)
 
-                 :error ->
-                   false
-               end
-             end
-           end) do
-        {:ok, zipper} ->
-          case Igniter.Code.Tuple.tuple_elem(zipper, 1) do
-            {:ok, second_elem} ->
-              {:ok, second_elem}
-
-            _ ->
-              :error
+              :error ->
+                false
+            end
           end
+        end)
 
-        _ ->
-          :error
+      case item do
+        {:ok, zipper} -> Igniter.Code.Tuple.tuple_elem(zipper, 1)
+        :error -> :error
       end
     else
       :error
@@ -83,7 +56,7 @@ defmodule Igniter.Code.Keyword do
   def put_in_keyword(zipper, path, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
-    Igniter.Code.Common.within(zipper, fn zipper ->
+    Common.within(zipper, fn zipper ->
       do_put_in_keyword(zipper, path, value, updater)
     end)
   end
@@ -93,60 +66,15 @@ defmodule Igniter.Code.Keyword do
   end
 
   defp do_put_in_keyword(zipper, [key | rest], value, updater) do
-    zipper = Common.maybe_move_to_single_child_block(zipper)
+    case create_or_move_to_value_for_key(zipper, key) do
+      {:found, zipper} ->
+        do_put_in_keyword(zipper, rest, value, updater)
 
-    if Igniter.Code.List.list?(zipper) do
-      case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-             if Igniter.Code.Tuple.tuple?(item) do
-               case Igniter.Code.Tuple.tuple_elem(item, 0) do
-                 {:ok, first_elem} ->
-                   Common.nodes_equal?(first_elem, key)
+      {:new, zipper} ->
+        {:ok, set_keyword_value!(zipper, keywordify(rest, value))}
 
-                 :error ->
-                   false
-               end
-             end
-           end) do
-        :error ->
-          value =
-            keywordify(rest, value)
-
-          value =
-            value
-            |> Sourceror.to_string()
-            |> Sourceror.parse_string!()
-
-          value = Common.use_aliases(value, zipper)
-
-          to_append =
-            case zipper.node do
-              [{{:__block__, meta, _}, _} | _] ->
-                if meta[:format] do
-                  {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [value]}}
-                else
-                  {{:__block__, [], [key]}, {:__block__, [], [value]}}
-                end
-
-              [] ->
-                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
-
-              _current_node ->
-                {{:__block__, [], [key]}, {:__block__, [], [value]}}
-            end
-
-          {:ok, Zipper.append_child(zipper, to_append)}
-
-        {:ok, zipper} ->
-          zipper
-          |> Igniter.Code.Tuple.tuple_elem(1)
-          |> case do
-            {:ok, zipper} ->
-              do_put_in_keyword(zipper, rest, value, updater)
-
-            :error ->
-              :error
-          end
-      end
+      :error ->
+        :error
     end
   end
 
@@ -159,61 +87,70 @@ defmodule Igniter.Code.Keyword do
           {:ok, Zipper.t()} | :error
   def set_keyword_key(zipper, key, value, updater \\ nil) do
     updater = updater || (&{:ok, &1})
-    zipper = Common.maybe_move_to_single_child_block(zipper)
 
-    if Igniter.Code.List.list?(zipper) do
-      zipper = Common.maybe_move_to_single_child_block(zipper)
-
-      case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-             if Igniter.Code.Tuple.tuple?(item) do
-               case Igniter.Code.Tuple.tuple_elem(item, 0) do
-                 {:ok, first_elem} ->
-                   Common.nodes_equal?(first_elem, key)
-
-                 :error ->
-                   false
-               end
-             end
-           end) do
-        :error ->
-          to_append =
-            case zipper.node do
-              [{{:__block__, meta, _}, _} | _] ->
-                value =
-                  value
-                  |> Sourceror.to_string()
-                  |> Sourceror.parse_string!()
-
-                value = Common.use_aliases(value, zipper)
-
-                if meta[:format] do
-                  {{:__block__, [format: meta[:format]], [key]}, value}
-                else
-                  {{:__block__, [], [key]}, value}
-                end
-
-              [] ->
-                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [value]}}
-
-              _ ->
-                {key, value}
-            end
-
-          {:ok, Zipper.append_child(zipper, to_append)}
-
-        {:ok, zipper} ->
-          zipper
-          |> Igniter.Code.Tuple.tuple_elem(1)
-          |> case do
+    Common.within(zipper, fn zipper ->
+      case create_or_move_to_value_for_key(zipper, key) do
+        {:found, zipper} ->
+          case updater.(zipper) do
             {:ok, zipper} ->
-              case updater.(zipper) do
-                {:ok, zipper} -> {:ok, Zipper.replace(zipper, {:__block__, [], [zipper.node]})}
-                :error -> :error
-              end
+              {:ok, %{zipper | node: {:__block__, [], [zipper.node]}}}
 
             :error ->
               :error
           end
+
+        {:new, zipper} ->
+          {:ok, set_keyword_value!(zipper, value)}
+
+        :error ->
+          :error
+      end
+    end)
+  end
+
+  defp set_keyword_value!(zipper, value) do
+    value =
+      value
+      |> Sourceror.to_string()
+      |> Sourceror.parse_string!()
+      |> Common.use_aliases(zipper)
+
+    Zipper.replace(zipper, value)
+  end
+
+  @spec create_or_move_to_value_for_key(Zipper.t(), atom()) ::
+          {:found, Zipper.t()} | {:new, Zipper.t()} | :error
+  defp create_or_move_to_value_for_key(zipper, key) do
+    zipper = Common.maybe_move_to_single_child_block(zipper)
+
+    if Igniter.Code.List.list?(zipper) do
+      case get_key(zipper, key) do
+        {:ok, zipper} ->
+          {:found, zipper}
+
+        :error ->
+          to_append =
+            case zipper.node do
+              [{{:__block__, meta, _}, _} | _] ->
+                if meta[:format] do
+                  {{:__block__, [format: meta[:format]], [key]}, {:__block__, [], [nil]}}
+                else
+                  {{:__block__, [], [key]}, {:__block__, [], [nil]}}
+                end
+
+              [] ->
+                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [nil]}}
+
+              _current_node ->
+                {{:__block__, [], [key]}, {:__block__, [], [nil]}}
+            end
+
+          {:ok, zipper} =
+            zipper
+            |> Zipper.append_child(to_append)
+            |> get_key(key)
+
+          {:new, zipper}
       end
     else
       :error
@@ -223,29 +160,19 @@ defmodule Igniter.Code.Keyword do
   @doc "Removes a key from a keyword list if present. Returns `:error` only if the node is not a list"
   @spec remove_keyword_key(Zipper.t(), atom()) :: {:ok, Zipper.t()} | :error
   def remove_keyword_key(zipper, key) do
-    Common.within(zipper, fn zipper ->
-      if Igniter.Code.List.list?(zipper) do
-        case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-               if Igniter.Code.Tuple.tuple?(item) do
-                 case Igniter.Code.Tuple.tuple_elem(item, 0) do
-                   {:ok, first_elem} ->
-                     Common.nodes_equal?(first_elem, key)
+    if Igniter.Code.List.list?(zipper) do
+      Common.within(zipper, fn zipper ->
+        case get_key(zipper, key) do
+          {:ok, zipper} ->
+            {:ok, zipper |> Zipper.up() |> Zipper.remove()}
 
-                   :error ->
-                     false
-                 end
-               end
-             end) do
           :error ->
             {:ok, zipper}
-
-          {:ok, zipper} ->
-            {:ok, zipper |> Zipper.remove()}
         end
-      else
-        :error
-      end
-    end)
+      end)
+    else
+      :error
+    end
   end
 
   @doc "Puts into nested keyword lists represented by `path`"
