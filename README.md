@@ -46,7 +46,7 @@ In addition to providing tools for library authors to patch your code, common op
 Igniter can be added to an existing elixir project by adding it to your dependencies:
 
 ```elixir
-{:igniter, "~> 0.1", only: [:dev, :test]}
+{:igniter, "~> 0.4", only: [:dev, :test]}
 ```
 
 You can also generate new projects with igniter preinstalled, and run installers in the same command.
@@ -73,7 +73,7 @@ mix igniter.new app_name --install ash --with phx.new --with-args="--no-ecto"
 For library authors, add igniter like so:
 
 ```elixir
-{:igniter, "~> 0.1", optional: true}
+{:igniter, "~> 0.4", optional: true}
 ```
 
 This ensures that end users can install as outlined above, and `:igniter` will not be compiled into their production application.

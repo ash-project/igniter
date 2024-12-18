@@ -94,11 +94,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
               Mix.shell().error(\"""
               The task 'foo.bar' requires igniter. Please install igniter and try again.
 
-              Add the following to your dependencies in `mix.exs`:
-
-                  {:igniter, "~> 0.4"}
-
-              For more information, see: https://hexdocs.pm/igniter/installation
+              For more information, see: https://hexdocs.pm/igniter/readme.html#installation
               \""")
 
               exit({:shutdown, 1})
@@ -245,11 +241,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
               Mix.shell().error(\"""
               The task 'foo.bar' requires igniter. Please install igniter and try again.
 
-              Add the following to your dependencies in `mix.exs`:
-
-                  {:igniter, "~> 0.4"}
-
-              For more information, see: https://hexdocs.pm/igniter/installation
+              For more information, see: https://hexdocs.pm/igniter/readme.html#installation
               \""")
 
               exit({:shutdown, 1})

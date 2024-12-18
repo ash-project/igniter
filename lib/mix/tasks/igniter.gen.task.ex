@@ -3,7 +3,6 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
   @example "mix igniter.gen.task my_app.install"
   @shortdoc "Generates a new igniter task"
-  @igniter_version Igniter.MixProject.install_version()
 
   @moduledoc """
   #{@shortdoc}
@@ -228,11 +227,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           Mix.shell().error(\"\"\"
           The task '#{task_name}' requires igniter. Please install igniter and try again.
 
-          Add the following to your dependencies in `mix.exs`:
-
-              {:igniter, "#{@igniter_version}"}
-
-          For more information, see: https://hexdocs.pm/igniter/installation
+          For more information, see: https://hexdocs.pm/igniter/readme.html#installation
           \"\"\")
 
           exit({:shutdown, 1})
