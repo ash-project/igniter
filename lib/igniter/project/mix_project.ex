@@ -200,24 +200,21 @@ defmodule Igniter.Project.MixProject do
   defp maybe_resolve_block_to_last_child(zipper), do: zipper
 
   defp move_to_function_def(zipper, name, arity) do
-    with :error <- Igniter.Code.Function.move_to_def(zipper, name, arity),
-         :error <- Igniter.Code.Function.move_to_defp(zipper, name, arity) do
-      :error
+    with :error <- Igniter.Code.Function.move_to_def(zipper, name, arity) do
+      Igniter.Code.Function.move_to_defp(zipper, name, arity)
     end
   end
 
   defp ensure_key(zipper, key) do
     zipper = maybe_replace_nil_with_list(zipper)
 
-    cond do
-      Igniter.Code.List.list?(zipper) ->
-        case Igniter.Code.Keyword.set_keyword_key(zipper, key, nil) do
-          {:ok, zipper} -> Igniter.Code.Keyword.get_key(zipper, key)
-          :error -> :error
-        end
-
-      true ->
-        :error
+    if Igniter.Code.List.list?(zipper) do
+      case Igniter.Code.Keyword.set_keyword_key(zipper, key, nil) do
+        {:ok, zipper} -> Igniter.Code.Keyword.get_key(zipper, key)
+        :error -> :error
+      end
+    else
+      :error
     end
   end
 

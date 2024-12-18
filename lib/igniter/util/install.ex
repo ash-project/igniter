@@ -119,19 +119,6 @@ defmodule Igniter.Util.Install do
           options
         )
     end
-
-    installing
-    |> Enum.filter(&(&1 not in available_tasks))
-    |> case do
-      [] ->
-        :ok
-
-      [package] ->
-        IO.puts("The package `#{package}` had no associated installer task.")
-
-      packages ->
-        IO.puts("The packages `#{Enum.join(packages, ", ")}` had no associated installer task.")
-    end
   end
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do

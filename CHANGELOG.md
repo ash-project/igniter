@@ -22,7 +22,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ### Improvements:
 
-* add `:force?` option to `Igniter.Project.Application.add_child/3` (#156)
+* add `:force?` option to `Igniter.Project.Application.add_new_child/3` (#156)
 
 * handle io formatting more uniformly (#148)
 

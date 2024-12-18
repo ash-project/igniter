@@ -2,6 +2,7 @@ defmodule Igniter.MixProject do
   use Mix.Project
 
   @version "0.4.8"
+  @install_version "~> 0.4"
 
   @description """
   A code generation and project patching framework
@@ -120,4 +121,7 @@ defmodule Igniter.MixProject do
       credo: "credo --strict"
     ]
   end
+
+  @doc false
+  def install_version, do: @install_version
 end

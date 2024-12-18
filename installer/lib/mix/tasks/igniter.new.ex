@@ -260,7 +260,7 @@ defmodule Mix.Tasks.Igniter.New do
     String.replace(
       contents,
       "defp deps do\n    [\n",
-      "defp deps do\n    [\n      {:igniter, #{version_requirement}},\n"
+      "defp deps do\n    [\n      {:igniter, #{version_requirement}, only: [:dev, :test]},\n"
     )
   end
 

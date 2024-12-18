@@ -3,6 +3,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
   @example "mix igniter.gen.task my_app.install"
   @shortdoc "Generates a new igniter task"
+  @igniter_version Igniter.MixProject.install_version()
 
   @moduledoc """
   #{@shortdoc}
@@ -15,7 +16,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
   ## Options
 
-  * `--optional` or `-o` - Whether or not to define the task to be compatible with igniter as an optional dependency.
+  * `--no-optional` or `-o` - Whether or not to define the task to be compatible with igniter as an optional dependency.
   * `--upgrade` or `-u` - Whether or not the task is an upgrade task. See the upgrades guide for more.
   * `--private` or `-p` - Whether or not the task is a private task. This means it has no shortdoc or moduledoc.
     Upgrade tasks are always private.
@@ -28,7 +29,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       positional: [:task_name],
       schema: [optional: :boolean, upgrade: :boolean, private: :boolean],
       aliases: [o: :optional, u: :upgrade, p: :private],
-      defaults: [optional: false, upgrade: false, private: false]
+      defaults: [optional: true, upgrade: false, private: false]
     }
   end
 
@@ -136,42 +137,51 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
     """
   end
 
-  defp optional_template(module_name, task_name, app_name, opts) do
-    docs =
-      if opts[:private] do
-        "@moduledoc false"
-      else
-        """
-        @shortdoc "A short description of your task"
-        if !Code.ensure_loaded?(Igniter) do
-          @shortdoc "\#{@shortdoc} | Install `igniter` to use"
+  defp docs_module(module_name, task_name, opts) do
+    if opts[:private] do
+      ""
+    else
+      """
+      defmodule #{inspect(module_name)}.Docs do
+        @moduledoc false
+
+        def short_doc do
+          "A short description of your task"
         end
 
-        @moduledoc \"\"\"
-        \#{@shortdoc}
+        def example do
+          "mix #{task_name} --example arg"
+        end
 
-        Longer explanation of your task
+        def long_doc do
+          \"\"\"
+          \#{short_doc()}
 
-        ## Example
+          Longer explanation of your task
 
-        ```bash
-        \#{@example}
-        ```
+          ## Example
 
-        ## Options
+          ```bash
+          \#{example()}
+          ```
 
-        * `--example-option` or `-e` - Docs for your option
-        \"\"\"
-        """
+          ## Options
+
+          * `--example-option` or `-e` - Docs for your option
+          \"\"\"
+        end
       end
+      """
+    end
+  end
 
+  defp optional_template(module_name, task_name, app_name, opts) do
     """
-    defmodule #{inspect(module_name)} do
-      @example "mix #{task_name} --example arg"
+    #{docs_module(module_name, task_name, opts)}
+    if Code.ensure_loaded?(Igniter) do
+      defmodule #{inspect(module_name)} do
+        #{optional_docs(opts, :present)}
 
-      #{docs}
-
-      if Code.ensure_loaded?(Igniter) do
         use Igniter.Mix.Task
 
         @impl Igniter.Mix.Task
@@ -185,7 +195,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             # dependencies to add and call their associated installers, if they exist
             installs: [],
             # An example invocation
-            example: @example,
+            example: __MODULE__.Docs.example(),
             #{only(opts, task_name)}\
             # a list of positional arguments, i.e `[:file]`
             positional: #{positional(opts)},
@@ -207,15 +217,22 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
         def igniter(igniter) do
           #{execute(opts, task_name)}
         end
-      else
+      end
+    else
+      defmodule #{inspect(module_name)} do
+        #{optional_docs(opts, :missing)}
+
         use Mix.Task
+
         def run(_argv) do
           Mix.shell().error(\"\"\"
-          The task '#{task_name}' requires igniter to be run.
+          The task '#{task_name}' requires igniter. Please install igniter and try again.
 
-          Please install igniter and try again.
+          Add the following to your dependencies in `mix.exs`:
 
-          For more information, see: https://hexdocs.pm/igniter
+              {:igniter, "#{@igniter_version}"}
+
+          For more information, see: https://hexdocs.pm/igniter/installation
           \"\"\")
 
           exit({:shutdown, 1})
@@ -223,6 +240,25 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       end
     end
     """
+  end
+
+  defp optional_docs(opts, location) do
+    if opts[:private] do
+      "@moduledoc false"
+    else
+      install_igniter =
+        if location == :missing do
+          " | Install `igniter` to use"
+        else
+          ""
+        end
+
+      """
+      @shortdoc "\#{__MODULE__.Docs.short_doc()}#{install_igniter}"
+
+      @moduledoc __MODULE__.Docs.long_doc()
+      """
+    end
   end
 
   defp only(opts, task_name) do
