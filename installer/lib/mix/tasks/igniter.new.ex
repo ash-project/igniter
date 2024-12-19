@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version "~> 0.4"
+  @igniter_version "~> 0.5"
 
   @impl Mix.Task
   def run(argv) do
