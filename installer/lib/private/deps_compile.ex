@@ -240,8 +240,14 @@ defmodule Igniter.Util.DepsCompile do
     |> Mix.Rebar.serialize_config()
   end
 
-  defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
-    Mix.Rebar.rebar_cmd(manager) || handle_rebar_not_found(dep)
+  if Version.match?(System.version(), "~> 1.18") do
+    defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
+      Mix.Rebar.rebar_cmd(manager) || handle_rebar_not_found(dep)
+    end
+  else
+    defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
+      Mix.Rebar.local_rebar_path(manager) || handle_rebar_not_found(dep)
+    end
   end
 
   defp handle_rebar_not_found(%Mix.Dep{app: app, manager: manager}) do
