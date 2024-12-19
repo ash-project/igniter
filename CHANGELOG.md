@@ -5,6 +5,35 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.0](https://github.com/ash-project/igniter/compare/v0.4.8...v0.5.0) (2024-12-19)
+
+
+
+
+### Features:
+
+* add Igniter.mkdir (#165)
+
+### Bug Fixes:
+
+* set quoted default to handle regex escaping issues
+
+* parse_argv callback should be overridable (#166)
+
+* use original file's extname when moving files always
+
+### Improvements:
+
+* default igniter installation to being optional
+
+* `Igniter.Project.MixProject.update/4` (#168)
+
+* `Igniter.Project.MixProject.update/4`
+
+* add `has_dep?/2`
+
+* add convenient wrapper around installing new packages
+
 ## [v0.4.8](https://github.com/ash-project/igniter/compare/v0.4.7...v0.4.8) (2024-11-27)
 ### Breaking Changes:
 
