@@ -57,12 +57,12 @@ defmodule Igniter.MixProject do
         "CHANGELOG.md"
       ],
       groups_for_modules: [
-        "Writing Mix tasks": [~r"Igniter\.Mix\..*"],
-        "Project modifications": [~r"Igniter\.Refactors\..*", ~r"Igniter\.Project\..*"],
-        "Code modifications": [~r"Igniter\.Code\..*"],
-        Extensions: [Igniter.Extension, ~r"Igniter\.Extensions\..*"],
-        "Library support": [~r"Igniter\.Libs\..*"],
-        Utilities: [~r"Igniter\.Util\..*"]
+        "Writing Mix tasks": [~r"Igniter\.Mix(\..*)?"],
+        "Project modifications": [~r"Igniter\.Refactors(\..*)?", ~r"Igniter\.Project(\..*)?"],
+        "Code modifications": [~r"Igniter\.Code(\..*)?"],
+        Extensions: [Igniter.Extension, ~r"Igniter\.Extensions(\..*)?"],
+        "Library support": [~r"Igniter\.Libs(\..*)?"],
+        Utilities: [~r"Igniter\.Util(\..*)?"]
       ],
       before_closing_head_tag: fn type ->
         if type == :html do
