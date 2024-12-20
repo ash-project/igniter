@@ -242,12 +242,21 @@ defmodule Igniter.Util.DepsCompile do
 
   if Version.match?(System.version(), "~> 1.18") do
     defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
-      Mix.Rebar.rebar_cmd(manager) || handle_rebar_not_found(dep)
+      if Mix.Rebar.available?(manager) do
+        {cmd, _} = Mix.Rebar.rebar_args(manager, [])
+        cmd
+      else
+        handle_rebar_not_found(dep)
+      end
     end
+
+    defp local_rebar_path(manager), do: Mix.Rebar.local_rebar_path(manager)
   else
     defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
-      Mix.Rebar.local_rebar_path(manager) || handle_rebar_not_found(dep)
+      local_rebar_path(manager) || handle_rebar_not_found(dep)
     end
+
+    defp local_rebar_path(manager), do: Mix.Rebar.local_rebar_cmd(manager)
   end
 
   defp handle_rebar_not_found(%Mix.Dep{app: app, manager: manager}) do
@@ -270,7 +279,7 @@ defmodule Igniter.Util.DepsCompile do
     end
 
     Mix.Tasks.Local.Rebar.run(["--force"])
-    Mix.Rebar.local_rebar_cmd(manager) || Mix.raise("\"#{manager}\" installation failed")
+    local_rebar_path(manager) || Mix.raise("\"#{manager}\" installation failed")
   end
 
   defp do_make(dep, config) do
