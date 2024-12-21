@@ -37,6 +37,8 @@ defmodule Igniter.Util.DepsCompile do
   #   * `--skip-umbrella-children` - skips umbrella applications from compiling
   #   * `--skip-local-deps` - skips non-remote dependencies, such as path deps, from compiling
 
+  @dialyzer {:nowarn_function, handle_rebar_not_found: 1}
+
   def run(_opts \\ []) do
     Mix.Project.get!()
     deps = Mix.Dep.load_and_cache()
