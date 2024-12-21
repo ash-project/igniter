@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version "~> 0.5"
+  @igniter_version Installer.Lib.Private.SharedUtils.igniter_version()
 
   @impl Mix.Task
   def run(argv) do
@@ -256,19 +256,36 @@ defmodule Mix.Tasks.Igniter.New do
 
   defp do_rest_args([other]), do: [other]
 
-  defp add_igniter_dep(contents, version_requirement) do
-    String.replace(
-      contents,
-      "defp deps do\n    [\n",
-      "defp deps do\n    [\n      {:igniter, #{version_requirement}, only: [:dev, :test]},\n"
-    )
+  @doc false
+  def add_igniter_dep(contents, version_requirement) do
+    if String.contains?(contents, "defp deps do\n    []") do
+      String.replace(
+        contents,
+        "defp deps do\n    []",
+        "defp deps do\n    [{:igniter, #{version_requirement}, only: [:dev, :test]}]"
+      )
+    else
+      String.replace(
+        contents,
+        "defp deps do\n    [\n",
+        "defp deps do\n    [\n      {:igniter, #{version_requirement}, only: [:dev, :test]},\n"
+      )
+    end
   end
 
-  defp dont_consolidate_protocols_in_dev(contents) do
-    String.replace(
-      contents,
-      "start_permanent: Mix.env() == :prod,\n",
-      "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
-    )
+  @doc false
+  def dont_consolidate_protocols_in_dev(contents) do
+    if String.contains?(contents, "consolidate_protocols") do
+      contents
+    else
+      String.replace(
+        contents,
+        "start_permanent: Mix.env() == :prod,\n",
+        "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
+      )
+    end
   end
+
+  @doc false
+  def igniter_version, do: @igniter_version
 end

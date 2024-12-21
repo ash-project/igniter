@@ -161,17 +161,20 @@ defmodule Igniter.Code.Function do
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
-      {^name, _, args} ->
-        arity == :any || Enum.count(args) == arity
+      {^name, _, args} when arity == :any or length(args) == arity ->
+        true
 
-      {{^name, _, context}, _, args} when is_atom(context) ->
-        arity == :any || Enum.count(args) == arity
+      {{^name, _, context}, _, args}
+      when is_atom(context) and (arity == :any or length(args) == arity) ->
+        true
 
-      {:|>, _, [_, {{^name, _, context}, _, rest}]} when is_atom(context) ->
-        arity == :any || Enum.count(rest) == arity - 1
+      {:|>, _, [_, {{^name, _, context}, _, rest}]}
+      when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
+        true
 
-      {:|>, _, [_, {^name, _, rest}]} ->
-        arity == :any || Enum.count(rest) == arity - 1
+      {:|>, _, [_, {^name, _, rest}]}
+      when arity == :any or length(rest) == arity - 1 ->
+        true
 
       _ ->
         false
