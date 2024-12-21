@@ -207,7 +207,9 @@ defmodule IgniterTest do
     end
 
     test "prints nothing if there are no tasks" do
-      assert capture_io(fn -> Igniter.display_tasks(test_project(), :dry_run_with_changes, []) end) ==
+      assert capture_io(fn ->
+               Igniter.display_tasks(test_project(), :dry_run_with_changes, [])
+             end) ==
                ""
     end
   end
