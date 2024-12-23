@@ -1024,7 +1024,7 @@ defmodule Igniter do
                   end
 
                   igniter.mkdirs
-                  |> Enum.map(&Path.expand(&1, ""))
+                  |> Enum.map(&Path.expand(&1, "."))
                   |> Enum.uniq()
                   |> Enum.each(fn path ->
                     File.mkdir_p!(path)
