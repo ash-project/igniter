@@ -330,6 +330,84 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   @doc """
+  Prepends code to a Phoenix router pipeline.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  """
+  @spec prepend_to_pipeline(Igniter.t(), atom, String.t(), Keyword.t()) :: Igniter.t()
+  def prepend_to_pipeline(igniter, name, contents, opts \\ []) do
+    {igniter, router} =
+      case Keyword.fetch(opts, :router) do
+        {:ok, router} ->
+          {igniter, router}
+
+        :error ->
+          select_router(igniter)
+      end
+
+    pipeline_code = """
+    pipeline #{inspect(name)} do
+      #{contents}
+    end
+    """
+
+    if router do
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
+        Igniter.Code.Function.move_to_function_call_in_current_scope(
+          zipper,
+          :pipeline,
+          2,
+          fn zipper ->
+            Igniter.Code.Function.argument_equals?(
+              zipper,
+              0,
+              name
+            )
+          end
+        )
+        |> case do
+          {:ok, zipper} ->
+            case Igniter.Code.Common.move_to_do_block(zipper) do
+              {:ok, zipper} ->
+                {:ok, Igniter.Code.Common.add_code(zipper, contents, placement: :before)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
+                   pipeline_code
+                 )}
+            end
+
+          _ ->
+            case move_to_pipeline_location(igniter, zipper) do
+              {:ok, zipper, append_or_prepend} ->
+                {:ok,
+                 Igniter.Code.Common.add_code(zipper, pipeline_code, placement: append_or_prepend)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
+                   pipeline_code
+                 )}
+            end
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        Igniter.Util.Warning.formatted_warning(
+          "Could not append the following contents to the #{name} pipeline to your router. Please add it manually.",
+          contents
+        )
+      )
+    end
+  end
+
+  @doc """
   Adds a pipeline to a Phoenix router.
 
   ## Options
@@ -368,7 +446,7 @@ defmodule Igniter.Libs.Phoenix do
             if Keyword.get(opts, :warn_on_present?, true) do
               {:warning,
                Igniter.Util.Warning.formatted_warning(
-                 "The #{name} pipeline already exists in the router. Attempting to add scope: ",
+                 "The #{name} pipeline already exists in the router. Attempting to add pipeline: ",
                  pipeline_code
                )}
             else
@@ -398,6 +476,32 @@ defmodule Igniter.Libs.Phoenix do
           pipeline_code
         )
       )
+    end
+  end
+
+  @doc """
+  Returns `{igniter, true}` if a pipeline exists in a Phoenix router, and `{igniter, false}` otherwise.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  """
+  @spec has_pipeline(Igniter.t(), router :: module(), name :: atom()) ::
+          {Igniter.t(), boolean()}
+  def has_pipeline(igniter, router, name) do
+    {_igniter, _source, zipper} = Igniter.Project.Module.find_module!(igniter, router)
+
+    Igniter.Code.Function.move_to_function_call(zipper, :pipeline, 2, fn zipper ->
+      Igniter.Code.Function.argument_equals?(
+        zipper,
+        0,
+        name
+      )
+    end)
+    |> case do
+      {:ok, _} -> {igniter, true}
+      _ -> {igniter, false}
     end
   end
 
