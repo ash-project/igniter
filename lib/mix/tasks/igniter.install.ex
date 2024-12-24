@@ -8,8 +8,12 @@ defmodule Mix.Tasks.Igniter.Install do
     Mix.Task.run("deps.compile")
     Mix.Task.run("deps.loadpaths")
 
-    if !Code.ensure_compiled?(Installer.Lib.Private.SharedUtils) do
-      Mix.Task.run("compile")
+    case Code.ensure_compiled(Installer.Lib.Private.SharedUtils) do
+      {:module, _} ->
+        :ok
+
+      _ ->
+        Mix.Task.run("compile")
     end
 
     Installer.Lib.Private.SharedUtils.install(argv)
