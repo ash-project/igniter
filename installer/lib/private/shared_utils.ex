@@ -28,6 +28,7 @@ defmodule Installer.Lib.Private.SharedUtils do
 
     * `--dry-run` - Run the task without making any changes.
     * `--yes` - Automatically answer yes to any prompts.
+    * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
     * `--example` - Request that installed packages include initial example code.
     """
   end

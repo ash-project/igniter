@@ -199,7 +199,7 @@ defmodule Mix.Tasks.Igniter.New do
           _ -> []
         end
 
-      Mix.Task.run("igniter.install", install_args ++ rest_args)
+      Mix.Task.run("igniter.install", install_args ++ rest_args ++ ["--yes-to-deps"])
     end
 
     :ok

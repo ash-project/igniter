@@ -84,6 +84,7 @@ defmodule Igniter.Util.Install do
         },
         "igniter.install",
         yes: "--yes" in argv,
+        yes_to_deps: "--yes-to-deps" in argv,
         only: only,
         append?: Keyword.get(opts, :append?, false)
       )

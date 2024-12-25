@@ -790,7 +790,6 @@ defmodule Igniter do
     if opts[:force?] ||
          (!igniter.assigns[:private][:refused_fetch_dependencies?] &&
             has_changes?(igniter, ["mix.exs"])) do
-      igniter = prompt_on_git_changes(igniter, opts)
       source = Rewrite.source!(igniter.rewrite, "mix.exs")
 
       original_quoted = Rewrite.Source.get(source, :quoted, 1)
@@ -811,8 +810,6 @@ defmodule Igniter do
         rewrite = Rewrite.update!(igniter.rewrite, source)
 
         if opts[:force?] || changed?(source) do
-          display_diff([source], opts)
-
           message =
             opts[:message] ||
               if opts[:error_on_abort?] do
@@ -821,7 +818,13 @@ defmodule Igniter do
                 "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
               end
 
-          if opts[:yes] || !changed?(source) || Igniter.Util.IO.yes?(message) do
+          if opts[:yes] || opts[:yes_to_deps] || !changed?(source) ||
+               Igniter.Util.IO.yes?(
+                 message_with_git_warning(
+                   igniter,
+                   Keyword.put(opts, :message, message <> "\n\n#{diff([source])}")
+                 )
+               ) do
             rewrite =
               case Rewrite.write(rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -1104,36 +1107,6 @@ defmodule Igniter do
         display_diff(Rewrite.sources(igniter.rewrite), opts)
 
         System.halt(1)
-    end
-  end
-
-  defp prompt_on_git_changes(igniter, opts) do
-    if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
-      igniter
-    else
-      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
-        case check_git_status() do
-          {:dirty, output} ->
-            if Igniter.Util.IO.yes?("""
-               #{IO.ANSI.red()} Uncommitted changes detected in the project. #{IO.ANSI.reset()}
-
-               Output of `git status -s --porcelain`:
-
-               #{output}
-
-               Continue? You will be prompted again to accept the above changes.
-               """) do
-              Igniter.assign(igniter, :prompt_on_git_changes?, false)
-            else
-              exit({:shutdown, 1})
-            end
-
-          _ ->
-            Igniter.assign(igniter, :prompt_on_git_changes?, false)
-        end
-      else
-        igniter
-      end
     end
   end
 

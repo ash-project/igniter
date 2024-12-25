@@ -46,6 +46,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       ],
       schema: [
         yes: :boolean,
+        yes_to_deps: :boolean,
         all: :boolean,
         only: :string,
         target: :string,
@@ -53,7 +54,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         git_ci: :boolean
       ],
       aliases: [y: :yes, a: :all, o: :only, t: :target, n: :no_archives_check, g: :git_ci],
-      defaults: [yes: false]
+      defaults: [yes: false, yes_to_deps: false]
     }
   end
 
@@ -148,6 +149,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         |> Igniter.apply_and_fetch_dependencies(
           error_on_abort?: true,
           yes: options[:yes],
+          yes_to_deps: options[:yes_to_deps],
           update_deps: Enum.map(package_names, &to_string/1),
           update_deps_args: update_deps_args,
           force?: true
