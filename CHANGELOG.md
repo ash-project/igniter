@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.2](https://github.com/ash-project/igniter/compare/v0.5.1...v0.5.2) (2024-12-25)
+
+
+
+
+### Improvements:
+
+* add `--yes-to-deps` option to `mix igniter.install`
+
+* add `--yes-to-deps` when using `mix igniter.new`
+
 ## [v0.5.1](https://github.com/ash-project/igniter/compare/v0.5.0...v0.5.1) (2024-12-24)
 
 
