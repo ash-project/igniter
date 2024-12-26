@@ -3,13 +3,13 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @moduledoc Installer.Lib.Private.SharedUtils.igniter_install_docs()
     use Mix.Task
 
-    @requirements "deps.compile"
-
     @tasks ~w(deps.loadpaths loadpaths compile deps.compile)
 
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
+      Mix.Task.run("deps.compile")
+
       if Code.ensure_loaded?(Igniter.Util.Install) do
         Code.ensure_compiled(Installer.Lib.Private.SharedUtils)
 
@@ -45,7 +45,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
               |> Code.format_string!()
             end
 
-          if new_contents == contents do
+          if new_contents == contents && !String.contains?(contents, "{:igniter,") do
             Mix.shell().error("""
             Failed to add igniter to mix.exs. Please add it manually and try again
 
