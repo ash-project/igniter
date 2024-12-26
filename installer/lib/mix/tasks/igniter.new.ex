@@ -28,11 +28,11 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version Installer.Lib.Private.SharedUtils.igniter_version()
+  @igniter_version "~> 0.5"
 
   @impl Mix.Task
   def run(argv) do
-    {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+    {argv, positional} = extract_positional_args(argv)
 
     name =
       case positional do
@@ -203,6 +203,36 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     :ok
+  end
+
+  defp extract_positional_args(argv) do
+    do_extract_positional_args(argv, [], [])
+  end
+
+  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+  defp do_extract_positional_args(argv, got_argv, positional) do
+    case OptionParser.next(argv, switches: []) do
+      {_, _key, true, rest} ->
+        do_extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0)],
+          positional
+        )
+
+      {_, _key, _value, rest} ->
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
+        do_extract_positional_args(
+          rest,
+          got_argv ++ Enum.take(argv, count_consumed),
+          positional
+        )
+
+      {:error, rest} ->
+        [first | rest] = rest
+        do_extract_positional_args(rest, got_argv, positional ++ [first])
+    end
   end
 
   @flags ~w(example sup umbrella)

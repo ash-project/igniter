@@ -169,7 +169,25 @@ defmodule Mix.Tasks.Igniter.Upgrade do
                 Mix.Dep.in_dependency(dep, fn _ ->
                   if File.exists?("mix.exs") do
                     Mix.Project.pop()
-                    Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
+                    old_undefined = Code.get_compiler_option(:no_warn_undefined)
+                    old_relative_paths = Code.get_compiler_option(:relative_paths)
+                    old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+                    try do
+                      Code.compiler_options(
+                        relative_paths: false,
+                        no_warn_undefined: :all,
+                        ignore_module_conflict: true
+                      )
+
+                      _ = Code.compile_file("mix.exs")
+                    after
+                      Code.compiler_options(
+                        relative_paths: old_relative_paths,
+                        no_warn_undefined: old_undefined,
+                        ignore_module_conflict: old_ignore_module_conflict
+                      )
+                    end
 
                     {:ok, Mix.Project.get!().project()[:version]}
                   else

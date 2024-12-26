@@ -1536,7 +1536,7 @@ defmodule Igniter do
     igniter.warnings
     |> Enum.reverse()
     |> Enum.map(fn error ->
-      ["* ", :yellow, format_error(error)]
+      ["* ", :yellow, indent(format_error(error), 2)]
     end)
     |> display_list([title, " - ", :yellow, "Warnings:"])
   end
@@ -1546,9 +1546,9 @@ defmodule Igniter do
     igniter.notices
     |> Enum.reverse()
     |> Enum.map(fn notice ->
-      [:green, "Notice: ", :reset, notice]
+      ["* ", :green, indent(notice, 2), :reset]
     end)
-    |> display_list()
+    |> display_list(["Notices: "])
   end
 
   @doc false
@@ -1564,6 +1564,13 @@ defmodule Igniter do
     end)
     |> Enum.reject(&is_nil/1)
     |> display_list("These folders will be created:")
+  end
+
+  defp indent(string, count) do
+    string
+    |> String.split("\n")
+    |> Enum.map_join("\n", &(String.duplicate(" ", count) <> &1))
+    |> String.trim_leading(" ")
   end
 
   @doc false

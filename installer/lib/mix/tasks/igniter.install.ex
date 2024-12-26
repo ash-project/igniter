@@ -1,6 +1,34 @@
 if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
   defmodule Mix.Tasks.Igniter.Install do
-    @moduledoc Installer.Lib.Private.SharedUtils.igniter_install_docs()
+    @moduledoc """
+    Install a package or packages, and run any associated installers.
+
+    ## Args
+
+    mix igniter.install package1 package2 package3
+
+    ## Package formats
+
+    * `package` - The latest version of the package will be installed, pinned at the
+       major version, or minor version if there is no major version yet.
+    * `package@version` - The package will be installed at the specified version.
+       If the version given is generic, like `3.0`, it will be pinned as described above.
+       if it is specific, like `3.0.1`, it will be pinned at that *exact* version with `==`.
+    * `package@git:git_url` - The package will be installed from the specified git url.
+    * `package@github:project/repo` - The package will be installed from the specified github repo.
+    * `package@path:path/to/dep` - The package will be installed from the specified path.
+
+    Additionally, a Git ref can be specified when using `git` or `github`:
+
+    * `package@git:git_url@ref`
+
+    ## Switches
+
+    * `--dry-run` - Run the task without making any changes.
+    * `--yes` - Automatically answer yes to any prompts.
+    * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
+    * `--example` - Request that installed packages include initial example code.
+    """
     use Mix.Task
 
     @tasks ~w(deps.loadpaths loadpaths compile deps.compile)
@@ -11,21 +39,22 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
       Mix.Task.run("deps.compile", ["--long-compilation-threshold", "300"])
 
       if Code.ensure_loaded?(Igniter.Util.Install) do
-        Code.ensure_compiled(Installer.Lib.Private.SharedUtils)
+        Mix.Task.run("compile", ["--no-compile"])
 
-        if function_exported?(Installer.Lib.Private.SharedUtils, :install, 1) do
-          Installer.Lib.Private.SharedUtils.install(argv)
-        else
-          Mix.shell().error("""
-          Failed to install. Please update the project's igniter package and try again.
+        {argv, positional} = extract_positional_args(argv)
 
-          `mix igniter.upgrade igniter`
+        packages =
+          positional
+          |> Enum.join(",")
+          |> String.split(",", trim: true)
 
-          For more information, see: https://hexdocs.pm/igniter/upgrades.html
-          """)
-
-          exit({:shutdown, 1})
+        if Enum.empty?(packages) do
+          raise ArgumentError, "must provide at least one package to install"
         end
+
+        Application.ensure_all_started(:rewrite)
+
+        apply(Igniter.Util.Install, :install, [Enum.join(packages, ","), argv])
       else
         if File.exists?("mix.exs") do
           contents =
@@ -60,7 +89,25 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             Mix.Project.pop()
             Mix.Dep.clear_cached()
 
-            Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
+            old_undefined = Code.get_compiler_option(:no_warn_undefined)
+            old_relative_paths = Code.get_compiler_option(:relative_paths)
+            old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+            try do
+              Code.compiler_options(
+                relative_paths: false,
+                no_warn_undefined: :all,
+                ignore_module_conflict: true
+              )
+
+              _ = Code.compile_file("mix.exs")
+            after
+              Code.compiler_options(
+                relative_paths: old_relative_paths,
+                no_warn_undefined: old_undefined,
+                ignore_module_conflict: old_ignore_module_conflict
+              )
+            end
 
             System.cmd("mix", ["deps.get"])
 
@@ -93,12 +140,43 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     end
 
     defp add_igniter_dep(contents) do
-      version_requirement = inspect(Installer.Lib.Private.SharedUtils.igniter_version())
+      version_requirement = "\"~> 0.5\""
 
       if String.contains?(contents, "{:igniter") do
         contents
       else
         Mix.Tasks.Igniter.New.add_igniter_dep(contents, version_requirement)
+      end
+    end
+
+    @doc false
+    def extract_positional_args(argv) do
+      do_extract_positional_args(argv, [], [])
+    end
+
+    defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+    defp do_extract_positional_args(argv, got_argv, positional) do
+      case OptionParser.next(argv, switches: []) do
+        {_, _key, true, rest} ->
+          do_extract_positional_args(
+            rest,
+            got_argv ++ [Enum.at(argv, 0)],
+            positional
+          )
+
+        {_, _key, _value, rest} ->
+          count_consumed = Enum.count(argv) - Enum.count(rest)
+
+          do_extract_positional_args(
+            rest,
+            got_argv ++ Enum.take(argv, count_consumed),
+            positional
+          )
+
+        {:error, rest} ->
+          [first | rest] = rest
+          do_extract_positional_args(rest, got_argv, positional ++ [first])
       end
     end
   end
