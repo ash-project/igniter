@@ -1602,12 +1602,10 @@ defmodule Igniter do
   end
 
   @spec display_list(IO.ANSI.ansidata(), IO.ANSI.ansidata()) :: :ok
-  defp display_list(list, title \\ nil)
-
   defp display_list([], _title), do: :ok
 
   defp display_list(list, title) do
-    title = if title, do: [IO.ANSI.format(title), "\n\n"], else: []
+    title = [IO.ANSI.format(title), "\n\n"]
     formatted_list = Enum.map_join(list, "\n", &IO.ANSI.format/1)
 
     Mix.shell().info(["\n", title, formatted_list, "\n"])

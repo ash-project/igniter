@@ -152,12 +152,7 @@ defmodule IgniterTest do
         |> Igniter.add_notice("notice 2")
 
       assert capture_io(fn -> Igniter.display_notices(igniter) end) ==
-               """
-
-               \e[32mNotice: \e[0mnotice 1\e[0m
-               \e[32mNotice: \e[0mnotice 2\e[0m
-
-               """
+               "\nNotices: \n\n* \e[32mnotice 1\e[0m\e[0m\n* \e[32mnotice 2\e[0m\e[0m\n\n"
     end
 
     test "prints nothing if there are no notices" do
