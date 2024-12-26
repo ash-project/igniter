@@ -154,7 +154,9 @@ defmodule Igniter.Util.DepsCompile do
           "--from-mix-deps-compile",
           "--no-warnings-as-errors",
           "--no-code-path-pruning",
-          "--ignore-module-conflict"
+          "--ignore-module-conflict",
+          "--long-compilation-threshold",
+          "300"
         ]
 
         reenable_tasks()

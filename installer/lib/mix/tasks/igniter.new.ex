@@ -156,7 +156,7 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     System.cmd("mix", ["deps.get"])
-    System.cmd("mix", ["deps.compile"])
+    System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
 
     if !Enum.empty?(install) do
       example =

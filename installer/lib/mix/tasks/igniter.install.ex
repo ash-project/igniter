@@ -8,7 +8,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
-      Mix.Task.run("deps.compile")
+      Mix.Task.run("deps.compile", ["--long-compilation-threshold", "300"])
 
       if Code.ensure_loaded?(Igniter.Util.Install) do
         Code.ensure_compiled(Installer.Lib.Private.SharedUtils)
@@ -65,7 +65,17 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             System.cmd("mix", ["deps.get"])
 
             for task <- @tasks, do: Mix.Task.reenable(task)
-            for task <- @tasks, do: Mix.Task.run(task)
+
+            for task <- @tasks do
+              options =
+                if String.ends_with?(task, "compile") do
+                  ["--long-compilation-threshold", "300"]
+                else
+                  []
+                end
+
+              Mix.Task.run(task, options)
+            end
 
             Mix.Task.reenable("igniter.install")
             Mix.Task.run("igniter.install", argv)
