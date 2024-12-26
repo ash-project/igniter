@@ -28,7 +28,7 @@ defmodule Igniter.MixProject do
   end
 
   defp elixirc_paths(_env) do
-    ["lib", "installer/lib/private"]
+    ["lib"]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -82,7 +82,7 @@ defmodule Igniter.MixProject do
     [
       name: :igniter,
       licenses: ["MIT"],
-      files: ~w(lib installer/lib/private .formatter.exs mix.exs README* LICENSE*
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*
       CHANGELOG*),
       links: %{
         GitHub: "https://github.com/ash-project/igniter",
