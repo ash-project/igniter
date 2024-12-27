@@ -1107,6 +1107,9 @@ defmodule Igniter do
         display_diff(Rewrite.sources(igniter.rewrite), opts)
 
         System.halt(1)
+
+      true ->
+        :ok
     end
   end
 
