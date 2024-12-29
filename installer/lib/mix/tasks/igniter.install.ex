@@ -36,10 +36,10 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
-      Mix.Task.run("deps.compile", ["--long-compilation-threshold", "300"])
+      Igniter.Installer.Task.run_with_spinner("deps.compile")
 
       if Code.ensure_loaded?(Igniter.Util.Install) do
-        Mix.Task.run("compile", ["--no-compile"])
+        Igniter.Installer.Task.run_with_spinner("compile", ["--no-compile"])
 
         {argv, positional} = extract_positional_args(argv)
 
@@ -114,14 +114,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             for task <- @tasks, do: Mix.Task.reenable(task)
 
             for task <- @tasks do
-              options =
-                if String.ends_with?(task, "compile") do
-                  ["--long-compilation-threshold", "300"]
-                else
-                  []
-                end
-
-              Mix.Task.run(task, options)
+              Igniter.Installer.Task.run_with_spinner(task, [])
             end
 
             Mix.Task.reenable("igniter.install")

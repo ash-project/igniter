@@ -34,10 +34,10 @@ defmodule Mix.Tasks.Igniter.Install do
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
-    Mix.Task.run("deps.compile")
-    Mix.Task.run("deps.loadpaths")
+    Igniter.Util.Task.run_with_spinner("deps.compile")
+    Igniter.Util.Task.run_with_spinner("deps.loadpaths")
 
-    Mix.Task.run("compile", ["--no-compile"])
+    Igniter.Util.Task.run_with_spinner("compile", ["--no-compile"])
 
     {argv, positional} = extract_positional_args(argv)
 

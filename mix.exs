@@ -34,7 +34,8 @@ defmodule Igniter.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :public_key, :ssl, :inets, :eex]
+      extra_applications: [:logger, :public_key, :ssl, :inets, :eex],
+      plt_add_apps: [:mix]
     ]
   end
 
@@ -101,6 +102,7 @@ defmodule Igniter.MixProject do
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
       {:jason, "~> 1.4"},
+      {:owl, "~> 0.12"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.32", only: [:dev, :test], runtime: false},

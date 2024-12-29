@@ -121,7 +121,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         |> Enum.filter(&match?({:ok, v} when is_binary(v), &1.status))
       end
 
-    Mix.Task.run("compile")
+    Igniter.Util.Task.run_with_spinner("compile")
 
     igniter =
       igniter
@@ -203,7 +203,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
       Mix.Task.reenable("compile")
       Mix.Task.reenable("loadpaths")
-      Mix.Task.run("compile")
+      Igniter.Util.Task.run_with_spinner("compile")
       Mix.Task.reenable("compile")
 
       dep_changes =
