@@ -70,6 +70,7 @@ defmodule Igniter.Mix.Task.Info do
     switches: [
       dry_run: :boolean,
       yes: :boolean,
+      yes_to_deps: :boolean,
       only: :keep,
       check: :boolean
     ],

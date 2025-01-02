@@ -5,52 +5,157 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.3](https://github.com/ash-project/igniter/compare/v0.5.2...v0.5.3) (2024-12-26)
+
+
+
+
+### Bug Fixes:
+
+* ensure deps are compiled and proceed w/ install if igniter is
+
+### Improvements:
+
+* rip out shared utils
+
+## [v0.5.2](https://github.com/ash-project/igniter/compare/v0.5.1...v0.5.2) (2024-12-25)
+
+
+
+
+### Improvements:
+
+* add `--yes-to-deps` option to `mix igniter.install`
+
+* add `--yes-to-deps` when using `mix igniter.new`
+
+## [v0.5.1](https://github.com/ash-project/igniter/compare/v0.5.0...v0.5.1) (2024-12-24)
+
+
+
+
+### Bug Fixes:
+
+* Igniter.mkdir not expanding paths correctly (#174)
+
+* handle case where third tuple elem is nil
+
+* handle mix rebar deprecations for 1.18 (#172)
+
+### Improvements:
+
+* add `prepend_to_pipeline` and `has_pipeline` to
+
+* add fallback igniter install in archive
+
+## [v0.5.0](https://github.com/ash-project/igniter/compare/v0.4.8...v0.5.0) (2024-12-19)
+
+
+
+
+### Features:
+
+* add Igniter.mkdir (#165)
+
+### Bug Fixes:
+
+* set quoted default to handle regex escaping issues
+
+* parse_argv callback should be overridable (#166)
+
+* use original file's extname when moving files always
+
+### Improvements:
+
+* default igniter installation to being optional
+
+* `Igniter.Project.MixProject.update/4` (#168)
+
+* `Igniter.Project.MixProject.update/4`
+
+* add `has_dep?/2`
+
+* add convenient wrapper around installing new packages
+
+## [v0.4.8](https://github.com/ash-project/igniter/compare/v0.4.7...v0.4.8) (2024-11-27)
+### Breaking Changes:
+
+* add `expand_env?` option to `Igniter.Code.Common.add_code/3` (#151)
+
+
+
+### Bug Fixes:
+
+* if alias elements are strings ensure they aren't interpreted as AST
+
+* don't move modules back to their "proper" location
+
+* use new `ignore_missing_sub_formatters` option in rewrite
+
+### Improvements:
+
+* add `:force?` option to `Igniter.Project.Application.add_new_child/3` (#156)
+
+* handle io formatting more uniformly (#148)
+
+* handle io formatting more uniformly
+
+## [v0.4.7](https://github.com/ash-project/igniter/compare/v0.4.6...v0.4.7) (2024-11-12)
+
+### Improvements:
+
+- Add `Igniter.Libs.Swoosh` for working with Swoosh
+
+### Bug Fixes:
+
+- print a consistent number of blank lines around diffs (#147)
+
 ## [v0.4.6](https://github.com/ash-project/igniter/compare/v0.4.5...v0.4.6) (2024-11-06)
 
 ### Bug Fixes:
 
-* suppress module conflict warning when running upgrade_igniter
+- suppress module conflict warning when running upgrade_igniter
 
-* pass dot_formatter when updating rewrite sources (#144)
+- pass dot_formatter when updating rewrite sources (#144)
 
-* skip unknown deps in dot formatter
+- skip unknown deps in dot formatter
 
 ### Improvements:
 
-* Add `priv_dir` functions to return priv directory (#141)
+- Add `priv_dir` functions to return priv directory (#141)
 
 ## [v0.4.5](https://github.com/ash-project/igniter/compare/v0.4.4...v0.4.5) (2024-11-04)
 
 ### Bug Fixes:
 
-* skip unknown deps in dot formatter
+- skip unknown deps in dot formatter
 
 ## [v0.4.4](https://github.com/ash-project/igniter/compare/v0.4.3...v0.4.4) (2024-11-03)
 
 ### Improvements:
 
-* support replace_or_append instruction when modifying task aliases
-* Add `priv_dir` functions to return priv directory (#141)
+- support replace_or_append instruction when modifying task aliases
+- Add `priv_dir` functions to return priv directory (#141)
 
 ## [v0.4.3](https://github.com/ash-project/igniter/compare/v0.4.2...v0.4.3) (2024-11-02)
 
 ### Bug Fixes:
 
-* various fixes for test formatting
+- various fixes for test formatting
 
 ### Improvements:
 
-* Tools for removing formatter plugins & imported deps
+- Tools for removing formatter plugins & imported deps
 
 ## [v0.4.2](https://github.com/ash-project/igniter/compare/v0.4.1...v0.4.2) (2024-11-02)
 
 ### Bug Fixes:
 
-* properly compose upgrade tasks
+- properly compose upgrade tasks
 
 ### Improvements:
 
-* update rewrite to 1.0.0 (#135)
+- update rewrite to 1.0.0 (#135)
 
 ## [v0.4.1](https://github.com/ash-project/igniter/compare/v0.4.0...v0.4.1) (2024-11-01)
 

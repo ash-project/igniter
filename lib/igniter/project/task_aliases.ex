@@ -210,6 +210,21 @@ defmodule Igniter.Project.TaskAliases do
 
     case Igniter.Code.List.move_to_list_item(zipper, &Igniter.Code.Common.nodes_equal?(&1, old)) do
       {:ok, zipper} ->
+        # TODO: this is very dumb. We need a special value that signifies you've
+        # been given AST vs a value, like `%Igniter.AST{}` or something, and default to assuming
+        # that what you've been given is a value.
+        new =
+          if is_binary(new) do
+            {:__block__,
+             [
+               trailing_comments: [],
+               leading_comments: [],
+               delimiter: "\""
+             ], [new]}
+          else
+            new
+          end
+
         {:ok, Igniter.Code.Common.replace_code(zipper, new)}
 
       _ ->

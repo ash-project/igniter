@@ -123,7 +123,7 @@ defmodule Igniter.Mix.Task do
         %Args{positional: positional, options: options, argv: argv, argv_flags: argv_flags}
       end
 
-      defoverridable supports_umbrella?: 0, info: 2, installer?: 0
+      defoverridable supports_umbrella?: 0, info: 2, installer?: 0, parse_argv: 1
     end
   end
 
@@ -269,7 +269,7 @@ defmodule Igniter.Mix.Task do
 
       argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
 
-      {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+      {argv, positional} = Igniter.Mix.Task.extract_positional_args(argv)
 
       desired =
         Enum.map(info.positional, fn
@@ -392,5 +392,36 @@ defmodule Igniter.Mix.Task do
     mix_task? = function_exported?(task, :run, 1)
     igniter_task? = function_exported?(task, :igniter, 1) or function_exported?(task, :igniter, 2)
     mix_task? and igniter_task?
+  end
+
+  @doc false
+  def extract_positional_args(argv) do
+    do_extract_positional_args(argv, [], [])
+  end
+
+  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+  defp do_extract_positional_args(argv, got_argv, positional) do
+    case OptionParser.next(argv, switches: []) do
+      {_, _key, true, rest} ->
+        do_extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0)],
+          positional
+        )
+
+      {_, _key, _value, rest} ->
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
+        do_extract_positional_args(
+          rest,
+          got_argv ++ Enum.take(argv, count_consumed),
+          positional
+        )
+
+      {:error, rest} ->
+        [first | rest] = rest
+        do_extract_positional_args(rest, got_argv, positional ++ [first])
+    end
   end
 end

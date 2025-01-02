@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Igniter.InstallTest do
   describe "installing a new project" do
     test "basic installer works" do
       output = cmd!("mix", ["igniter.install", "jason", "--yes"], cd: "test_project")
-      assert String.contains?(output, "The package `jason` had no associated installer task.")
+      assert String.contains?(output, "jason\nCompiling")
     end
 
     test "rerunning the same installer lets you know the dependency was not changed" do

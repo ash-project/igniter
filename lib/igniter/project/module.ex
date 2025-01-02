@@ -360,6 +360,7 @@ defmodule Igniter.Project.Module do
            module when not is_nil(module) <- to_module_name(module),
            new_path when not is_nil(new_path) <-
              should_move_file_to(igniter, source, module, module_location_config, opts) do
+        new_path = Path.rootname(new_path) <> Path.extname(source.path)
         Igniter.move_file(igniter, source.path, new_path, error_if_exists?: false)
       else
         _ ->
@@ -445,18 +446,15 @@ defmodule Igniter.Project.Module do
                 List.starts_with?(Path.split(path), Path.split(inside_matching_folder_dirname))
               end)
 
-            should_use_inside_matching_folder? =
-              if opts[:move_all?] do
-                dir?(igniter, inside_matching_folder_dirname) || just_created_folder?
-              else
-                source.path == proper_location(igniter, module, location_type) &&
-                  !dir?(igniter, inside_matching_folder_dirname) && just_created_folder?
+            if opts[:move_all?] || Rewrite.Source.from?(source, :string) do
+              if dir?(igniter, inside_matching_folder_dirname) || just_created_folder? do
+                inside_matching_folder
               end
-
-            if should_use_inside_matching_folder? do
-              inside_matching_folder
             else
-              proper_location
+              if source.path == proper_location(igniter, module, location_type) &&
+                   !dir?(igniter, inside_matching_folder_dirname) && just_created_folder? do
+                inside_matching_folder
+              end
             end
 
           :outside_matching_folder ->

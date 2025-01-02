@@ -28,11 +28,11 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version "~> 0.4"
+  @igniter_version "~> 0.5"
 
   @impl Mix.Task
   def run(argv) do
-    {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+    {argv, positional} = extract_positional_args(argv)
 
     name =
       case positional do
@@ -156,7 +156,7 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     System.cmd("mix", ["deps.get"])
-    System.cmd("mix", ["deps.compile"])
+    System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
 
     if !Enum.empty?(install) do
       example =
@@ -199,10 +199,40 @@ defmodule Mix.Tasks.Igniter.New do
           _ -> []
         end
 
-      Mix.Task.run("igniter.install", install_args ++ rest_args)
+      Mix.Task.run("igniter.install", install_args ++ rest_args ++ ["--yes-to-deps"])
     end
 
     :ok
+  end
+
+  defp extract_positional_args(argv) do
+    do_extract_positional_args(argv, [], [])
+  end
+
+  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+  defp do_extract_positional_args(argv, got_argv, positional) do
+    case OptionParser.next(argv, switches: []) do
+      {_, _key, true, rest} ->
+        do_extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0)],
+          positional
+        )
+
+      {_, _key, _value, rest} ->
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
+        do_extract_positional_args(
+          rest,
+          got_argv ++ Enum.take(argv, count_consumed),
+          positional
+        )
+
+      {:error, rest} ->
+        [first | rest] = rest
+        do_extract_positional_args(rest, got_argv, positional ++ [first])
+    end
   end
 
   @flags ~w(example sup umbrella)
@@ -256,19 +286,36 @@ defmodule Mix.Tasks.Igniter.New do
 
   defp do_rest_args([other]), do: [other]
 
-  defp add_igniter_dep(contents, version_requirement) do
-    String.replace(
-      contents,
-      "defp deps do\n    [\n",
-      "defp deps do\n    [\n      {:igniter, #{version_requirement}},\n"
-    )
+  @doc false
+  def add_igniter_dep(contents, version_requirement) do
+    if String.contains?(contents, "defp deps do\n    []") do
+      String.replace(
+        contents,
+        "defp deps do\n    []",
+        "defp deps do\n    [{:igniter, #{version_requirement}, only: [:dev, :test]}]"
+      )
+    else
+      String.replace(
+        contents,
+        "defp deps do\n    [\n",
+        "defp deps do\n    [\n      {:igniter, #{version_requirement}, only: [:dev, :test]},\n"
+      )
+    end
   end
 
-  defp dont_consolidate_protocols_in_dev(contents) do
-    String.replace(
-      contents,
-      "start_permanent: Mix.env() == :prod,\n",
-      "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
-    )
+  @doc false
+  def dont_consolidate_protocols_in_dev(contents) do
+    if String.contains?(contents, "consolidate_protocols") do
+      contents
+    else
+      String.replace(
+        contents,
+        "start_permanent: Mix.env() == :prod,\n",
+        "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
+      )
+    end
   end
+
+  @doc false
+  def igniter_version, do: @igniter_version
 end

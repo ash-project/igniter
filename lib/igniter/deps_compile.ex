@@ -37,6 +37,8 @@ defmodule Igniter.Util.DepsCompile do
   #   * `--skip-umbrella-children` - skips umbrella applications from compiling
   #   * `--skip-local-deps` - skips non-remote dependencies, such as path deps, from compiling
 
+  @dialyzer {:nowarn_function, handle_rebar_not_found: 1}
+
   def run(_opts \\ []) do
     Mix.Project.get!()
     deps = Mix.Dep.load_and_cache()
@@ -152,7 +154,9 @@ defmodule Igniter.Util.DepsCompile do
           "--from-mix-deps-compile",
           "--no-warnings-as-errors",
           "--no-code-path-pruning",
-          "--ignore-module-conflict"
+          "--ignore-module-conflict",
+          "--long-compilation-threshold",
+          "300"
         ]
 
         reenable_tasks()
@@ -240,8 +244,23 @@ defmodule Igniter.Util.DepsCompile do
     |> Mix.Rebar.serialize_config()
   end
 
-  defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
-    Mix.Rebar.rebar_cmd(manager) || handle_rebar_not_found(dep)
+  if Version.match?(System.version(), "~> 1.18") do
+    defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
+      if Mix.Rebar.available?(manager) do
+        {cmd, _} = Mix.Rebar.rebar_args(manager, [])
+        cmd
+      else
+        handle_rebar_not_found(dep)
+      end
+    end
+
+    defp local_rebar_path(manager), do: Mix.Rebar.local_rebar_path(manager)
+  else
+    defp rebar_cmd(%Mix.Dep{manager: manager} = dep) do
+      local_rebar_path(manager) || handle_rebar_not_found(dep)
+    end
+
+    defp local_rebar_path(manager), do: Mix.Rebar.local_rebar_cmd(manager)
   end
 
   defp handle_rebar_not_found(%Mix.Dep{app: app, manager: manager}) do
@@ -264,7 +283,7 @@ defmodule Igniter.Util.DepsCompile do
     end
 
     Mix.Tasks.Local.Rebar.run(["--force"])
-    Mix.Rebar.local_rebar_cmd(manager) || Mix.raise("\"#{manager}\" installation failed")
+    local_rebar_path(manager) || Mix.raise("\"#{manager}\" installation failed")
   end
 
   defp do_make(dep, config) do

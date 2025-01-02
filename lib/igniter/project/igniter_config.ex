@@ -31,7 +31,11 @@ defmodule Igniter.Project.IgniterConfig do
         "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved.",
       default: [
         ~r"lib/mix"
-      ]
+      ],
+      quoted_default:
+        quote do
+          [~r"lib/mix"]
+        end
     ]
   ]
 
@@ -165,9 +169,10 @@ defmodule Igniter.Project.IgniterConfig do
         if Igniter.Code.List.list?(rightmost) do
           Enum.reduce_while(@configs, {:ok, zipper}, fn {name, config}, {:ok, zipper} ->
             default =
-              quote do
-                unquote(config[:default])
-              end
+              config[:quoted_default] ||
+                quote do
+                  unquote(Macro.escape(config[:default]))
+                end
 
             set_result =
               Igniter.Code.Common.within(zipper, fn zipper ->

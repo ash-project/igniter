@@ -84,6 +84,7 @@ defmodule Igniter.Util.Install do
         },
         "igniter.install",
         yes: "--yes" in argv,
+        yes_to_deps: "--yes-to-deps" in argv,
         only: only,
         append?: Keyword.get(opts, :append?, false)
       )
@@ -118,19 +119,6 @@ defmodule Igniter.Util.Install do
           argv,
           options
         )
-    end
-
-    installing
-    |> Enum.filter(&(&1 not in available_tasks))
-    |> case do
-      [] ->
-        :ok
-
-      [package] ->
-        IO.puts("The package `#{package}` had no associated installer task.")
-
-      packages ->
-        IO.puts("The packages `#{Enum.join(packages, ", ")}` had no associated installer task.")
     end
   end
 
@@ -168,7 +156,25 @@ defmodule Igniter.Util.Install do
         Mix.Project.pop()
         Mix.Dep.clear_cached()
 
-        Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
+        old_undefined = Code.get_compiler_option(:no_warn_undefined)
+        old_relative_paths = Code.get_compiler_option(:relative_paths)
+        old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+        try do
+          Code.compiler_options(
+            relative_paths: false,
+            no_warn_undefined: :all,
+            ignore_module_conflict: true
+          )
+
+          _ = Code.compile_file("mix.exs")
+        after
+          Code.compiler_options(
+            relative_paths: old_relative_paths,
+            no_warn_undefined: old_undefined,
+            ignore_module_conflict: old_ignore_module_conflict
+          )
+        end
 
         Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
 

@@ -46,6 +46,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       ],
       schema: [
         yes: :boolean,
+        yes_to_deps: :boolean,
         all: :boolean,
         only: :string,
         target: :string,
@@ -53,7 +54,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         git_ci: :boolean
       ],
       aliases: [y: :yes, a: :all, o: :only, t: :target, n: :no_archives_check, g: :git_ci],
-      defaults: [yes: false]
+      defaults: [yes: false, yes_to_deps: false]
     }
   end
 
@@ -148,6 +149,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         |> Igniter.apply_and_fetch_dependencies(
           error_on_abort?: true,
           yes: options[:yes],
+          yes_to_deps: options[:yes_to_deps],
           update_deps: Enum.map(package_names, &to_string/1),
           update_deps_args: update_deps_args,
           force?: true
@@ -167,7 +169,25 @@ defmodule Mix.Tasks.Igniter.Upgrade do
                 Mix.Dep.in_dependency(dep, fn _ ->
                   if File.exists?("mix.exs") do
                     Mix.Project.pop()
-                    Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
+                    old_undefined = Code.get_compiler_option(:no_warn_undefined)
+                    old_relative_paths = Code.get_compiler_option(:relative_paths)
+                    old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+                    try do
+                      Code.compiler_options(
+                        relative_paths: false,
+                        no_warn_undefined: :all,
+                        ignore_module_conflict: true
+                      )
+
+                      _ = Code.compile_file("mix.exs")
+                    after
+                      Code.compiler_options(
+                        relative_paths: old_relative_paths,
+                        no_warn_undefined: old_undefined,
+                        ignore_module_conflict: old_ignore_module_conflict
+                      )
+                    end
 
                     {:ok, Mix.Project.get!().project()[:version]}
                   else

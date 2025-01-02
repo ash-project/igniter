@@ -21,7 +21,10 @@ defmodule Igniter.Rewrite.DotFormatterUpdater do
   end
 
   defp dot_formatter(project) do
-    case DotFormatter.read(project, ignore_unknown_deps: true) do
+    case DotFormatter.read(project,
+           ignore_unknown_deps: true,
+           ignore_missing_sub_formatters: true
+         ) do
       {:ok, dot_formatter} -> dot_formatter
       {:error, _error} -> DotFormatter.default()
     end

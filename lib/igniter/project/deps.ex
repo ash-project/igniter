@@ -124,6 +124,11 @@ defmodule Igniter.Project.Deps do
     end)
   end
 
+  @doc "Returns true if the given dependency is in `mix.exs`"
+  def has_dep?(igniter, name) do
+    !!get_dependency_declaration(igniter, name)
+  end
+
   @doc "Gets the current dependency declaration in mix.exs for a given dependency."
   def get_dependency_declaration(igniter, name) do
     zipper =

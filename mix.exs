@@ -1,7 +1,8 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.4.6"
+  @version "0.5.3"
+  @install_version "~> 0.5"
 
   @description """
   A code generation and project patching framework
@@ -27,7 +28,7 @@ defmodule Igniter.MixProject do
   end
 
   defp elixirc_paths(_env) do
-    ["lib", "installer/lib/private"]
+    ["lib"]
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -81,7 +82,7 @@ defmodule Igniter.MixProject do
     [
       name: :igniter,
       licenses: ["MIT"],
-      files: ~w(lib installer/lib/private .formatter.exs mix.exs README* LICENSE*
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*
       CHANGELOG*),
       links: %{
         GitHub: "https://github.com/ash-project/igniter",
@@ -95,7 +96,7 @@ defmodule Igniter.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rewrite, "~> 1.0"},
+      {:rewrite, "~> 1.1 and >= 1.1.1"},
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
@@ -121,4 +122,7 @@ defmodule Igniter.MixProject do
       credo: "credo --strict"
     ]
   end
+
+  @doc false
+  def install_version, do: @install_version
 end
