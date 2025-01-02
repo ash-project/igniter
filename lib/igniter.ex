@@ -819,12 +819,7 @@ defmodule Igniter do
               end
 
           if opts[:yes] || opts[:yes_to_deps] || !changed?(source) ||
-               Igniter.Util.IO.yes?(
-                 message_with_git_warning(
-                   igniter,
-                   Keyword.put(opts, :message, message <> "\n\n#{diff([source])}")
-                 )
-               ) do
+               diff_and_yes?(igniter, opts, message) do
             rewrite =
               case Rewrite.write(rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -885,6 +880,17 @@ defmodule Igniter do
     else
       igniter
     end
+  end
+
+  defp diff_and_yes?(igniter, opts, message) do
+    display_diff(Rewrite.sources(igniter.rewrite), opts)
+
+    Igniter.Util.IO.yes?(
+      message_with_git_warning(
+        igniter,
+        Keyword.put(opts, :message, message)
+      )
+    )
   end
 
   @doc """
