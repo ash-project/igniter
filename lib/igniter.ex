@@ -830,7 +830,9 @@ defmodule Igniter do
             source = update_source(source, igniter, :quoted, quoted)
 
             igniter =
-              %{igniter | rewrite: Rewrite.update!(rewrite, source)}
+              igniter
+              |> Map.update!(:rewrite, &Rewrite.update!(&1, source))
+              |> accepted_once()
 
             if Keyword.get(opts, :fetch?, true) do
               Igniter.Util.Install.get_deps!(igniter, opts)
@@ -1018,6 +1020,7 @@ defmodule Igniter do
           if opts[:yes] ||
                Igniter.Util.IO.yes?(message_with_git_warning(igniter, opts)) do
             igniter.rewrite
+            |> accepted_once()
             |> Enum.any?(fn source ->
               Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
             end)
@@ -1076,6 +1079,14 @@ defmodule Igniter do
     end
   end
 
+  defp accepted_once(igniter) do
+    Igniter.assign(
+      igniter,
+      :private,
+      Map.put(igniter.assigns[:private] || %{}, :accepted_once, true)
+    )
+  end
+
   defp halt_if_fails_check!(igniter, title, opts) do
     cond do
       !opts[:check] ->
@@ -1125,7 +1136,8 @@ defmodule Igniter do
     if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
       message
     else
-      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
+      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) and
+           !igniter.assigns[:private][:accepted_once] do
         case check_git_status() do
           {:dirty, output} ->
             """
