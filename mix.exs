@@ -19,7 +19,10 @@ defmodule Igniter.MixProject do
       aliases: aliases(),
       package: package(),
       docs: docs(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_apps: [:mix]
+      ]
     ]
   end
 
