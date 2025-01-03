@@ -245,9 +245,17 @@ defmodule Mix.Tasks.Igniter.Upgrade do
           igniter
 
         {igniter, missing} ->
+          upgrades =
+            dep_changes
+            |> Enum.sort()
+            |> Enum.map_join("\n", fn {app, from, to} ->
+              "#{app} #{from} => #{to}"
+            end)
+            |> String.trim_trailing("\n")
+
           Igniter.add_notice(
             igniter,
-            "The packages `#{Enum.join(missing, ", ")}` did not have upgrade tasks."
+            "The packages `#{Enum.join(missing, ", ")}` did not have upgrade tasks.\nUpgraded packages:\n#{upgrades}"
           )
       end
     rescue
