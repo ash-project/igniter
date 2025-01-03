@@ -258,10 +258,9 @@ defmodule Mix.Tasks.Igniter.Upgrade do
             end)
             |> String.trim_trailing("\n")
 
-          Igniter.add_notice(
-            igniter,
-            "The packages `#{missing}` did not have upgrade tasks.\nUpgraded packages:\n#{upgrades}"
-          )
+          igniter
+          |> Igniter.add_notice("The packages `#{missing}` did not have upgrade tasks.")
+          |> Igniter.add_notice("Upgraded packages:\n#{upgrades}")
       end
     rescue
       e ->
