@@ -854,11 +854,7 @@ defmodule Igniter do
           display_diff([source], opts)
 
           message =
-            if opts[:error_on_abort?] do
-              "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            else
-              "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            end
+            "Dependency changes require updating `mix.exs` before continuing.\nModify `mix.exs` and install?"
 
           if Igniter.Util.IO.yes?(message) do
             rewrite =
@@ -1020,7 +1016,6 @@ defmodule Igniter do
           if opts[:yes] ||
                Igniter.Util.IO.yes?(message_with_git_warning(igniter, opts)) do
             igniter.rewrite
-            |> accepted_once()
             |> Enum.any?(fn source ->
               Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
             end)
@@ -1143,7 +1138,10 @@ defmodule Igniter do
             """
             #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
 
-            Output of `git status -s --porcelain`:
+            You #{IO.ANSI.yellow()}may#{IO.ANSI.reset()} want to save these changes and rerun this command.
+            This ensures that you can run `#{IO.ANSI.red()}git reset#{IO.ANSI.reset()}` to undo the changes.
+
+            Output of `#{IO.ANSI.green()}git status -s --porcelain#{IO.ANSI.reset()}`:
 
             #{output}
 

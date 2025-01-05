@@ -37,7 +37,8 @@ defmodule Igniter.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :public_key, :ssl, :inets, :eex]
+      extra_applications: [:logger, :public_key, :ssl, :inets, :eex],
+      plt_add_apps: [:mix]
     ]
   end
 
