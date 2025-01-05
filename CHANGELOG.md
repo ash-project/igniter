@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.5](https://github.com/ash-project/igniter/compare/v0.5.4...v0.5.5) (2025-01-05)
+
+
+
+
+### Bug Fixes:
+
+* only display mix.exs changes when showing them
+
 ## [v0.5.4](https://github.com/ash-project/igniter/compare/v0.5.3...v0.5.4) (2025-01-05)
 
 
