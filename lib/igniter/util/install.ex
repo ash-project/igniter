@@ -119,7 +119,7 @@ defmodule Igniter.Util.Install do
         )
     end
 
-    IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, ", ", &"* #{&1}")}")
+    IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, "\n", &"* #{&1}")}")
   end
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
