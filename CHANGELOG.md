@@ -5,6 +5,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.4](https://github.com/ash-project/igniter/compare/v0.5.3...v0.5.4) (2025-01-05)
+
+
+
+
+### Bug Fixes:
+
+* don't show git warning for changes igniter made
+
+* print message after diff
+
+* allow check to pass when no issues found (#178)
+
+### Improvements:
+
+* capture and suppress output in installers (#186)
+
+* print version diff when upgrading packages (#185)
+
+* sort the `missing` packages when upgrading
+
 ## [v0.5.3](https://github.com/ash-project/igniter/compare/v0.5.2...v0.5.3) (2024-12-26)
 
 
