@@ -91,8 +91,6 @@ defmodule Igniter.Util.Install do
 
     igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
 
-    Mix.Task.run("compile")
-
     {available_tasks, available_task_sources} =
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
@@ -120,6 +118,8 @@ defmodule Igniter.Util.Install do
           options
         )
     end
+
+    IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, ", ", &"* #{&1}")}")
   end
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
@@ -133,8 +133,6 @@ defmodule Igniter.Util.Install do
   end
 
   def get_deps!(igniter, opts) do
-    Mix.shell().info("running mix deps.get")
-
     case System.cmd("mix", ["deps.get"], stderr_to_stdout: true) do
       {_output, 0} ->
         igniter =
@@ -176,7 +174,12 @@ defmodule Igniter.Util.Install do
           )
         end
 
-        Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
+        if Keyword.get(opts, :compile_deps?, true) do
+          Igniter.Util.Loading.with_spinner("deps.compile", fn ->
+            Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
+            Mix.Task.run("compile")
+          end)
+        end
 
         igniter
 
@@ -298,16 +301,16 @@ defmodule Igniter.Util.Install do
 
           igniter ->
             message = """
-            There is a conflict in the `only` option for the dependency #{inspect(dep)}, between #{source1} and #{source2}.
+            Conflict in `only` option for dependency #{inspect(dep)}. 
+            Between #{source1} and #{source2}.
 
-            This change includes an update to the `only` option to include all requisite envs. This is normal, and only
-            means that the package is used in one or more environments than it originally was.
+            We must update the `only` option as shown to continue.
             """
 
             {:ok,
              Igniter.apply_and_fetch_dependencies(
                igniter,
-               Keyword.merge(opts, message: message, error_on_abort?: true)
+               Keyword.merge(opts, compile_deps?: false, message: message, error_on_abort?: true)
              )}
         end
       else

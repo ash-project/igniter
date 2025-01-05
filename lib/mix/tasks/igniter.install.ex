@@ -26,6 +26,7 @@ defmodule Mix.Tasks.Igniter.Install do
   * `--dry-run` - Run the task without making any changes.
   * `--yes` - Automatically answer yes to any prompts.
   * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
+  * `--verbose` - Display additional output from various operations.
   * `--example` - Request that installed packages include initial example code.
   """
 
@@ -34,10 +35,15 @@ defmodule Mix.Tasks.Igniter.Install do
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
-    Mix.Task.run("deps.compile")
-    Mix.Task.run("deps.loadpaths")
-
-    Mix.Task.run("compile", ["--no-compile"])
+    Igniter.Util.Loading.with_spinner(
+      "compile",
+      fn ->
+        Mix.Task.run("deps.compile")
+        Mix.Task.run("deps.loadpaths")
+        Mix.Task.run("compile", ["--no-compile"])
+      end,
+      verbose?: "--verbose" in argv
+    )
 
     {argv, positional} = extract_positional_args(argv)
 
