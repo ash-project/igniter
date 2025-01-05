@@ -45,6 +45,8 @@ defmodule Mix.Tasks.Igniter.Install do
       verbose?: "--verbose" in argv
     )
 
+    argv = Enum.reject(argv, &(&1 == "--from-igniter-new"))
+
     {argv, positional} = extract_positional_args(argv)
 
     packages =

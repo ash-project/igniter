@@ -89,22 +89,27 @@ defmodule Igniter.Util.Install do
         append?: Keyword.get(opts, :append?, false)
       )
 
-    igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
+    installing_names = Enum.join(installing, ", ")
 
-    {available_tasks, available_task_sources} =
+    igniter =
+      Igniter.apply_and_fetch_dependencies(
+        igniter,
+        Keyword.put(options, :operation, "compiling #{installing_names}")
+      )
+
+    available_tasks =
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
-      |> Enum.unzip()
 
     case available_tasks do
       [] ->
         :ok
 
-      [task] ->
+      [{name, _} = tasks] ->
         run_installers(
           igniter,
-          available_task_sources,
-          "The following installer was found and executed: `#{task}`",
+          tasks,
+          "The following installer was found and executed: `#{name}.install`",
           argv,
           options
         )
@@ -112,8 +117,8 @@ defmodule Igniter.Util.Install do
       tasks ->
         run_installers(
           igniter,
-          available_task_sources,
-          "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{&1}`")}",
+          tasks,
+          "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{elem(&1, 0)}.install`")}",
           argv,
           options
         )
@@ -124,8 +129,10 @@ defmodule Igniter.Util.Install do
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
     igniter_task_sources
-    |> Enum.reduce(igniter, fn igniter_task_source, igniter ->
-      Igniter.compose_task(igniter, igniter_task_source, argv)
+    |> Enum.reduce(igniter, fn {name, task}, igniter ->
+      igniter = Igniter.compose_task(igniter, task, argv)
+      Mix.shell().info("`#{name}.install` #{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
+      igniter
     end)
     |> Igniter.do_or_dry_run(Keyword.put(options, :title, title))
 
@@ -175,8 +182,12 @@ defmodule Igniter.Util.Install do
         end
 
         if Keyword.get(opts, :compile_deps?, true) do
-          Igniter.Util.Loading.with_spinner("deps.compile", fn ->
-            Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
+          Igniter.Util.Loading.with_spinner(opts[:operation] || "deps.compile", fn ->
+            Igniter.Util.DepsCompile.run(
+              recompile_igniter?: !opts[:from_igniter_new?],
+              force: opts[:force?]
+            )
+
             Mix.Task.run("compile")
           end)
         end
@@ -186,7 +197,7 @@ defmodule Igniter.Util.Install do
       {output, exit_code} ->
         case handle_error(output, exit_code, igniter, opts) do
           {:ok, igniter} ->
-            get_deps!(igniter, opts)
+            get_deps!(igniter, Keyword.put(opts, :name, "applying dependency conflict changes"))
 
           :error ->
             Mix.shell().info("""
@@ -310,7 +321,12 @@ defmodule Igniter.Util.Install do
             {:ok,
              Igniter.apply_and_fetch_dependencies(
                igniter,
-               Keyword.merge(opts, compile_deps?: false, message: message, error_on_abort?: true)
+               Keyword.merge(opts,
+                 compile_deps?: false,
+                 operation: "recompiling conflicts",
+                 message: message,
+                 error_on_abort?: true
+               )
              )}
         end
       else

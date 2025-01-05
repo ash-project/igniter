@@ -835,7 +835,10 @@ defmodule Igniter do
               |> accepted_once()
 
             if Keyword.get(opts, :fetch?, true) do
-              Igniter.Util.Install.get_deps!(igniter, opts)
+              Igniter.Util.Install.get_deps!(
+                igniter,
+                Keyword.put_new(opts, :operation, "installing new dependencies")
+              )
             else
               igniter
             end
@@ -864,7 +867,10 @@ defmodule Igniter do
               end
 
             igniter =
-              Igniter.Util.Install.get_deps!(igniter, opts)
+              Igniter.Util.Install.get_deps!(
+                igniter,
+                Keyword.put_new(opts, :operation, "installing new dependencies")
+              )
 
             %{igniter | rewrite: rewrite}
           else

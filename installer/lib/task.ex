@@ -83,12 +83,12 @@ defmodule Igniter.Installer.Task do
       |> Stream.map(fn next ->
         receive do
           {:stop, pid, ref} ->
-            IO.puts("\r\e[K" <> task_name <> ": " <> "#{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
+            IO.puts("\r\e[K" <> task_name <> " " <> "#{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
             send(pid, {:loader_stopped, ref})
             exit(:normal)
         after
           0 ->
-            IO.write("\r\e[K" <> task_name <> ": " <> next)
+            IO.write("\r\e[K" <> task_name <> " " <> next)
             :timer.sleep(50)
         end
       end)

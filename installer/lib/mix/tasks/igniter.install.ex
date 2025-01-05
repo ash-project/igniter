@@ -37,8 +37,20 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
+      message =
+        cond do
+          "--igniter-repeat" in argv ->
+            "setting up igniter"
+
+          "--from-igniter-new" in argv ->
+            "installing igniter"
+
+          true ->
+            "checking for igniter in project"
+        end
+
       Igniter.Installer.Task.with_spinner(
-        "deps.compile",
+        message,
         fn ->
           Mix.Task.run("deps.compile")
 
@@ -48,6 +60,8 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
         end,
         verbose?: "--verbose" in argv
       )
+
+      argv = Enum.reject(argv, &(&1 in ["--igniter-repeat", "--from-igniter-new"]))
 
       if Code.ensure_loaded?(Igniter.Util.Install) do
         {argv, positional} = extract_positional_args(argv)
@@ -63,7 +77,12 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
         Application.ensure_all_started(:rewrite)
 
-        apply(Igniter.Util.Install, :install, [Enum.join(packages, ","), argv])
+        apply(Igniter.Util.Install, :install, [
+          Enum.join(packages, ","),
+          argv,
+          Igniter.new(),
+          from_igniter_new?: true
+        ])
       else
         if File.exists?("mix.exs") do
           contents =
@@ -121,7 +140,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             System.cmd("mix", ["deps.get"])
 
             Igniter.Installer.Task.with_spinner(
-              "deps.compile",
+              "compiling igniter",
               fn ->
                 for task <- @tasks, do: Mix.Task.reenable(task)
 
@@ -133,7 +152,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             )
 
             Mix.Task.reenable("igniter.install")
-            Mix.Task.run("igniter.install", argv)
+            Mix.Task.run("igniter.install", argv ++ ["--igniter-repeat"])
           end
         else
           Mix.shell().error("""

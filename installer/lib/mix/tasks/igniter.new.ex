@@ -104,6 +104,13 @@ defmodule Mix.Tasks.Igniter.New do
       [name | OptionParser.split(options[:with_args] || "")]
 
     with_args =
+      if install_with == "phx.new" do
+        with_args ++ ["--install", "--from-elixir-install"]
+      else
+        with_args
+      end
+
+    with_args =
       if options[:module] do
         with_args ++ ["--module", options[:module]]
       else
@@ -199,7 +206,10 @@ defmodule Mix.Tasks.Igniter.New do
           _ -> []
         end
 
-      Mix.Task.run("igniter.install", install_args ++ rest_args ++ ["--yes-to-deps"])
+      Mix.Task.run(
+        "igniter.install",
+        install_args ++ rest_args ++ ["--yes-to-deps", "--from-igniter-new"]
+      )
     end
 
     :ok
