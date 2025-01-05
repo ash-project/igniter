@@ -79,9 +79,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
         apply(Igniter.Util.Install, :install, [
           Enum.join(packages, ","),
-          argv,
-          Igniter.new(),
-          from_igniter_new?: true
+          argv
         ])
       else
         if File.exists?("mix.exs") do
