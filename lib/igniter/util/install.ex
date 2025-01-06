@@ -142,57 +142,71 @@ defmodule Igniter.Util.Install do
   def get_deps!(igniter, opts) do
     case System.cmd("mix", ["deps.get"], stderr_to_stdout: true) do
       {_output, 0} ->
-        igniter =
-          case List.wrap(opts[:update_deps]) do
-            [] ->
+        Igniter.Util.Loading.with_spinner(
+          opts[:operation] || "building deps",
+          fn ->
+            igniter =
+              case List.wrap(opts[:update_deps]) do
+                [] ->
+                  igniter
+
+                [:all] ->
+                  System.cmd("mix", ["deps.update", "--all" | opts[:update_deps_args] || []],
+                    stderr_to_stdout: true
+                  )
+
+                  %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+
+                to_update ->
+                  System.cmd(
+                    "mix",
+                    ["deps.update" | to_update] ++ (opts[:update_deps_args] || []),
+                    stderr_to_stdout: true
+                  )
+
+                  %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+              end
+
+            Mix.Project.pop()
+
+            old_undefined = Code.get_compiler_option(:no_warn_undefined)
+            old_relative_paths = Code.get_compiler_option(:relative_paths)
+            old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+            try do
+              Code.compiler_options(
+                relative_paths: false,
+                no_warn_undefined: :all,
+                ignore_module_conflict: true
+              )
+
+              igniter =
+                if Keyword.get(opts, :compile_deps?, true) do
+                  System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
+                  System.cmd("mix", ["deps.compile"], stderr_to_stdout: true)
+
+                  %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+                else
+                  igniter
+                end
+
+              _ = Code.compile_file("mix.exs")
+
+              if Keyword.get(opts, :compile_deps?, true) do
+                Mix.Task.reenable("deps.loadpaths")
+                Mix.Task.run("deps.loadpaths", ["--no-deps-check"])
+              end
+
               igniter
-
-            [:all] ->
-              System.cmd("mix", ["deps.update", "--all" | opts[:update_deps_args] || []])
-              %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
-
-            to_update ->
-              System.cmd("mix", ["deps.update" | to_update] ++ (opts[:update_deps_args] || []))
-
-              %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+            after
+              Code.compiler_options(
+                relative_paths: old_relative_paths,
+                no_warn_undefined: old_undefined,
+                ignore_module_conflict: old_ignore_module_conflict
+              )
+            end
           end
-
-        Mix.Project.clear_deps_cache()
-        Mix.Project.pop()
-        Mix.Dep.clear_cached()
-
-        old_undefined = Code.get_compiler_option(:no_warn_undefined)
-        old_relative_paths = Code.get_compiler_option(:relative_paths)
-        old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
-
-        try do
-          Code.compiler_options(
-            relative_paths: false,
-            no_warn_undefined: :all,
-            ignore_module_conflict: true
-          )
-
-          _ = Code.compile_file("mix.exs")
-        after
-          Code.compiler_options(
-            relative_paths: old_relative_paths,
-            no_warn_undefined: old_undefined,
-            ignore_module_conflict: old_ignore_module_conflict
-          )
-        end
-
-        if Keyword.get(opts, :compile_deps?, true) do
-          Igniter.Util.Loading.with_spinner(opts[:operation] || "deps.compile", fn ->
-            Igniter.Util.DepsCompile.run(
-              recompile_igniter?: !opts[:from_igniter_new?],
-              force: opts[:force?]
-            )
-
-            Mix.Task.run("compile")
-          end)
-        end
-
-        igniter
+        )
 
       {output, exit_code} ->
         case handle_error(output, exit_code, igniter, opts) do

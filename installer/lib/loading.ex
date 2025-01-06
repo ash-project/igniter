@@ -1,4 +1,4 @@
-defmodule Igniter.Util.Loading do
+defmodule Igniter.Installer.Loading do
   @moduledoc """
   Utilities for doing operations with loading spinners.
   """
@@ -43,7 +43,7 @@ defmodule Igniter.Util.Loading do
         )
       end
 
-      {:ok, _} = Igniter.CaptureServer.start_link([])
+      {:ok, _} = Igniter.Installer.CaptureServer.start_link([])
 
       loader =
         if shell == Mix.Shell.IO do
@@ -54,7 +54,7 @@ defmodule Igniter.Util.Loading do
         Mix.shell(Mix.Shell.ActuallyQuiet)
 
         {:ok, ref} =
-          Igniter.CaptureServer.device_capture_on(:standard_error, :unicode, "")
+          Igniter.Installer.CaptureServer.device_capture_on(:standard_error, :unicode, "")
 
         try do
           with_log(fn ->
@@ -67,12 +67,12 @@ defmodule Igniter.Util.Loading do
         rescue
           e ->
             Mix.shell(shell)
-            Mix.shell().info(Igniter.CaptureServer.device_output(:standard_error, ref))
+            Mix.shell().info(Igniter.Installer.CaptureServer.device_output(:standard_error, ref))
             reraise e, __STACKTRACE__
         after
           Mix.shell(shell)
-          Igniter.CaptureServer.device_capture_off(ref)
-          GenServer.stop(Igniter.CaptureServer)
+          Igniter.Installer.CaptureServer.device_capture_off(ref)
+          GenServer.stop(Igniter.Installer.CaptureServer)
         end
       after
         if shell == Mix.Shell.IO do
@@ -110,15 +110,17 @@ defmodule Igniter.Util.Loading do
   end
 
   defp do_capture_gl(string_io, fun) do
-    fun.()
-  catch
-    kind, reason ->
-      _ = StringIO.close(string_io)
-      :erlang.raise(kind, reason, __STACKTRACE__)
-  else
-    result ->
-      {:ok, {_input, output}} = StringIO.close(string_io)
-      {result, output}
+    try do
+      fun.()
+    catch
+      kind, reason ->
+        _ = StringIO.close(string_io)
+        :erlang.raise(kind, reason, __STACKTRACE__)
+    else
+      result ->
+        {:ok, {_input, output}} = StringIO.close(string_io)
+        {result, output}
+    end
   end
 
   def spawn_loader(task_name) do
@@ -153,13 +155,13 @@ defmodule Igniter.Util.Loading do
     {:ok, string_io} = StringIO.open("")
 
     try do
-      ref = Igniter.CaptureServer.log_capture_on(self(), string_io, opts)
+      ref = Igniter.Installer.CaptureServer.log_capture_on(self(), string_io, opts)
 
       try do
         fun.()
       after
         :ok = Logger.flush()
-        :ok = Igniter.CaptureServer.log_capture_off(ref)
+        :ok = Igniter.Installer.CaptureServer.log_capture_off(ref)
       end
     catch
       kind, reason ->

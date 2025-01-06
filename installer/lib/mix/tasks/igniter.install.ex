@@ -49,7 +49,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             "checking for igniter in project"
         end
 
-      Igniter.Installer.Task.with_spinner(
+      Igniter.Installer.Loading.with_spinner(
         message,
         fn ->
           Mix.Task.run("deps.compile")
@@ -135,11 +135,10 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
               )
             end
 
-            System.cmd("mix", ["deps.get"])
-
-            Igniter.Installer.Task.with_spinner(
+            Igniter.Installer.Loading.with_spinner(
               "compiling igniter",
               fn ->
+                System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
                 for task <- @tasks, do: Mix.Task.reenable(task)
 
                 for task <- @tasks do
