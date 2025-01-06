@@ -105,7 +105,7 @@ defmodule Igniter.Util.Install do
       [] ->
         :ok
 
-      [{name, _} = tasks] ->
+      [{name, _}] = tasks ->
         run_installers(
           igniter,
           tasks,
