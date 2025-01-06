@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.8](https://github.com/ash-project/igniter/compare/v0.5.7...v0.5.8) (2025-01-06)
+
+
+
+
+### Improvements:
+
+* significant cleanup of deps compilation logic
+
+* suppress all output for cleaner loading spinners
+
 ## [v0.5.7](https://github.com/ash-project/igniter/compare/v0.5.6...v0.5.7) (2025-01-06)
 
 
