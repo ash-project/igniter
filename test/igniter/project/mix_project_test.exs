@@ -197,4 +197,25 @@ defmodule Igniter.Project.MixProjectTest do
       """)
     end
   end
+
+  describe "update/4 with non-existing function" do
+    test "creates the function" do
+      test_project()
+      |> MixProject.update(:cli, [:preferred_envs, :"some.task"], fn _ ->
+        {:ok, {:code, :test}}
+      end)
+      |> assert_has_patch("mix.exs", """
+        |  end
+        |
+      + |  def cli do
+      + |    [
+      + |      preferred_envs: ["some.task": :test]
+      + |    ]
+      + |  end
+      + |
+        |  # Run "mix help deps" to learn about dependencies.
+        |  defp deps do
+      """)
+    end
+  end
 end
