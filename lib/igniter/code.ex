@@ -104,6 +104,11 @@ defmodule Igniter.Code do
   end
 
   @doc false
+  def to_ast(code) do
+    to_code(code).ast
+  end
+
+  @doc false
   def to_code(%__MODULE__{} = code), do: code
 
   def to_code(source) when is_binary(source) do
@@ -135,6 +140,10 @@ defmodule Igniter.Code do
         Igniter.Code.quoted!(#{inspect(ast)})
     """)
 
+    quoted!(ast)
+  end
+
+  def to_code(ast) do
     quoted!(ast)
   end
 end

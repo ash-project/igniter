@@ -118,15 +118,16 @@ defmodule Igniter.Project.Application do
   @doc """
   Adds a new child to the `children` list in the application file
 
-  To pass quoted code as the options, use the following format:
+  To pass quoted code as the options, use `Igniter.Code`:
 
-      {module, {:code, quoted_code}}
+      {module, Igniter.Code.quoted!(quoted_code)}
 
-  i.e
+  For example:
 
-      {MyApp.Supervisor, {:code, quote do
-        Application.fetch_env!(:app, :config)
-      end}}
+      {MyApp.Supervisor,
+       Igniter.Code.quoted!(quote do
+         Application.fetch_env!(:app, :config)
+       end)}
 
   ## Options
 
@@ -213,7 +214,7 @@ defmodule Igniter.Project.Application do
   """
   @spec add_new_child(
           Igniter.t(),
-          module() | {module, {:code, term()}} | {module, term()},
+          module() | {module, Igniter.Code.t()} | {module, term()},
           opts :: Keyword.t()
         ) ::
           Igniter.t()
@@ -255,9 +256,17 @@ defmodule Igniter.Project.Application do
 
     to_supervise =
       case to_supervise do
-        module when is_atom(module) -> module
-        {module, {:code, contents}} when is_atom(module) -> {module, contents}
-        {module, contents} -> {module, Macro.escape(contents)}
+        module when is_atom(module) ->
+          module
+
+        {module, %Igniter.Code{ast: contents}} ->
+          {module, contents}
+
+        {module, {:code, contents}} when is_atom(module) ->
+          {module, Igniter.Code.to_ast({:code, contents})}
+
+        {module, contents} ->
+          {module, Macro.escape(contents)}
       end
 
     to_supervise_module =

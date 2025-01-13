@@ -64,6 +64,7 @@ defmodule Igniter.Project.Config do
       modify_to =
         case value do
           {:code, value} -> value
+          # TODO: How should this be handled?
           value -> Sourceror.parse_string!(Sourceror.to_string(Macro.escape(value)))
         end
 
@@ -123,7 +124,7 @@ defmodule Igniter.Project.Config do
   @doc """
   Sets a config value in the given configuration file, updating it with `updater` if it is already set.
 
-  If the value is source code, pass `{:code, value}`, otherwise pass just the value.
+  If the value is source code, pass an `%Igniter.Code{}` struct, otherwise pass just the value.
 
   To produce this source code, we suggest using `Sourceror.parse_string!`. For example:
 
@@ -132,10 +133,9 @@ defmodule Igniter.Project.Config do
     "fake.exs",
     :tailwind,
     [:default, :args],
-    {:code,
-     Sourceror.parse_string!(\"\"\"
-     ~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css)
-     \"\"\")}
+    Igniter.Code.from_string!(
+      "~w(--config=tailwind.config.js --input=css/app.css --output=../output/assets/app.css)"
+    )
   )
   ```
 
@@ -161,6 +161,7 @@ defmodule Igniter.Project.Config do
     value =
       case value do
         {:code, value} -> value
+        # TODO: How should this be handled?
         value -> Sourceror.parse_string!(Sourceror.to_string(Macro.escape(value)))
       end
 

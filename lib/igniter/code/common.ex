@@ -422,7 +422,7 @@ defmodule Igniter.Code.Common do
           Zipper.t(),
           (Zipper.t() -> boolean()),
           (Zipper.t() ->
-             {:ok, Zipper.t() | {:code, term()}}
+             {:ok, Zipper.t() | Igniter.Code.t()}
              | {:warning | :error, term()})
         ) ::
           {:ok, Zipper.t()} | {:warning | :error, term()}
@@ -436,14 +436,11 @@ defmodule Igniter.Code.Common do
         Zipper.traverse(zipper, false, fn zipper, acc ->
           if pred.(zipper) do
             case within(zipper, fun) do
-              {:code, new_code} ->
-                {replace_code(zipper, new_code), true}
-
-              {:ok, ^zipper} ->
+              {:ok, %Zipper{} = zipper} ->
                 {zipper, acc}
 
-              {:ok, zipper} ->
-                {zipper, true}
+              {:ok, code} ->
+                {replace_code(zipper, code), true}
 
               {:halt_depth, zipper} ->
                 {zipper, acc}
@@ -498,12 +495,12 @@ defmodule Igniter.Code.Common do
       v
   end
 
-  def replace_code(%Zipper{} = zipper, code) when is_binary(code) do
-    replace_code(zipper, Sourceror.parse_string!(code))
-  end
-
-  def replace_code(%Zipper{} = zipper, new_code) do
-    new_code = use_aliases(new_code, zipper)
+  @spec replace_code(Zipper.t(), Igniter.Code.t() | Macro.t()) :: Zipper.t()
+  def replace_code(%Zipper{} = zipper, code) do
+    new_code =
+      code
+      |> Igniter.Code.to_ast()
+      |> use_aliases(zipper)
 
     if extendable_block?(new_code) and in_extendable_block?(zipper) do
       at_supertree_root? = Zipper.up(zipper) == nil and !!zipper.supertree
