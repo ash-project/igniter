@@ -6,6 +6,8 @@ defmodule Igniter.Code do
   helpers such as `from_string!/1`, `quoted/1`, and `escaped/1`.
   """
 
+  require Logger
+
   @enforce_keys [:ast]
   defstruct [:ast]
 
@@ -99,5 +101,40 @@ defmodule Igniter.Code do
   @spec escaped(value :: term()) :: t()
   def escaped(value) do
     value |> Macro.escape() |> quoted()
+  end
+
+  @doc false
+  def to_code(%__MODULE__{} = code), do: code
+
+  def to_code(source) when is_binary(source) do
+    Logger.warning("""
+    Implicit parsing of strings of code is deprecated.
+
+    Instead of:
+
+        #{inspect(source)}
+
+    You should write:
+
+        Igniter.Code.from_string!(#{inspect(source)})
+    """)
+
+    from_string!(source)
+  end
+
+  def to_code({:code, ast}) do
+    Logger.warning("""
+    Specifying quoted forms using :code tuples is deprecated.
+
+    Instead of:
+
+        #{inspect({:code, ast})}
+
+    You should write:
+
+        Igniter.Code.quoted!(#{inspect(ast)})
+    """)
+
+    quoted!(ast)
   end
 end
