@@ -141,7 +141,7 @@ defmodule Igniter.Project.MixProject do
     path = ensure_path!(path)
 
     Igniter.update_elixir_file(igniter, "mix.exs", fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, function_name, 0),
+      with {:ok, zipper} <- move_to_or_create_def_0(zipper, function_name),
            zipper <- resolve_to_config(zipper),
            {:ok, zipper} <- build_and_resolve_path(zipper, path) do
         update_resolved(zipper, update_fun)
@@ -150,6 +150,33 @@ defmodule Igniter.Project.MixProject do
           {:error, "Unable to update mix.exs config for #{function_name}/0: #{inspect(path)}"}
       end
     end)
+  end
+
+  defp move_to_or_create_def_0(zipper, function_name) do
+    case Igniter.Code.Function.move_to_def(zipper, function_name, 0) do
+      {:ok, zipper} ->
+        {:ok, zipper}
+
+      :error ->
+        zipper
+        |> get_last_def()
+        |> Common.add_code("""
+        def #{function_name} do
+          [
+          ]
+        end
+        """)
+        |> Igniter.Code.Function.move_to_def(function_name, 0)
+    end
+  end
+
+  defp get_last_def(zipper, last \\ nil) do
+    with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper),
+         {:ok, next} <- Common.move_right(zipper, 1) do
+      get_last_def(next, zipper)
+    else
+      _ -> last
+    end
   end
 
   defp build_and_resolve_path(zipper, []), do: {:ok, zipper}
