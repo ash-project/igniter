@@ -1,7 +1,7 @@
-defmodule Mix.Tasks.Igniter.InstallPhoenix do
+defmodule Mix.Tasks.Igniter.Phx.Install do
   use Igniter.Mix.Task
 
-  @example "mix igniter.install_phoenix . --module MyApp --app my_app"
+  @example "mix igniter.phx.install . --module MyApp --app my_app"
   @shortdoc "Creates a new Phoenix project in the current application."
 
   @moduledoc """
@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Igniter.InstallPhoenix do
   defp elixir_version_check! do
     unless Version.match?(System.version(), "~> 1.15") do
       Mix.raise(
-        "mix igniter.install_phoenix requires at least Elixir v1.15\n " <>
+        "mix igniter.phx.install requires at least Elixir v1.15\n " <>
           "You have #{System.version()}. Please update accordingly."
       )
     end
