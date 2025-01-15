@@ -102,6 +102,27 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   @doc """
+  Selects an endpoint to be used in a later step. If only one endpoint is found, it will be selected automatically.
+
+  If no endpoints exist, `{igniter, nil}` is returned.
+
+  If multiple endpoints are found, the user is prompted to select one of them.
+  """
+  @spec select_endpoint(Igniter.t(), module(), String.t()) :: {Igniter.t(), module() | nil}
+  def select_endpoint(igniter, router, label \\ "Which endpoint should be user") do
+    case endpoints_for_router(igniter, router) do
+      {igniter, []} ->
+        {igniter, nil}
+
+      {igniter, [endpoint]} ->
+        {igniter, endpoint}
+
+      {igniter, endpoints} ->
+        {igniter, Igniter.Util.IO.select(label, endpoints, display: &inspect/1)}
+    end
+  end
+
+  @doc """
   Adds a scope to a Phoenix router.
 
   ## Options
