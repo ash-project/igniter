@@ -1,7 +1,7 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.5.3"
+  @version "0.5.8"
   @install_version "~> 0.5"
 
   @description """
@@ -19,7 +19,10 @@ defmodule Igniter.MixProject do
       aliases: aliases(),
       package: package(),
       docs: docs(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_apps: [:mix]
+      ]
     ]
   end
 
@@ -34,7 +37,8 @@ defmodule Igniter.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :public_key, :ssl, :inets, :eex]
+      extra_applications: [:logger, :public_key, :ssl, :inets, :eex],
+      plt_add_apps: [:mix]
     ]
   end
 

@@ -5,6 +5,65 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.8](https://github.com/ash-project/igniter/compare/v0.5.7...v0.5.8) (2025-01-06)
+
+
+
+
+### Improvements:
+
+* significant cleanup of deps compilation logic
+
+* suppress all output for cleaner loading spinners
+
+## [v0.5.7](https://github.com/ash-project/igniter/compare/v0.5.6...v0.5.7) (2025-01-06)
+
+
+
+
+### Bug Fixes:
+
+* propertly iterate over tasks list
+
+## [v0.5.6](https://github.com/ash-project/igniter/compare/v0.5.5...v0.5.6) (2025-01-05)
+
+
+
+
+### Improvements:
+
+* better step explanation in installer
+
+## [v0.5.5](https://github.com/ash-project/igniter/compare/v0.5.4...v0.5.5) (2025-01-05)
+
+
+
+
+### Bug Fixes:
+
+* only display mix.exs changes when showing them
+
+## [v0.5.4](https://github.com/ash-project/igniter/compare/v0.5.3...v0.5.4) (2025-01-05)
+
+
+
+
+### Bug Fixes:
+
+* don't show git warning for changes igniter made
+
+* print message after diff
+
+* allow check to pass when no issues found (#178)
+
+### Improvements:
+
+* capture and suppress output in installers (#186)
+
+* print version diff when upgrading packages (#185)
+
+* sort the `missing` packages when upgrading
+
 ## [v0.5.3](https://github.com/ash-project/igniter/compare/v0.5.2...v0.5.3) (2024-12-26)
 
 

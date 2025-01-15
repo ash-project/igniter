@@ -89,24 +89,27 @@ defmodule Igniter.Util.Install do
         append?: Keyword.get(opts, :append?, false)
       )
 
-    igniter = Igniter.apply_and_fetch_dependencies(igniter, options)
+    installing_names = Enum.join(installing, ", ")
 
-    Mix.Task.run("compile")
+    igniter =
+      Igniter.apply_and_fetch_dependencies(
+        igniter,
+        Keyword.put(options, :operation, "compiling #{installing_names}")
+      )
 
-    {available_tasks, available_task_sources} =
+    available_tasks =
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
-      |> Enum.unzip()
 
     case available_tasks do
       [] ->
         :ok
 
-      [task] ->
+      [{name, _}] = tasks ->
         run_installers(
           igniter,
-          available_task_sources,
-          "The following installer was found and executed: `#{task}`",
+          tasks,
+          "The following installer was found and executed: `#{name}.install`",
           argv,
           options
         )
@@ -114,18 +117,22 @@ defmodule Igniter.Util.Install do
       tasks ->
         run_installers(
           igniter,
-          available_task_sources,
-          "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{&1}`")}",
+          tasks,
+          "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{elem(&1, 0)}.install`")}",
           argv,
           options
         )
     end
+
+    IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, "\n", &"* #{&1}")}")
   end
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
     igniter_task_sources
-    |> Enum.reduce(igniter, fn igniter_task_source, igniter ->
-      Igniter.compose_task(igniter, igniter_task_source, argv)
+    |> Enum.reduce(igniter, fn {name, task}, igniter ->
+      igniter = Igniter.compose_task(igniter, task, argv)
+      Mix.shell().info("`#{name}.install` #{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
+      igniter
     end)
     |> Igniter.do_or_dry_run(Keyword.put(options, :title, title))
 
@@ -133,57 +140,78 @@ defmodule Igniter.Util.Install do
   end
 
   def get_deps!(igniter, opts) do
-    Mix.shell().info("running mix deps.get")
-
     case System.cmd("mix", ["deps.get"], stderr_to_stdout: true) do
       {_output, 0} ->
-        igniter =
-          case List.wrap(opts[:update_deps]) do
-            [] ->
+        Igniter.Util.Loading.with_spinner(
+          opts[:operation] || "building deps",
+          fn ->
+            igniter =
+              case List.wrap(opts[:update_deps]) do
+                [] ->
+                  igniter
+
+                [:all] ->
+                  System.cmd("mix", ["deps.update", "--all" | opts[:update_deps_args] || []],
+                    stderr_to_stdout: true
+                  )
+
+                  %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+
+                to_update ->
+                  System.cmd(
+                    "mix",
+                    ["deps.update" | to_update] ++ (opts[:update_deps_args] || []),
+                    stderr_to_stdout: true
+                  )
+
+                  %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+              end
+
+            Mix.Project.pop()
+
+            old_undefined = Code.get_compiler_option(:no_warn_undefined)
+            old_relative_paths = Code.get_compiler_option(:relative_paths)
+            old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+            try do
+              Code.compiler_options(
+                relative_paths: false,
+                no_warn_undefined: :all,
+                ignore_module_conflict: true
+              )
+
+              igniter =
+                if Keyword.get(opts, :compile_deps?, true) do
+                  System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
+                  System.cmd("mix", ["deps.compile"], stderr_to_stdout: true)
+
+                  %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+                else
+                  igniter
+                end
+
+              _ = Code.compile_file("mix.exs")
+
+              if Keyword.get(opts, :compile_deps?, true) do
+                Mix.Task.reenable("deps.loadpaths")
+                Mix.Task.run("deps.loadpaths", ["--no-deps-check"])
+              end
+
               igniter
-
-            [:all] ->
-              System.cmd("mix", ["deps.update", "--all" | opts[:update_deps_args] || []])
-              %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
-
-            to_update ->
-              System.cmd("mix", ["deps.update" | to_update] ++ (opts[:update_deps_args] || []))
-
-              %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
+            after
+              Code.compiler_options(
+                relative_paths: old_relative_paths,
+                no_warn_undefined: old_undefined,
+                ignore_module_conflict: old_ignore_module_conflict
+              )
+            end
           end
-
-        Mix.Project.clear_deps_cache()
-        Mix.Project.pop()
-        Mix.Dep.clear_cached()
-
-        old_undefined = Code.get_compiler_option(:no_warn_undefined)
-        old_relative_paths = Code.get_compiler_option(:relative_paths)
-        old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
-
-        try do
-          Code.compiler_options(
-            relative_paths: false,
-            no_warn_undefined: :all,
-            ignore_module_conflict: true
-          )
-
-          _ = Code.compile_file("mix.exs")
-        after
-          Code.compiler_options(
-            relative_paths: old_relative_paths,
-            no_warn_undefined: old_undefined,
-            ignore_module_conflict: old_ignore_module_conflict
-          )
-        end
-
-        Igniter.Util.DepsCompile.run(recompile_igniter?: true, force: opts[:force?])
-
-        igniter
+        )
 
       {output, exit_code} ->
         case handle_error(output, exit_code, igniter, opts) do
           {:ok, igniter} ->
-            get_deps!(igniter, opts)
+            get_deps!(igniter, Keyword.put(opts, :name, "applying dependency conflict changes"))
 
           :error ->
             Mix.shell().info("""
@@ -298,16 +326,21 @@ defmodule Igniter.Util.Install do
 
           igniter ->
             message = """
-            There is a conflict in the `only` option for the dependency #{inspect(dep)}, between #{source1} and #{source2}.
+            Conflict in `only` option for dependency #{inspect(dep)}. 
+            Between #{source1} and #{source2}.
 
-            This change includes an update to the `only` option to include all requisite envs. This is normal, and only
-            means that the package is used in one or more environments than it originally was.
+            We must update the `only` option as shown to continue.
             """
 
             {:ok,
              Igniter.apply_and_fetch_dependencies(
                igniter,
-               Keyword.merge(opts, message: message, error_on_abort?: true)
+               Keyword.merge(opts,
+                 compile_deps?: false,
+                 operation: "recompiling conflicts",
+                 message: message,
+                 error_on_abort?: true
+               )
              )}
         end
       else

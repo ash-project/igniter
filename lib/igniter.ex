@@ -819,12 +819,7 @@ defmodule Igniter do
               end
 
           if opts[:yes] || opts[:yes_to_deps] || !changed?(source) ||
-               Igniter.Util.IO.yes?(
-                 message_with_git_warning(
-                   igniter,
-                   Keyword.put(opts, :message, message <> "\n\n#{diff([source])}")
-                 )
-               ) do
+               diff_and_yes?(igniter, [source], opts, message) do
             rewrite =
               case Rewrite.write(rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -835,10 +830,15 @@ defmodule Igniter do
             source = update_source(source, igniter, :quoted, quoted)
 
             igniter =
-              %{igniter | rewrite: Rewrite.update!(rewrite, source)}
+              igniter
+              |> Map.update!(:rewrite, &Rewrite.update!(&1, source))
+              |> accepted_once()
 
             if Keyword.get(opts, :fetch?, true) do
-              Igniter.Util.Install.get_deps!(igniter, opts)
+              Igniter.Util.Install.get_deps!(
+                igniter,
+                Keyword.put_new(opts, :operation, "installing new dependencies")
+              )
             else
               igniter
             end
@@ -857,11 +857,7 @@ defmodule Igniter do
           display_diff([source], opts)
 
           message =
-            if opts[:error_on_abort?] do
-              "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            else
-              "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            end
+            "Dependency changes require updating `mix.exs` before continuing.\nModify `mix.exs` and install?"
 
           if Igniter.Util.IO.yes?(message) do
             rewrite =
@@ -871,7 +867,10 @@ defmodule Igniter do
               end
 
             igniter =
-              Igniter.Util.Install.get_deps!(igniter, opts)
+              Igniter.Util.Install.get_deps!(
+                igniter,
+                Keyword.put_new(opts, :operation, "installing new dependencies")
+              )
 
             %{igniter | rewrite: rewrite}
           else
@@ -885,6 +884,17 @@ defmodule Igniter do
     else
       igniter
     end
+  end
+
+  defp diff_and_yes?(igniter, sources, opts, message) do
+    display_diff(sources, opts)
+
+    Igniter.Util.IO.yes?(
+      message_with_git_warning(
+        igniter,
+        Keyword.put(opts, :message, message)
+      )
+    )
   end
 
   @doc """
@@ -1070,6 +1080,14 @@ defmodule Igniter do
     end
   end
 
+  defp accepted_once(igniter) do
+    Igniter.assign(
+      igniter,
+      :private,
+      Map.put(igniter.assigns[:private] || %{}, :accepted_once, true)
+    )
+  end
+
   defp halt_if_fails_check!(igniter, title, opts) do
     cond do
       !opts[:check] ->
@@ -1119,13 +1137,17 @@ defmodule Igniter do
     if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
       message
     else
-      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
+      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) and
+           !igniter.assigns[:private][:accepted_once] do
         case check_git_status() do
           {:dirty, output} ->
             """
             #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
 
-            Output of `git status -s --porcelain`:
+            You #{IO.ANSI.yellow()}may#{IO.ANSI.reset()} want to save these changes and rerun this command.
+            This ensures that you can run `#{IO.ANSI.red()}git reset#{IO.ANSI.reset()}` to undo the changes.
+
+            Output of `#{IO.ANSI.green()}git status -s --porcelain#{IO.ANSI.reset()}`:
 
             #{output}
 

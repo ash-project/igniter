@@ -27,6 +27,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     * `--dry-run` - Run the task without making any changes.
     * `--yes` - Automatically answer yes to any prompts.
     * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
+    * `--verbose` - display additional output from various operations
     * `--example` - Request that installed packages include initial example code.
     """
     use Mix.Task
@@ -36,11 +37,33 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
-      Mix.Task.run("deps.compile", ["--long-compilation-threshold", "300"])
+      message =
+        cond do
+          "--igniter-repeat" in argv ->
+            "setting up igniter"
+
+          "--from-igniter-new" in argv ->
+            "installing igniter"
+
+          true ->
+            "checking for igniter in project"
+        end
+
+      Igniter.Installer.Loading.with_spinner(
+        message,
+        fn ->
+          Mix.Task.run("deps.compile")
+
+          if Code.ensure_loaded?(Igniter.Util.Install) do
+            Mix.Task.run("deps.compile", ["--no-compile"])
+          end
+        end,
+        verbose?: "--verbose" in argv
+      )
+
+      argv = Enum.reject(argv, &(&1 in ["--igniter-repeat", "--from-igniter-new"]))
 
       if Code.ensure_loaded?(Igniter.Util.Install) do
-        Mix.Task.run("compile", ["--no-compile"])
-
         {argv, positional} = extract_positional_args(argv)
 
         packages =
@@ -54,7 +77,10 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
         Application.ensure_all_started(:rewrite)
 
-        apply(Igniter.Util.Install, :install, [Enum.join(packages, ","), argv])
+        apply(Igniter.Util.Install, :install, [
+          Enum.join(packages, ","),
+          argv
+        ])
       else
         if File.exists?("mix.exs") do
           contents =
@@ -109,23 +135,21 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
               )
             end
 
-            System.cmd("mix", ["deps.get"])
+            Igniter.Installer.Loading.with_spinner(
+              "compiling igniter",
+              fn ->
+                System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
+                for task <- @tasks, do: Mix.Task.reenable(task)
 
-            for task <- @tasks, do: Mix.Task.reenable(task)
-
-            for task <- @tasks do
-              options =
-                if String.ends_with?(task, "compile") do
-                  ["--long-compilation-threshold", "300"]
-                else
-                  []
+                for task <- @tasks do
+                  Mix.Task.run(task, [])
                 end
-
-              Mix.Task.run(task, options)
-            end
+              end,
+              verbose?: "--verbose" in argv
+            )
 
             Mix.Task.reenable("igniter.install")
-            Mix.Task.run("igniter.install", argv)
+            Mix.Task.run("igniter.install", argv ++ ["--igniter-repeat"])
           end
         else
           Mix.shell().error("""

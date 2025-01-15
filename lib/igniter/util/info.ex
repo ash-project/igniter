@@ -22,13 +22,17 @@ defmodule Igniter.Util.Info do
 
     case schema.installs do
       [] ->
+        names = Enum.map_join(List.wrap(schema.adds_deps), ", ", &elem(&1, 0))
+
         igniter =
           igniter
           |> add_deps(
             List.wrap(schema.adds_deps),
             opts
           )
-          |> Igniter.apply_and_fetch_dependencies(opts)
+          |> Igniter.apply_and_fetch_dependencies(
+            Keyword.put(opts, :operation, "compiling #{names}")
+          )
 
         raise_on_conflicts!(schema, argv)
 
@@ -36,14 +40,22 @@ defmodule Igniter.Util.Info do
 
       installs ->
         schema = %{schema | installs: []}
-        install_names = Keyword.keys(installs)
+        install_names = Enum.map(installs, &elem(&1, 0))
+
+        names_message =
+          Enum.join(
+            Enum.uniq(Enum.map(List.wrap(schema.adds_deps), &elem(&1, 0)) ++ install_names),
+            ", "
+          )
 
         igniter
         |> add_deps(
           List.wrap(installs),
           opts
         )
-        |> Igniter.apply_and_fetch_dependencies(opts)
+        |> Igniter.apply_and_fetch_dependencies(
+          Keyword.put(opts, :operation, "compiling #{names_message}")
+        )
         |> maybe_set_only(install_names, argv, task_name)
         |> compose_install_and_validate!(
           argv,
