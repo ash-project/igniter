@@ -3,7 +3,11 @@ defmodule Igniter.Util.IO do
 
   @doc "Prompts the user for yes or no, repeating the prompt until a satisfactory answer is given"
   def yes?(prompt) do
-    case String.trim(Mix.shell().prompt(prompt <> " [y/n]")) do
+    case String.trim(Mix.shell().prompt(prompt <> " [Y/n]")) do
+      # default answer Y
+      "" ->
+        true
+
       yes when yes in ["y", "Y", "yes", "YES"] ->
         true
 
