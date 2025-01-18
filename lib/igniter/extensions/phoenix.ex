@@ -20,6 +20,25 @@ defmodule Igniter.Extensions.Phoenix do
     split = Module.split(module)
 
     cond do
+      String.ends_with?(Enum.at(split, 1) || "", "Live") ->
+        [base  | rest] = split
+
+        {:ok,
+         base
+         |> Macro.underscore()
+         |> IO.inspect()
+         |> Path.join("live")
+         |> IO.inspect()
+         |> then(fn path ->
+           rest
+           |> Enum.map(&Macro.underscore/1)
+           |> case do
+             [] -> [path]
+             nested -> [path | nested]
+           end
+           |> Path.join()
+         end)}
+
       String.ends_with?(to_string(module), "Web.Layouts") && Enum.count(split) == 2 ->
         [base | rest] = split
 
@@ -36,7 +55,7 @@ defmodule Igniter.Extensions.Phoenix do
            |> Enum.map(&Macro.underscore/1)
            |> case do
              [] -> [path]
-             nested -> Path.join([path | nested])
+             nested -> [path | nested]
            end
            |> Path.join()
          end)
@@ -59,7 +78,7 @@ defmodule Igniter.Extensions.Phoenix do
            |> Enum.map(&Macro.underscore/1)
            |> case do
              [] -> [path]
-             nested -> Path.join([path | nested])
+             nested -> [path | nested]
            end
            |> Path.join()
          end)
@@ -89,7 +108,7 @@ defmodule Igniter.Extensions.Phoenix do
              |> Enum.map(&Macro.underscore/1)
              |> case do
                [] -> [path]
-               nested -> Path.join([path | nested])
+               nested -> [path | nested]
              end
              |> Path.join()
            end)
@@ -115,7 +134,7 @@ defmodule Igniter.Extensions.Phoenix do
            |> Enum.map(&Macro.underscore/1)
            |> case do
              [] -> [path]
-             nested -> Path.join([path | nested])
+             nested -> [path | nested]
            end
            |> Path.join()
          end)
@@ -145,7 +164,7 @@ defmodule Igniter.Extensions.Phoenix do
              |> Enum.map(&Macro.underscore/1)
              |> case do
                [] -> [path]
-               nested -> Path.join([path | nested])
+               nested -> [path | nested]
              end
              |> Path.join()
            end)
