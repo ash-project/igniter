@@ -21,7 +21,7 @@ defmodule Igniter.Extensions.Phoenix do
 
     cond do
       String.ends_with?(Enum.at(split, 1) || "", "Live") ->
-        [base  | rest] = split
+        [base | rest] = split
 
         {:ok,
          base
