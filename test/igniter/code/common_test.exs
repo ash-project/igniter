@@ -799,5 +799,33 @@ defmodule Igniter.Code.CommonTest do
       assert {:replaced1, _, []} = replaced.node
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
+
+    test "handles comments" do
+      zipper =
+        """
+        block do
+          one()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("one()")
+
+      expected =
+        """
+        block do
+          # commented()
+        end
+        """
+
+      replaced = Common.replace_code(zipper, "# commented()")
+      refute replaced.supertree
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code("# commented()")
+
+      assert subtree_replaced.supertree
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
   end
 end
