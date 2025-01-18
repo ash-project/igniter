@@ -815,8 +815,10 @@ defmodule Igniter.Code.CommonTest do
         """
         block do
           # commented()
+          nil
         end
         """
+        |> String.trim_trailing()
 
       replaced = Common.replace_code(zipper, "# commented()")
       refute replaced.supertree

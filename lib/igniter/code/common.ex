@@ -295,15 +295,15 @@ defmodule Igniter.Code.Common do
 
     cond do
       upwards && extendable_block?(upwards.node) ->
-        {:__block__, _, upwards_code} = upwards.node
+        {:__block__, upwards_meta, upwards_code} = upwards.node
         index = Enum.count(zipper.path.left || [])
 
-        to_insert =
+        {to_insert, new_meta} =
           if extendable_block?(new_code) do
-            {:__block__, _, new_code} = new_code
-            new_code
+            {:__block__, new_meta, new_code} = new_code
+            {new_code, new_meta}
           else
-            [new_code]
+            {[new_code], []}
           end
 
         {head, tail} =
@@ -313,18 +313,22 @@ defmodule Igniter.Code.Common do
             Enum.split(upwards_code, index)
           end
 
-        Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ tail})
+        Zipper.replace(
+          upwards,
+          {:__block__, combine_comments(upwards_meta, new_meta, placement),
+           head ++ to_insert ++ tail}
+        )
 
       super_upwards && extendable_block?(super_upwards.node) ->
-        {:__block__, _, upwards_code} = super_upwards.node
+        {:__block__, upwards_meta, upwards_code} = super_upwards.node
         index = Enum.count(zipper.supertree.path.left || [])
 
-        to_insert =
+        {to_insert, new_meta} =
           if extendable_block?(new_code) do
-            {:__block__, _, new_code} = new_code
-            new_code
+            {:__block__, new_meta, new_code} = new_code
+            {new_code, new_meta}
           else
-            [new_code]
+            {[new_code], []}
           end
 
         {head, tail} =
@@ -335,7 +339,11 @@ defmodule Igniter.Code.Common do
           end
 
         new_super_upwards =
-          Zipper.replace(super_upwards, {:__block__, [], head ++ to_insert ++ tail})
+          Zipper.replace(
+            super_upwards,
+            {:__block__, combine_comments(upwards_meta, new_meta, placement),
+             head ++ to_insert ++ tail}
+          )
 
         if placement == :after do
           %{
@@ -365,9 +373,9 @@ defmodule Igniter.Code.Common do
 
       true ->
         if extendable_block?(zipper.node) && extendable_block?(new_code) do
-          {:__block__, _, stuff} = zipper.node
+          {:__block__, meta, stuff} = zipper.node
 
-          {:__block__, _, new_stuff} = new_code
+          {:__block__, new_meta, new_stuff} = new_code
 
           new_stuff =
             if placement == :after do
@@ -376,10 +384,13 @@ defmodule Igniter.Code.Common do
               new_stuff ++ stuff
             end
 
-          Zipper.replace(zipper, {:__block__, [], new_stuff})
+          Zipper.replace(
+            zipper,
+            {:__block__, combine_comments(meta, new_meta, placement), new_stuff}
+          )
         else
           if extendable_block?(zipper.node) do
-            {:__block__, _, stuff} = zipper.node
+            {:__block__, meta, stuff} = zipper.node
 
             new_stuff =
               if placement == :after do
@@ -388,26 +399,26 @@ defmodule Igniter.Code.Common do
                 [new_code] ++ stuff
               end
 
-            Zipper.replace(zipper, {:__block__, [], new_stuff})
+            Zipper.replace(zipper, {:__block__, meta, new_stuff})
           else
-            code =
+            {code, meta} =
               if extendable_block?(new_code) do
-                {:__block__, _, new_stuff} = new_code
+                {:__block__, meta, new_stuff} = new_code
 
                 if placement == :after do
-                  [zipper.node] ++ new_stuff
+                  {[zipper.node] ++ new_stuff, meta}
                 else
-                  new_stuff ++ [zipper.node]
+                  {new_stuff ++ [zipper.node], meta}
                 end
               else
                 if placement == :after do
-                  [zipper.node, new_code]
+                  {[zipper.node, new_code], []}
                 else
-                  [new_code, zipper.node]
+                  {[new_code, zipper.node], []}
                 end
               end
 
-            Zipper.replace(zipper, {:__block__, [], code})
+            Zipper.replace(zipper, {:__block__, meta, code})
           end
         end
     end
@@ -498,6 +509,9 @@ defmodule Igniter.Code.Common do
       v
   end
 
+  @doc """
+  Replaces code with new code.
+  """
   def replace_code(%Zipper{} = zipper, code) when is_binary(code) do
     replace_code(zipper, Sourceror.parse_string!(code))
   end
@@ -509,20 +523,25 @@ defmodule Igniter.Code.Common do
       at_supertree_root? = Zipper.up(zipper) == nil and !!zipper.supertree
       zipper = if at_supertree_root?, do: supertree(zipper), else: zipper
 
-      {:__block__, _, new_code} = new_code
-      {new_code_last, new_code} = List.pop_at(new_code, -1)
+      {:__block__, meta, new_inner_code} = new_code
 
-      zipper =
-        new_code
-        # We insert to the left and explicitly replace the node with new_code_last
-        # so that the last node retains the metadata of the node we're replacing.
-        # That metadata includes things like the number of trailing newlines.
-        |> Enum.reduce(zipper, &Zipper.insert_left(&2, &1))
-        |> replace_node(new_code_last)
+      if Enum.empty?(meta[:trailing_comments] || []) || Enum.empty?(meta[:leading_comments] || []) do
+        {new_code_last, new_inner_code} = List.pop_at(new_inner_code, -1)
 
-      {:ok, zipper} = move_left(zipper, length(new_code))
+        zipper =
+          new_inner_code
+          # We insert to the left and explicitly replace the node with new_code_last
+          # so that the last node retains the metadata of the node we're replacing.
+          # That metadata includes things like the number of trailing newlines.
+          |> Enum.reduce(zipper, &Zipper.insert_left(&2, &1))
+          |> replace_node(new_code_last)
 
-      if at_supertree_root?, do: Zipper.subtree(zipper), else: zipper
+        {:ok, zipper} = move_left(zipper, length(new_inner_code))
+
+        if at_supertree_root?, do: Zipper.subtree(zipper), else: zipper
+      else
+        replace_node(zipper, new_code)
+      end
     else
       replace_node(zipper, new_code)
     end
@@ -540,11 +559,39 @@ defmodule Igniter.Code.Common do
       end
 
     case {zipper.node, new_code} do
-      {{_, meta, _}, {new_call, _, new_children}} ->
-        Zipper.replace(zipper, {new_call, meta, new_children})
+      {{_, meta, _}, {new_call, new_meta, new_children}} ->
+        Zipper.replace(zipper, {new_call, combine_comments(meta, new_meta), new_children})
 
       {_node, _new_node} ->
         Zipper.replace(zipper, new_code)
+    end
+  end
+
+  defp combine_comments(meta, new_meta, placement \\ :after) do
+    if placement == :after do
+      meta
+      |> Keyword.update(
+        :leading_comments,
+        new_meta[:leading_comments] || [],
+        &(&1 ++ (new_meta[:leading_comments] || []))
+      )
+      |> Keyword.update(
+        :trailing_comments,
+        new_meta[:trailing_comments] || [],
+        &((new_meta[:trailing_comments] || []) ++ &1)
+      )
+    else
+      meta
+      |> Keyword.update(
+        :leading_comments,
+        new_meta[:leading_comments] || [],
+        &((new_meta[:leading_comments] || []) ++ &1)
+      )
+      |> Keyword.update(
+        :trailing_comments,
+        new_meta[:trailing_comments] || [],
+        &(&1 ++ (new_meta[:trailing_comments] || []))
+      )
     end
   end
 
