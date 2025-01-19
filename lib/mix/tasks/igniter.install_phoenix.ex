@@ -148,11 +148,11 @@ defmodule Mix.Tasks.Igniter.Phx.Install do
   defp check_app_name!(name, from_app_flag) do
     unless name =~ Regex.recompile!(~r/^[a-z][a-z0-9_]*$/) do
       extra =
-        if !from_app_flag do
+        if from_app_flag do
+          ""
+        else
           ". The application name is inferred from the path, if you'd like to " <>
             "explicitly name the application then use the `--app APP` option."
-        else
-          ""
         end
 
       Mix.raise(

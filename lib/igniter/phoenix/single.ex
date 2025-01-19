@@ -3,8 +3,8 @@ defmodule Igniter.Phoenix.Single do
   # Wrap Phx.New.Single
   # https://github.com/phoenixframework/phoenix/blob/7586cbee9e37afbe0b3cdbd560b9e6aa60d32bf6/installer/lib/phx_new/single.ex
 
-  alias Phx.New.Project
   alias Igniter.Phoenix.Generator
+  alias Phx.New.Project
 
   @mod Phx.New.Single
 
