@@ -26,9 +26,7 @@ defmodule Igniter.Extensions.Phoenix do
         {:ok,
          base
          |> Macro.underscore()
-         |> IO.inspect()
          |> Path.join("live")
-         |> IO.inspect()
          |> then(fn path ->
            rest
            |> Enum.map(&Macro.underscore/1)
