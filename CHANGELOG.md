@@ -5,6 +5,25 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.9](https://github.com/ash-project/igniter/compare/v0.5.8...v0.5.9) (2025-01-19)
+
+
+
+
+### Bug Fixes:
+
+* combine comments when adding or replacing code
+
+* `Igniter.Project.MixProject.update/4` now creates non-existing functions (#190)
+
+### Improvements:
+
+* ensure phoenix /live files go where they should
+
+* Default `yes?` to Y (#197)
+
+* Add `Phoenix.select_endpoint/3` (#192)
+
 ## [v0.5.8](https://github.com/ash-project/igniter/compare/v0.5.7...v0.5.8) (2025-01-06)
 
 
