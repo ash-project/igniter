@@ -580,6 +580,7 @@ defmodule Igniter.Code.Common do
         new_meta[:trailing_comments] || [],
         &((new_meta[:trailing_comments] || []) ++ &1)
       )
+      |> ensure_unique_comments()
     else
       meta
       |> Keyword.update(
@@ -592,7 +593,14 @@ defmodule Igniter.Code.Common do
         new_meta[:trailing_comments] || [],
         &(&1 ++ (new_meta[:trailing_comments] || []))
       )
+      |> ensure_unique_comments()
     end
+  end
+
+  defp ensure_unique_comments(meta) do
+    meta
+    |> Keyword.update!(:leading_comments, &Enum.uniq/1)
+    |> Keyword.update!(:trailing_comments, &Enum.uniq/1)
   end
 
   defp multi_element_pipe?(%{node: {:|>, _, _}} = zipper) do

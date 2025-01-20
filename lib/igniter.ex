@@ -802,7 +802,7 @@ defmodule Igniter do
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
         quoted_with_only_deps_change =
           original_zipper
-          |> Igniter.Code.Common.replace_code(zipper.node)
+          |> Igniter.Code.Common.replace_code(clean_comments(zipper.node))
           |> Zipper.topmost()
           |> Zipper.node()
 
@@ -883,6 +883,16 @@ defmodule Igniter do
       end
     else
       igniter
+    end
+  end
+
+  defp clean_comments(node) do
+    case node do
+      {f, meta, a} ->
+        {f, Keyword.merge(meta, leading_comments: [], trailing_comments: []), a}
+
+      other ->
+        other
     end
   end
 
