@@ -32,7 +32,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     """
     use Mix.Task
 
-    @tasks ~w(deps.loadpaths loadpaths compile deps.compile)
+    @tasks ~w(deps.compile deps.loadpaths compile loadpaths)
 
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
@@ -139,6 +139,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
               "compiling igniter",
               fn ->
                 System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
+                System.cmd("mix", ["deps.compile"], stderr_to_stdout: true)
                 for task <- @tasks, do: Mix.Task.reenable(task)
 
                 for task <- @tasks do

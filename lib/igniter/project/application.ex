@@ -251,8 +251,6 @@ defmodule Igniter.Project.Application do
   end
 
   defp do_add_child(igniter, application, to_supervise, opts) do
-    path = Igniter.Project.Module.proper_location(igniter, application, :source_folder)
-
     to_supervise =
       case to_supervise do
         module when is_atom(module) -> module
@@ -266,9 +264,8 @@ defmodule Igniter.Project.Application do
         module -> module
       end
 
-    Igniter.update_elixir_file(igniter, path, fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Application),
-           {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
+    Igniter.Project.Module.find_and_update_module!(igniter, application, fn zipper ->
+      with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
            {:ok, zipper} <-
              Igniter.Code.Function.move_to_function_call_in_current_scope(
                zipper,
