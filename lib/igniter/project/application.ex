@@ -327,17 +327,17 @@ defmodule Igniter.Project.Application do
     |> then(fn zipper ->
       case Zipper.down(zipper) do
         nil ->
-          Zipper.insert_child(zipper, child)
+          {:ok, Zipper.insert_child(zipper, child)}
 
         zipper ->
           zipper
           |> skip_after(opts)
           |> case do
             {:after, zipper} ->
-              Zipper.insert_right(zipper, child)
+              {:ok, Zipper.insert_right(zipper, child)}
 
             {:before, zipper} ->
-              Zipper.insert_left(zipper, child)
+              {:ok, Zipper.insert_left(zipper, child)}
           end
       end
     end)
