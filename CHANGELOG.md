@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.12](https://github.com/ash-project/igniter/compare/v0.5.11...v0.5.12) (2025-01-20)
+
+
+
+
+### Bug Fixes:
+
+* don't run `deps.compile` task after `deps.get`
+
+### Improvements:
+
+* use `req` instead of httpc for calling to hex
+
+* shorter package install line
+
 ## [v0.5.11](https://github.com/ash-project/igniter/compare/v0.5.10...v0.5.11) (2025-01-20)
 
 
