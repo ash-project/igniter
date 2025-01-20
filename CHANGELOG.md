@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.10](https://github.com/ash-project/igniter/compare/v0.5.9...v0.5.10) (2025-01-20)
+
+
+
+
+### Bug Fixes:
+
+* fix duplication of comments on dep writing in empty project
+
 ## [v0.5.9](https://github.com/ash-project/igniter/compare/v0.5.8...v0.5.9) (2025-01-19)
 
 
