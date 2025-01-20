@@ -139,7 +139,6 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
               "compiling igniter",
               fn ->
                 System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
-                System.cmd("mix", ["deps.compile"], stderr_to_stdout: true)
                 for task <- @tasks, do: Mix.Task.reenable(task)
 
                 for task <- @tasks do
