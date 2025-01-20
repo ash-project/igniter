@@ -41,12 +41,17 @@ defmodule Igniter.Util.Info do
       installs ->
         schema = %{schema | installs: []}
         install_names = Enum.map(installs, &elem(&1, 0))
+        count = Enum.count(install_names)
 
         names_message =
-          Enum.join(
-            Enum.uniq(Enum.map(List.wrap(schema.adds_deps), &elem(&1, 0)) ++ install_names),
-            ", "
-          )
+          if count >= 4 do
+            "#{count} packages"
+          else
+            Enum.join(
+              Enum.uniq(Enum.map(List.wrap(schema.adds_deps), &elem(&1, 0)) ++ install_names),
+              ", "
+            )
+          end
 
         igniter
         |> add_deps(
