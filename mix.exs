@@ -105,6 +105,7 @@ defmodule Igniter.MixProject do
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
       {:jason, "~> 1.4"},
+      {:req, "~> 0.5"},
       {:phx_new, "~> 1.7", optional: true},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},

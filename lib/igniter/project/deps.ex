@@ -269,25 +269,16 @@ defmodule Igniter.Project.Deps do
     case String.split(requirement, "@", trim: true, parts: 2) do
       [package] ->
         if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
-          :inets.start()
-          :ssl.start()
-          url = ~c"https://hex.pm/api/packages/#{package}"
+          {:ok, _} = Application.ensure_all_started(:req)
 
-          case :httpc.request(:get, {url, [{~c"User-Agent", ~c"igniter-installer"}]}, [], []) do
-            {:ok, {{_version, _, _reason_phrase}, _headers, body}} ->
-              case Jason.decode(body) do
-                {:ok,
-                 %{
-                   "releases" => releases
-                 } = body} ->
-                  case first_non_rc_version_or_first_version(releases, body) do
-                    %{"version" => version} ->
-                      {String.to_atom(package),
-                       Igniter.Util.Version.version_string_to_general_requirement!(version)}
-
-                    _ ->
-                      :error
-                  end
+          case Req.get("https://hex.pm/api/packages/#{package}",
+                 headers: [{"User-Agent", "igniter-installer"}]
+               ) do
+            {:ok, %{body: %{"releases" => releases} = body}} ->
+              case first_non_rc_version_or_first_version(releases, body) do
+                %{"version" => version} ->
+                  {String.to_atom(package),
+                   Igniter.Util.Version.version_string_to_general_requirement!(version)}
 
                 _ ->
                   :error
