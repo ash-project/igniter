@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.11](https://github.com/ash-project/igniter/compare/v0.5.10...v0.5.11) (2025-01-20)
+
+
+
+
+### Bug Fixes:
+
+* don't assume path for application module
+
 ## [v0.5.10](https://github.com/ash-project/igniter/compare/v0.5.9...v0.5.10) (2025-01-20)
 
 
