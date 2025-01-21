@@ -1,4 +1,5 @@
 defmodule Mix.Tasks.Igniter.Phx.Install do
+  @moduledoc false
   use Igniter.Mix.Task
 
   @example "mix igniter.phx.install . --module MyApp --app my_app"
