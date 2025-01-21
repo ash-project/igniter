@@ -185,14 +185,14 @@ defmodule Igniter do
     glob =
       case glob do
         %{__struct__: GlobEx} = glob ->
-          if Path.type(glob.source) == :relative do
-            GlobEx.compile!(Path.expand(glob.source))
+          if Path.type(glob.source) == :absolute do
+            GlobEx.compile!(Path.relative_to_cwd(glob.source))
           else
             glob
           end
 
         string ->
-          GlobEx.compile!(Path.expand(string))
+          GlobEx.compile!(string)
       end
 
     if igniter.assigns[:test_mode?] do
@@ -208,6 +208,7 @@ defmodule Igniter do
       end)
       |> Enum.map(fn path ->
         source_handler = source_handler(path)
+        path = Path.relative_to_cwd(path)
 
         read_source!(igniter, path, source_handler)
       end)

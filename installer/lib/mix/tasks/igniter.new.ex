@@ -208,7 +208,8 @@ defmodule Mix.Tasks.Igniter.New do
 
       Mix.Task.run(
         "igniter.install",
-        install_args ++ rest_args ++ ["--yes-to-deps", "--from-igniter-new"]
+        install_args ++
+          rest_args ++ ["--yes-to-deps", "--from-igniter-new", "--new-with", "phx-new"]
       )
     end
 
