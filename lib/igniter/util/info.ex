@@ -27,7 +27,10 @@ defmodule Igniter.Util.Info do
         igniter =
           igniter
           |> add_deps(
-            List.wrap(schema.adds_deps),
+            Enum.reject(List.wrap(schema.adds_deps), fn dep ->
+              # temporary fix for oban installer
+              dep == {:oban, "oban"}
+            end),
             opts
           )
           |> Igniter.apply_and_fetch_dependencies(
