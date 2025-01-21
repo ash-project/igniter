@@ -78,7 +78,7 @@ defmodule Mix.Tasks.Igniter.Install do
     {installed_with, Enum.reverse(trail)}
   end
 
-  defp remove_installed_with(["--installed-with", installed_with | rest], {_, trail}) do
+  defp remove_installed_with(["--new-with", installed_with | rest], {_, trail}) do
     {installed_with, Enum.reverse(trail, rest)}
   end
 
