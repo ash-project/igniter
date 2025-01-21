@@ -59,7 +59,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
       argv = Enum.reject(argv, &(&1 in ["--igniter-repeat", "--from-igniter-new"]))
 
-      if Code.ensure_loaded?(Igniter.Util.Install) |> IO.inspect() do
+      if Code.ensure_loaded?(Igniter.Util.Install) do
         {argv, positional} = extract_positional_args(argv)
 
         packages =
@@ -134,11 +134,11 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             Igniter.Installer.Loading.with_spinner(
               "compiling igniter",
               fn ->
-                System.cmd("mix", ["deps.get"]) |> IO.inspect()
+                System.cmd("mix", ["deps.get"])
                 Mix.Task.reenable("deps.compile")
                 Mix.Task.reenable("deps.loadpaths")
-                Mix.Task.run("deps.compile", []) |> IO.inspect()
-                Mix.Task.run("deps.loadpaths", ["--no-deps-check"]) |> IO.inspect()
+                Mix.Task.run("deps.compile", [])
+                Mix.Task.run("deps.loadpaths", ["--no-deps-check"])
                 Mix.Task.reenable("deps.compile")
                 Mix.Task.reenable("deps.loadpaths")
               end,
