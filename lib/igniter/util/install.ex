@@ -51,6 +51,16 @@ defmodule Igniter.Util.Install do
         &Keyword.put(&1, :example, :boolean)
       )
 
+    {installed_with, argv} = remove_installed_with(argv)
+
+    igniter =
+      if installed_with == "phx.new" do
+        igniter
+        |> Igniter.compose_task("igniter.add_extension", ["phoenix"])
+      else
+        igniter
+      end
+
     only =
       argv
       |> OptionParser.parse!(switches: [only: :keep])
@@ -369,4 +379,18 @@ defmodule Igniter.Util.Install do
   end
 
   defp parse_source(dep), do: "\"#{dep}\""
+
+  defp remove_installed_with(argv, acc \\ {nil, []})
+
+  defp remove_installed_with([], {installed_with, trail}) do
+    {installed_with, Enum.reverse(trail)}
+  end
+
+  defp remove_installed_with(["--new-with", installed_with | rest], {_, trail}) do
+    {installed_with, Enum.reverse(trail, rest)}
+  end
+
+  defp remove_installed_with([other | rest], {installed_with, trail}) do
+    remove_installed_with(rest, {installed_with, [other | trail]})
+  end
 end

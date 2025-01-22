@@ -46,7 +46,6 @@ defmodule Mix.Tasks.Igniter.Install do
     )
 
     argv = Enum.reject(argv, &(&1 in ["--from-igniter-new", "--igniter-repeat"]))
-    {installed_with, argv} = remove_installed_with(argv)
 
     {argv, positional} = extract_positional_args(argv)
 
@@ -61,29 +60,7 @@ defmodule Mix.Tasks.Igniter.Install do
 
     Application.ensure_all_started(:rewrite)
 
-    igniter =
-      if installed_with == "phx.new" do
-        Igniter.new()
-        |> Igniter.compose_task("igniter.add_extension", ["phoenix"])
-      else
-        Igniter.new()
-      end
-
-    Igniter.Util.Install.install(Enum.join(packages, ","), argv, igniter)
-  end
-
-  defp remove_installed_with(argv, acc \\ {nil, []})
-
-  defp remove_installed_with([], {installed_with, trail}) do
-    {installed_with, Enum.reverse(trail)}
-  end
-
-  defp remove_installed_with(["--new-with", installed_with | rest], {_, trail}) do
-    {installed_with, Enum.reverse(trail, rest)}
-  end
-
-  defp remove_installed_with([other | rest], {installed_with, trail}) do
-    remove_installed_with(rest, {installed_with, [other | trail]})
+    Igniter.Util.Install.install(Enum.join(packages, ","), argv)
   end
 
   @doc false
