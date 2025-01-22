@@ -107,6 +107,8 @@ defmodule Igniter.MixProject do
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
       {:phx_new, "~> 1.7", optional: true},
+      {:inflex, "~> 2.0"},
+      {:owl, "~> 0.11"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.32", only: [:dev, :test], runtime: false},
