@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.16](https://github.com/ash-project/igniter/compare/v0.5.15...v0.5.16) (2025-01-22)
+
+
+
+
+### Improvements:
+
+* add owl/inflex utility dependencies
+
 ## [v0.5.15](https://github.com/ash-project/igniter/compare/v0.5.14...v0.5.15) (2025-01-22)
 
 
