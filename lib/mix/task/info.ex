@@ -56,6 +56,8 @@ defmodule Igniter.Mix.Task.Info do
   - The defaults from the `defaults` option in your task info are applied.
   - The `:keep` type is automatically aggregated into a list.
   - The `:csv` option automatically splits the value on commas, and allows it to be specified multiple times.
+    This also raises an error if an option with a trailing comma is provided, suggesting that the user remove
+    the comma or quote the value.
 
   ## Positional Arguments
 

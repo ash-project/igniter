@@ -229,6 +229,22 @@ defmodule Igniter.Mix.Task do
               {:ok, value} ->
                 value
                 |> List.wrap()
+                |> tap(fn list ->
+                  last = List.last(list)
+
+                  if last && String.ends_with?(last, ",") do
+                    arg_name = String.replace(to_string(k), "_", "-")
+
+                    raise """
+                    Found trailing comma in `--#{arg_name}` at `#{last}`
+
+                    Please remove the trailing comma.
+
+                    On some platforms, argument parsing requires quotes around argument values containing commas.
+                    So instead of `--#{arg_name} foo,bar`, you may need `--#{arg_name} "foo,bar"`
+                    """
+                  end
+                end)
                 |> Enum.flat_map(&String.split(&1, ",", trim: true))
                 |> then(fn v ->
                   Keyword.put(parsed, k, v)
