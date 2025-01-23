@@ -66,12 +66,11 @@ defmodule Mix.Tasks.Igniter.New do
           local: :string,
           example: :boolean,
           with: :string,
-          with_args: :string,
           module: :string,
           sup: :boolean,
           umbrella: :boolean
         ],
-        aliases: [i: :install, l: :local, e: :example, w: :with, wa: :with_args]
+        aliases: [i: :install, l: :local, e: :example, w: :with]
       )
 
     install_with = options[:with] || "new"
@@ -101,7 +100,7 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     with_args =
-      [name | OptionParser.split(options[:with_args] || "")]
+      [name | with_args(argv)]
 
     with_args =
       if install_with == "phx.new" do
@@ -118,14 +117,14 @@ defmodule Mix.Tasks.Igniter.New do
       end
 
     with_args =
-      if with_args[:sup] do
+      if options[:sup] do
         with_args ++ ["--sup"]
       else
         with_args
       end
 
     with_args =
-      if with_args[:umbrella] do
+      if options[:umbrella] do
         with_args ++ ["--umbrella"]
       else
         with_args
@@ -203,7 +202,8 @@ defmodule Mix.Tasks.Igniter.New do
         try do
           rest_args(argv)
         rescue
-          _ -> []
+          _ ->
+            []
         end
 
       Mix.Task.run(
@@ -214,6 +214,20 @@ defmodule Mix.Tasks.Igniter.New do
     end
 
     :ok
+  end
+
+  defp with_args(argv, acc \\ [])
+
+  defp with_args([], acc) do
+    acc
+  end
+
+  defp with_args(["--with-args", next | rest], acc) do
+    with_args(rest, acc ++ [next])
+  end
+
+  defp with_args([next | rest], acc) do
+    with_args(rest, acc)
   end
 
   defp extract_positional_args(argv) do
