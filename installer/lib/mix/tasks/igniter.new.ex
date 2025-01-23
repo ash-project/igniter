@@ -226,7 +226,7 @@ defmodule Mix.Tasks.Igniter.New do
     with_args(rest, acc ++ [next])
   end
 
-  defp with_args([next | rest], acc) do
+  defp with_args([_next | rest], acc) do
     with_args(rest, acc)
   end
 
