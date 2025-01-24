@@ -64,4 +64,19 @@ defmodule Igniter.Code.FunctionTest do
     assert Igniter.Code.Function.argument_equals?(zipper, 1, :key) == false
     assert Igniter.Code.Function.argument_equals?(zipper, 1, Test) == true
   end
+
+  test "move_to_constant" do
+    zipper =
+      ~s"""
+      defmodule MyApp.Foo do
+        @foo_key Application.compile_env!(:my_app, :key)
+      end
+      """
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert {:ok, zipper} = Igniter.Code.Function.move_to_constant(zipper, :foo_key)
+
+    assert Igniter.Util.Debug.code_at_node(zipper) == "@foo_key Application.compile_env!(:my_app, :key)"
+  end
 end
