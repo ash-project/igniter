@@ -78,35 +78,6 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @doc """
-  Move to a constant inside a module.
-
-  For example, given this module:
-
-      defmodule MyAppWeb.Endpoint do
-        @session_options [
-          store: :cookie,
-          ...
-        ]
-      end
-
-  You can move into that constant with:
-
-      Igniter.Code.Function.move_to_constant(zipper, :session_options)
-
-  """
-  @spec move_to_constant(Zipper.t(), atom()) :: {:ok, Zipper.t()} | :error
-  def move_to_constant(zipper, name) when is_atom(name) do
-    with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
-         {:ok, zipper} <- Common.move_to_do_block(zipper),
-         {:ok, zipper} <- Common.move_to_pattern(zipper, {:@, _, [{^name, _, _}]}) do
-      {:ok, zipper}
-    else
-      _ ->
-        :error
-    end
-  end
-
   @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current scope"
   @spec move_to_function_call_in_current_scope(
           Zipper.t(),
