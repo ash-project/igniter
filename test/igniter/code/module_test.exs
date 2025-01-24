@@ -152,6 +152,8 @@ defmodule Igniter.Code.ModuleTest do
     assert Igniter.Util.Debug.code_at_node(zipper) == ~s|@doc "My app module doc"|
 
     assert {:ok, zipper} = Igniter.Code.Module.move_to_attribute_definition(mod_zipper, :foo_key)
-    assert Igniter.Util.Debug.code_at_node(zipper) == "@foo_key Application.compile_env!(:my_app, :key)"
+
+    assert Igniter.Util.Debug.code_at_node(zipper) ==
+             "@foo_key Application.compile_env!(:my_app, :key)"
   end
 end
