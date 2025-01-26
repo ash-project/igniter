@@ -129,10 +129,11 @@ defmodule Mix.Tasks.Igniter.Phx.Install do
 
   defp generate(igniter, base_path, {phx_generator, igniter_generator}, opts) do
     project =
-      base_path
-      |> Phx.New.Project.new(opts)
+      apply(Phx.New.Project, :new, [base_path, opts])
       |> phx_generator.prepare_project()
-      |> Phx.New.Generator.put_binding()
+
+    project =
+      apply(Phx.New.Generator, :put_binding, [project])
       |> validate_project()
 
     igniter
