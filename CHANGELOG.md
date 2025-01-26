@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.17](https://github.com/ash-project/igniter/compare/v0.5.16...v0.5.17) (2025-01-26)
+
+
+
+
+### Improvements:
+
+* remove warnings about `Phx.New` in some new projects
+
+* properly parse with_args in igniter.new
+
 ## [v0.5.16](https://github.com/ash-project/igniter/compare/v0.5.15...v0.5.16) (2025-01-22)
 
 
