@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.18](https://github.com/ash-project/igniter/compare/v0.5.17...v0.5.18) (2025-01-27)
+
+
+
+
+### Improvements:
+
+* show yellow text indicating generated notices
+
 ## [v0.5.17](https://github.com/ash-project/igniter/compare/v0.5.16...v0.5.17) (2025-01-26)
 
 
