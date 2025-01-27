@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.18](https://github.com/ash-project/igniter/compare/v0.5.18...v0.5.18) (2025-01-27)
+
+
+
+
+### Features:
+
+* `Igniter.Code.Module.move_to_attribute_definition` (#207)
+
+### Bug Fixes:
+
+* handle single length list config paths that already exist
+
 ## [v0.5.18](https://github.com/ash-project/igniter/compare/v0.5.17...v0.5.18) (2025-01-27)
 
 
