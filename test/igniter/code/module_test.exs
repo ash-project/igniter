@@ -136,4 +136,24 @@ defmodule Igniter.Code.ModuleTest do
                end)
     end
   end
+
+  test "move_to_attribute_definition" do
+    mod_zipper =
+      ~s"""
+      defmodule MyApp.Foo do
+        @doc "My app module doc"
+        @foo_key Application.compile_env!(:my_app, :key)
+      end
+      """
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert {:ok, zipper} = Igniter.Code.Module.move_to_attribute_definition(mod_zipper, :doc)
+    assert Igniter.Util.Debug.code_at_node(zipper) == ~s|@doc "My app module doc"|
+
+    assert {:ok, zipper} = Igniter.Code.Module.move_to_attribute_definition(mod_zipper, :foo_key)
+
+    assert Igniter.Util.Debug.code_at_node(zipper) ==
+             "@foo_key Application.compile_env!(:my_app, :key)"
+  end
 end
