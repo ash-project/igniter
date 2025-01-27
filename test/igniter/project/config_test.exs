@@ -509,4 +509,44 @@ defmodule Igniter.Project.ConfigTest do
                false
     end
   end
+
+  describe "modify_configuration_code/5" do
+    test "replace existing config" do
+      zipper =
+        ~s"""
+        import Config
+        config :fake, foo: [bar: "baz"]
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      config =
+        zipper
+        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true)
+        |> Igniter.Util.Debug.code_at_node()
+
+      assert String.contains?(config, "config :fake, foo: true")
+    end
+
+    test "update existing config" do
+      zipper =
+        ~s"""
+        import Config
+        config :fake, foo: [bar: "baz"]
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      config =
+        zipper
+        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true, fn zipper ->
+            Igniter.Code.Keyword.put_in_keyword(zipper, [:bar], true) 
+        end)
+        |> Igniter.Util.Debug.code_at_node()
+
+      assert String.contains?(config, "config :fake, foo: [bar: true]")
+    end
+
+  end
+
 end
