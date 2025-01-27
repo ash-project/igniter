@@ -126,10 +126,18 @@ defmodule Igniter.MixProject do
 
   defp aliases do
     [
-      credo: "credo --strict"
+      credo: "credo --strict",
+      "archive.build": &raise_on_archive_build/1
     ]
   end
 
   @doc false
   def install_version, do: @install_version
+
+  defp raise_on_archive_build(_) do
+    Mix.raise("""
+    You are trying to install "igniter" as an archive, which is not supported. \
+    You probably meant to install "igniter_new" instead.
+    """)
+  end
 end
