@@ -542,12 +542,27 @@ defmodule Igniter.Project.Config do
           :error
 
         {:ok, zipper} ->
-          with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 2),
-               {:ok, zipper} <- Igniter.Code.Keyword.put_in_keyword(zipper, path, value, updater) do
-            {:ok, zipper}
+          if path == [] do
+            case Igniter.Code.Function.move_to_nth_argument(zipper, 2) do
+              {:ok, zipper} ->
+                if updater do
+                  updater.(zipper)
+                else
+                  {:ok, Igniter.Code.Common.replace_code(zipper, value)}
+                end
+
+              _ ->
+                :error
+            end
           else
-            _ ->
-              :error
+            with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 2),
+                 {:ok, zipper} <-
+                   Igniter.Code.Keyword.put_in_keyword(zipper, path, value, updater) do
+              {:ok, zipper}
+            else
+              _ ->
+                :error
+            end
           end
       end
     end
