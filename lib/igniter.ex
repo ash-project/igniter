@@ -1592,12 +1592,24 @@ defmodule Igniter do
 
   @doc false
   def display_notices(igniter) do
-    igniter.notices
-    |> Enum.reverse()
-    |> Enum.map(fn notice ->
-      ["* ", :green, indent(notice, 2), :reset]
-    end)
-    |> display_list(["Notices: "])
+    case igniter.notices do
+      [] ->
+        :ok
+
+      notices ->
+        notices
+        |> Enum.reverse()
+        |> Enum.map(fn notice ->
+          ["* ", :green, indent(notice, 2), :reset]
+        end)
+        |> display_list(["Notices: "])
+
+        Mix.shell().info([
+          :yellow,
+          "Notices were printed above. Please read them all before continuing!",
+          :reset
+        ])
+    end
   end
 
   @doc false
