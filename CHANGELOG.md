@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.20](https://github.com/ash-project/igniter/compare/v0.5.19...v0.5.20) (2025-01-27)
+
+
+
+
+### Improvements:
+
+* raise when installing igniter as an archive
+
 ## [v0.5.19](https://github.com/ash-project/igniter/compare/v0.5.18...v0.5.19) (2025-01-27)
 
 
