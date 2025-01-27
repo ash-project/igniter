@@ -53,9 +53,11 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
                 # Groups allow for overlapping arguments for tasks by the same author
                 # See the generators guide for more.
                 group: :test,
-                # dependencies to add
+                # *other* dependencies to add
+                # i.e `{:foo, "~> 2.0"}`
                 adds_deps: [],
-                # dependencies to add and call their associated installers, if they exist
+                # *other* dependencies to add and call their associated installers, if they exist
+                # i.e `{:foo, "~> 2.0"}`
                 installs: [],
                 # An example invocation
                 example: __MODULE__.Docs.example(),
@@ -139,9 +141,11 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
               # Groups allow for overlapping arguments for tasks by the same author
               # See the generators guide for more.
               group: :test,
-              # dependencies to add
+              # *other* dependencies to add
+              # i.e `{:foo, "~> 2.0"}`
               adds_deps: [],
-              # dependencies to add and call their associated installers, if they exist
+              # *other* dependencies to add and call their associated installers, if they exist
+              # i.e `{:foo, "~> 2.0"}`
               installs: [],
               # An example invocation
               example: @example,
@@ -190,9 +194,11 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
                 # Groups allow for overlapping arguments for tasks by the same author
                 # See the generators guide for more.
                 group: :test,
-                # dependencies to add
+                # *other* dependencies to add
+                # i.e `{:foo, "~> 2.0"}`
                 adds_deps: [],
-                # dependencies to add and call their associated installers, if they exist
+                # *other* dependencies to add and call their associated installers, if they exist
+                # i.e `{:foo, "~> 2.0"}`
                 installs: [],
                 # An example invocation
                 example: __MODULE__.Docs.example(),
