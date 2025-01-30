@@ -6,6 +6,8 @@ updates:
     schedule:
       interval: weekly
       day: thursday
+    ignore:
+      - dependency-name: "rustler"
     groups:
       production-dependencies:
         dependency-type: production
