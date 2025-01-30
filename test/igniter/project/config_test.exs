@@ -412,6 +412,35 @@ defmodule Igniter.Project.ConfigTest do
                )
                |> apply_igniter()
     end
+
+    test "places code after matching node" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+      import Config
+
+      foo = "bar"
+
+      config :fake, bar: [:baz]
+
+      if System.get_env("PHX_SERVER") do
+        config :fake, FakeWeb.Endpoint, server: true
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo],
+        {:code, Sourceror.parse_string!("foo")},
+        after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
+      )
+      |> assert_has_patch("config/fake.exs", """
+      3 3   |foo = "bar"
+      4 4   |
+      5   - |config :fake, bar: [:baz]
+        5 + |config :fake, bar: [:baz], foo: foo
+      """)
+    end
   end
 
   @tag :regression
@@ -539,7 +568,7 @@ defmodule Igniter.Project.ConfigTest do
 
       config =
         zipper
-        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true, fn zipper ->
+        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true, updater: fn zipper ->
           Igniter.Code.Keyword.put_in_keyword(zipper, [:bar], true)
         end)
         |> Igniter.Util.Debug.code_at_node()

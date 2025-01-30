@@ -13,6 +13,7 @@ defmodule Igniter.Project.Config do
   ## Opts
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  * `after` - Moves to the next node that matches the predicate.
   """
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -76,7 +77,7 @@ defmodule Igniter.Project.Config do
             config_path,
             app_name,
             modify_to,
-            opts[:updater] || (&{:ok, &1})
+            updater: opts[:updater] || (&{:ok, &1})
           )
 
         :error ->
@@ -93,7 +94,7 @@ defmodule Igniter.Project.Config do
                 config_path,
                 app_name,
                 modify_to,
-                opts[:updater] || (&{:ok, &1})
+                updater: opts[:updater] || (&{:ok, &1})
               )
 
             _ ->
@@ -141,8 +142,9 @@ defmodule Igniter.Project.Config do
 
   ## Opts
 
-  * `:updater` - A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  * `updater` - A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - Moves to the next node that matches the predicate. Useful to guarantee a `config` is placed after a specific node.
   """
   @spec configure(
           Igniter.t(),
@@ -184,7 +186,10 @@ defmodule Igniter.Project.Config do
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
         _ ->
-          modify_configuration_code(zipper, config_path, app_name, value, updater)
+          modify_configuration_code(zipper, config_path, app_name, value,
+            updater: updater,
+            after: opts[:after]
+          )
       end
     end)
   end
@@ -274,12 +279,14 @@ defmodule Igniter.Project.Config do
           list(atom),
           atom(),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+          opts :: Keyword.t()
         ) :: Zipper.t()
-  def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
-    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+  def modify_configuration_code(zipper, config_path, app_name, value, opts \\ []) do
+    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     Igniter.Code.Common.within(zipper, fn zipper ->
+      zipper = move_to_after(zipper, opts[:after])
+
       case try_update_three_arg(zipper, config_path, app_name, value, updater) do
         {:ok, zipper} ->
           {:ok, zipper}
@@ -342,6 +349,15 @@ defmodule Igniter.Project.Config do
       :error -> zipper
     end
   end
+
+  defp move_to_after(zipper, pred) when is_function(pred, 1) do
+    case Igniter.Code.Common.move_to(zipper, pred) do
+      {:ok, zipper} -> zipper
+      :error -> zipper
+    end
+  end
+
+  defp move_to_after(zipper, _pred), do: zipper
 
   @doc """
   Checks if either `config :root_key, _` or `config :root_key, _, _` is present
