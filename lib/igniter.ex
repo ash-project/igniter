@@ -1182,7 +1182,7 @@ defmodule Igniter do
   # and I'd rather error on the side of just dumping the diff to the console.
   @line_limit 5000
 
-  defp too_long_to_display?(sources) do
+  defp too_long_to_display?(igniter) do
     if igniter.assigns[:test_mode?] do
       false
     else
