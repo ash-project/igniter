@@ -1559,9 +1559,7 @@ defmodule Igniter do
   end
 
   def changed?(%Rewrite.Source{} = source) do
-    diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
-
-    String.trim(diff) != ""
+    Rewrite.Source.updated?(source, :content)
   end
 
   @doc false
