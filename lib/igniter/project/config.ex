@@ -5,15 +5,18 @@ defmodule Igniter.Project.Config do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
+  @type updater :: (Sourceror.Zipper.t() -> {:ok, Sourceror.Zipper.t()}) | :error | nil
+  @type after_predicate :: (Sourceror.Zipper.t() -> boolean())
+
   @doc """
   Sets a config value in the given configuration file, if it is not already set.
 
   See `configure/6` for more.
 
-  ## Opts
+  ## Options
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
-  * `after` - Moves to the next node that matches the predicate.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
   """
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -140,11 +143,11 @@ defmodule Igniter.Project.Config do
   )
   ```
 
-  ## Opts
+  ## Options
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
-  * `updater` - A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
-  * `after` - Moves to the next node that matches the predicate. Useful to guarantee a `config` is placed after a specific node.
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate. Useful to guarantee a `config` is placed after a specific node.
   """
   @spec configure(
           Igniter.t(),
@@ -273,6 +276,11 @@ defmodule Igniter.Project.Config do
 
   If you want to set configuration, use `configure/6` or `configure_new/5` instead. This is a lower-level
   tool for modifying configuration files when you need to adjust some specific part of them.
+
+  ## Options
+
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
   """
   @spec modify_configuration_code(
           Zipper.t(),
@@ -359,7 +367,7 @@ defmodule Igniter.Project.Config do
   end
 
   defp move_to_after(zipper, pred) when is_function(pred, 1) do
-    case Igniter.Code.Common.move_to(zipper, pred) do
+    case Common.move_to_last(zipper, pred) do
       {:ok, zipper} -> zipper
       :error -> zipper
     end

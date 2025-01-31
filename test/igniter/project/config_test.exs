@@ -413,12 +413,13 @@ defmodule Igniter.Project.ConfigTest do
                |> apply_igniter()
     end
 
-    test "places code after matching node" do
+    test "places code after last matching node" do
       test_project()
       |> Igniter.create_new_file("config/fake.exs", """
       import Config
 
-      foo = "bar"
+      foo = 1
+      foo = 2
 
       if System.get_env("PHX_SERVER") do
         config :fake, FakeWeb.Endpoint, server: true
@@ -433,12 +434,11 @@ defmodule Igniter.Project.ConfigTest do
         after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
       )
       |> assert_has_patch("config/fake.exs", """
-      3  3   |foo = "bar"
-      4  4   |
-         5 + |config :fake, foo: foo
-         6 + |
-      5  7   |if System.get_env("PHX_SERVER") do
-      6  8   |  config :fake, FakeWeb.Endpoint, server: true
+      4  4   |foo = 2
+      5  5   |
+         6 + |config :fake, foo: foo
+         7 + |
+      6  8   |if System.get_env("PHX_SERVER") do
       """)
     end
 
