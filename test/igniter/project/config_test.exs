@@ -420,6 +420,36 @@ defmodule Igniter.Project.ConfigTest do
 
       foo = "bar"
 
+      if System.get_env("PHX_SERVER") do
+        config :fake, FakeWeb.Endpoint, server: true
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo],
+        {:code, Sourceror.parse_string!("foo")},
+        after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
+      )
+      |> assert_has_patch("config/fake.exs", """
+      3  3   |foo = "bar"
+      4  4   |
+         5 + |config :fake, foo: foo
+         6 + |
+      5  7   |if System.get_env("PHX_SERVER") do
+      6  8   |  config :fake, FakeWeb.Endpoint, server: true
+      """)
+    end
+
+    test "places code into next config after matching node" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+      import Config
+
+      foo = "bar"
+      bar = "baz"
+
       config :fake, bar: [:baz]
 
       if System.get_env("PHX_SERVER") do
@@ -435,10 +465,10 @@ defmodule Igniter.Project.ConfigTest do
         after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
       )
       |> assert_has_patch("config/fake.exs", """
-      3 3   |foo = "bar"
-      4 4   |
-      5   - |config :fake, bar: [:baz]
-        5 + |config :fake, bar: [:baz], foo: foo
+      4  4   |bar = "baz"
+      5  5   |
+      6    - |config :fake, bar: [:baz]
+         6 + |config :fake, bar: [:baz], foo: foo
       """)
     end
   end
