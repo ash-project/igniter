@@ -1559,7 +1559,8 @@ defmodule Igniter do
   end
 
   def changed?(%Rewrite.Source{} = source) do
-    Rewrite.Source.updated?(source, :content)
+    Rewrite.Source.from?(source, :string) ||
+      Rewrite.Source.updated?(source, :content)
   end
 
   @doc false
