@@ -281,7 +281,15 @@ defmodule Igniter.Project.Config do
           term(),
           opts :: Keyword.t()
         ) :: Zipper.t()
-  def modify_configuration_code(zipper, config_path, app_name, value, opts \\ []) do
+  def modify_configuration_code(zipper, config_path, app_name, value, opts \\ [])
+
+  def modify_configuration_code(zipper, config_path, app_name, value, updater)
+      when is_function(updater) do
+    IO.warn("updater argument is deprecated, please use opts updater: fun instead")
+    modify_configuration_code(zipper, config_path, app_name, value, updater: updater)
+  end
+
+  def modify_configuration_code(zipper, config_path, app_name, value, opts) do
     updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     Igniter.Code.Common.within(zipper, fn zipper ->
