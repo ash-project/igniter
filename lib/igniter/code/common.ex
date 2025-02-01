@@ -7,10 +7,10 @@ defmodule Igniter.Code.Common do
   alias Sourceror.Zipper
 
   @doc """
-  Moves to the next node that matches the predicate.
+  Moves to the first node that matches the predicate.
   """
   @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
-  def move_to(zipper, pred) do
+  def move_to(zipper, pred) when is_function(pred, 1) do
     if pred.(zipper) do
       {:ok, zipper}
     else
@@ -21,6 +21,36 @@ defmodule Igniter.Code.Common do
         next ->
           move_to(next, pred)
       end
+    end
+  end
+
+  @doc """
+  Moves to the last node that matches the predicate.
+
+  Similar to `move_to/2` but it doesn't stop at the first match,
+  for example a zipper for the following code:
+
+  ```elixir
+  port = 4000
+  port = 4001
+  ```
+
+  With a match for `port = _` as `{:=, _, [{:port, _, _}, _]}`,
+  will return the second `port` variable.
+  """
+  @spec move_to_last(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
+  def move_to_last(zipper, pred) when is_function(pred, 1) do
+    zipper
+    |> Zipper.traverse(false, fn zipper, acc ->
+      if pred.(zipper) do
+        {zipper, zipper}
+      else
+        {zipper, acc}
+      end
+    end)
+    |> case do
+      {_, false} -> :error
+      {_, zipper} -> {:ok, zipper}
     end
   end
 

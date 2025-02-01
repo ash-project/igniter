@@ -412,6 +412,65 @@ defmodule Igniter.Project.ConfigTest do
                )
                |> apply_igniter()
     end
+
+    test "places code after last matching node" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+      import Config
+
+      foo = 1
+      foo = 2
+
+      if System.get_env("PHX_SERVER") do
+        config :fake, FakeWeb.Endpoint, server: true
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo],
+        {:code, Sourceror.parse_string!("foo")},
+        after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
+      )
+      |> assert_has_patch("config/fake.exs", """
+      4  4   |foo = 2
+      5  5   |
+         6 + |config :fake, foo: foo
+         7 + |
+      6  8   |if System.get_env("PHX_SERVER") do
+      """)
+    end
+
+    test "places code into next config after matching node" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+      import Config
+
+      foo = "bar"
+      bar = "baz"
+
+      config :fake, bar: [:baz]
+
+      if System.get_env("PHX_SERVER") do
+        config :fake, FakeWeb.Endpoint, server: true
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo],
+        {:code, Sourceror.parse_string!("foo")},
+        after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
+      )
+      |> assert_has_patch("config/fake.exs", """
+      4  4   |bar = "baz"
+      5  5   |
+      6    - |config :fake, bar: [:baz]
+         6 + |config :fake, bar: [:baz], foo: foo
+      """)
+    end
   end
 
   @tag :regression
@@ -539,9 +598,11 @@ defmodule Igniter.Project.ConfigTest do
 
       config =
         zipper
-        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true, fn zipper ->
-          Igniter.Code.Keyword.put_in_keyword(zipper, [:bar], true)
-        end)
+        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true,
+          updater: fn zipper ->
+            Igniter.Code.Keyword.put_in_keyword(zipper, [:bar], true)
+          end
+        )
         |> Igniter.Util.Debug.code_at_node()
 
       assert String.contains?(config, "config :fake, foo: [bar: true]")

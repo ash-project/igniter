@@ -5,14 +5,18 @@ defmodule Igniter.Project.Config do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
+  @type updater :: (Sourceror.Zipper.t() -> {:ok, Sourceror.Zipper.t()}) | :error | nil
+  @type after_predicate :: (Sourceror.Zipper.t() -> boolean())
+
   @doc """
   Sets a config value in the given configuration file, if it is not already set.
 
   See `configure/6` for more.
 
-  ## Opts
+  ## Options
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
   """
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -76,7 +80,7 @@ defmodule Igniter.Project.Config do
             config_path,
             app_name,
             modify_to,
-            opts[:updater] || (&{:ok, &1})
+            updater: opts[:updater] || (&{:ok, &1})
           )
 
         :error ->
@@ -93,7 +97,7 @@ defmodule Igniter.Project.Config do
                 config_path,
                 app_name,
                 modify_to,
-                opts[:updater] || (&{:ok, &1})
+                updater: opts[:updater] || (&{:ok, &1})
               )
 
             _ ->
@@ -139,10 +143,11 @@ defmodule Igniter.Project.Config do
   )
   ```
 
-  ## Opts
+  ## Options
 
-  * `:updater` - A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate. Useful to guarantee a `config` is placed after a specific node.
   """
   @spec configure(
           Igniter.t(),
@@ -184,7 +189,10 @@ defmodule Igniter.Project.Config do
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
         _ ->
-          modify_configuration_code(zipper, config_path, app_name, value, updater)
+          modify_configuration_code(zipper, config_path, app_name, value,
+            updater: updater,
+            after: opts[:after]
+          )
       end
     end)
   end
@@ -268,18 +276,33 @@ defmodule Igniter.Project.Config do
 
   If you want to set configuration, use `configure/6` or `configure_new/5` instead. This is a lower-level
   tool for modifying configuration files when you need to adjust some specific part of them.
+
+  ## Options
+
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
   """
   @spec modify_configuration_code(
           Zipper.t(),
           list(atom),
           atom(),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+          opts :: Keyword.t()
         ) :: Zipper.t()
-  def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
-    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+  def modify_configuration_code(zipper, config_path, app_name, value, opts \\ [])
+
+  def modify_configuration_code(zipper, config_path, app_name, value, updater)
+      when is_function(updater) do
+    IO.warn("updater argument is deprecated, please use opts updater: fun instead")
+    modify_configuration_code(zipper, config_path, app_name, value, updater: updater)
+  end
+
+  def modify_configuration_code(zipper, config_path, app_name, value, opts) do
+    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     Igniter.Code.Common.within(zipper, fn zipper ->
+      zipper = move_to_after(zipper, opts[:after])
+
       case try_update_three_arg(zipper, config_path, app_name, value, updater) do
         {:ok, zipper} ->
           {:ok, zipper}
@@ -342,6 +365,15 @@ defmodule Igniter.Project.Config do
       :error -> zipper
     end
   end
+
+  defp move_to_after(zipper, pred) when is_function(pred, 1) do
+    case Common.move_to_last(zipper, pred) do
+      {:ok, zipper} -> zipper
+      :error -> zipper
+    end
+  end
+
+  defp move_to_after(zipper, _pred), do: zipper
 
   @doc """
   Checks if either `config :root_key, _` or `config :root_key, _, _` is present

@@ -5,6 +5,33 @@ defmodule Igniter.Code.CommonTest do
   require Igniter.Code.Function
   import ExUnit.CaptureLog
 
+  describe "move_to_last/2" do
+    test "no matching nodes returns :error" do
+      assert :error =
+               """
+               foo = 1
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Common.move_to_last(&match?({:=, _, [{:bar, _, _}, _]}, &1.node))
+    end
+
+    test "move to the last matching node" do
+      assert {:ok, zipper} =
+               """
+               foo = 1
+               bar = 1
+               foo = 2
+               bar = 2
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Common.move_to_last(&match?({:=, _, [{:foo, _, _}, _]}, &1.node))
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == "foo = 2"
+    end
+  end
+
   describe "topmost/1" do
     test "escapes subtrees using `within`" do
       """
