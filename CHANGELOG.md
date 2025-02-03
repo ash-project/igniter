@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.21](https://github.com/ash-project/igniter/compare/v0.5.20...v0.5.21) (2025-02-03)
+
+
+
+
+### Bug Fixes:
+
+* error in codemod while formatting
+
+### Improvements:
+
+* Add `:after` opt to `Config` functions (#213)
+
+* make diff checking faster
+
 ## [v0.5.20](https://github.com/ash-project/igniter/compare/v0.5.19...v0.5.20) (2025-01-27)
 
 
