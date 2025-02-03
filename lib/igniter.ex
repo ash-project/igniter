@@ -1362,9 +1362,13 @@ defmodule Igniter do
           {:__block__, [], contents}
           |> Sourceror.Zipper.zip()
           # replace with nil
-          |> Igniter.Code.Common.remove(
-            &Igniter.Code.Function.function_call?(&1, :import_config, 1)
-          )
+          |> Sourceror.Zipper.traverse(fn zipper ->
+            if Igniter.Code.Function.function_call?(zipper, :import_config, 1) do
+              Sourceror.Zipper.replace(zipper, nil)
+            else
+              zipper
+            end
+          end)
           |> Zipper.topmost_root()
           |> Sourceror.to_string()
           |> then(&Config.Reader.eval!("config/config.exs", &1, env: Mix.env()))

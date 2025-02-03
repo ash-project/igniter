@@ -29,6 +29,21 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     @tag :regression
+    test "it handles this final `if` statement while formatting modules" do
+      test_project()
+      |> Igniter.create_new_file("config/test.exs", """
+        import Config
+
+        if __DIR__ |> Path.join("dev.secret.exs") |> File.exists?(), do: import_config("dev.secret.exs")
+
+        import_config "host.exs"
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Module.create_module(Foo.Bar, "def foo, do: 10")
+      |> Igniter.format(nil)
+    end
+
+    @tag :regression
     test "it sets the spark formatter plugins" do
       test_project()
       |> Igniter.Project.Config.configure(
