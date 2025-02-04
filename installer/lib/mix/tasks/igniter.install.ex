@@ -32,9 +32,15 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     """
     use Mix.Task
 
+    @apps [:logger, :public_key, :ssl, :inets, :eex]
+
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
+      for app <- @apps do
+        Mix.ensure_application!(app)
+      end
+
       message =
         cond do
           "--igniter-repeat" in argv ->
