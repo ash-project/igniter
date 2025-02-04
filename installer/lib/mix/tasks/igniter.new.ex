@@ -223,7 +223,7 @@ defmodule Mix.Tasks.Igniter.New do
   end
 
   defp with_args(["--with-args", next | rest], acc) do
-    with_args(rest, acc ++ [next])
+    with_args(rest, acc ++ OptionParser.split(next))
   end
 
   defp with_args([_next | rest], acc) do
