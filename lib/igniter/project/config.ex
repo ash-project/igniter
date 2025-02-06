@@ -80,7 +80,8 @@ defmodule Igniter.Project.Config do
             config_path,
             app_name,
             modify_to,
-            updater: opts[:updater] || (&{:ok, &1})
+            updater:
+              opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, modify_to)} end
           )
 
         :error ->
@@ -97,7 +98,8 @@ defmodule Igniter.Project.Config do
                 config_path,
                 app_name,
                 modify_to,
-                updater: opts[:updater] || (&{:ok, &1})
+                updater:
+                  opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, modify_to)} end
               )
 
             _ ->

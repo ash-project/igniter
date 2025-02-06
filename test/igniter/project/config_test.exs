@@ -522,6 +522,25 @@ defmodule Igniter.Project.ConfigTest do
     assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", Testt) == false
   end
 
+  describe "configure_runtime_env/6" do
+    test "present value is overwritten by default" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      if config_env() == :prod do
+        config :fake, :buz, :blat
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure_runtime_env(:prod, :fake, [:buz], "baz")
+      |> assert_has_patch("config/runtime.exs", """
+      4 - |  config :fake, :buz, :blat
+      4 + |  config :fake, :buz, "baz"
+      """)
+    end
+  end
+
   describe "configures_key?/3" do
     setup do
       %{
