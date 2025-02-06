@@ -104,7 +104,7 @@ defmodule Mix.Tasks.Igniter.New do
 
     with_args =
       if install_with == "phx.new" do
-        with_args ++ ["--install", "--from-elixir-install"]
+        with_args ++ ["--install"]
       else
         with_args
       end
