@@ -7,7 +7,7 @@ defmodule Igniter.Libs.Phoenix do
   @spec web_module_name() :: module()
   @deprecated "Use `web_module/0` instead."
   def web_module_name do
-    Module.concat([inspect(Igniter.Project.Module.module_name_prefix(Igniter.new())) <> "Web"])
+    web_module(Igniter.new())
   end
 
   @doc """
@@ -15,7 +15,16 @@ defmodule Igniter.Libs.Phoenix do
   """
   @spec web_module(Igniter.t()) :: module()
   def web_module(igniter) do
-    Module.concat([inspect(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web"])
+    prefix =
+      igniter
+      |> Igniter.Project.Module.module_name_prefix()
+      |> inspect()
+
+    if String.ends_with?(prefix, "Web") do
+      Module.concat([prefix])
+    else
+      Module.concat([prefix <> "Web"])
+    end
   end
 
   @doc "Returns `true` if the module is a Phoenix HTML module"
@@ -66,10 +75,7 @@ defmodule Igniter.Libs.Phoenix do
   @spec web_module_name(String.t()) :: module()
   @deprecated "Use `web_module_name/2` instead."
   def web_module_name(suffix) do
-    Module.concat(
-      inspect(Igniter.Project.Module.module_name_prefix(Igniter.new())) <> "Web",
-      suffix
-    )
+    Module.concat(web_module(Igniter.new()), suffix)
   end
 
   @doc """
@@ -77,7 +83,7 @@ defmodule Igniter.Libs.Phoenix do
   """
   @spec web_module_name(Igniter.t(), String.t()) :: module()
   def web_module_name(igniter, suffix) do
-    Module.concat(inspect(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web", suffix)
+    Module.concat(web_module(igniter), suffix)
   end
 
   @doc "Gets the list of endpoints that use a given router"
@@ -555,7 +561,7 @@ defmodule Igniter.Libs.Phoenix do
     end)
   end
 
-  @doc "Moves to the use statement in a module that matches `use TheirWebModule, :router`"
+  @doc "Moves to the use statement in a module that matches `use TheirAppWeb, :router`"
   @spec move_to_router_use(Igniter.t(), Sourceror.Zipper.t()) ::
           :error | {:ok, Sourceror.Zipper.t()}
   def move_to_router_use(igniter, zipper) do
@@ -564,7 +570,7 @@ defmodule Igniter.Libs.Phoenix do
              Igniter.Code.Function.argument_equals?(
                zipper,
                0,
-               router_using(igniter)
+               web_module(igniter)
              ) &&
                Igniter.Code.Function.argument_equals?(
                  zipper,
@@ -626,10 +632,6 @@ defmodule Igniter.Libs.Phoenix do
       :error ->
         :error
     end
-  end
-
-  defp router_using(igniter) do
-    Module.concat([to_string(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
   defp using_a_webbish_module?(zipper) do
