@@ -1003,7 +1003,11 @@ defmodule Igniter do
             if opts[:dry_run] || !opts[:yes] do
               Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
-              display_diff(Rewrite.sources(igniter.rewrite), opts)
+              if !opts[:yes] && too_long_to_display?(igniter) do
+                handle_long_diff(igniter, opts)
+              else
+                display_diff(Rewrite.sources(igniter.rewrite), opts)
+              end
             end
 
             :dry_run_with_changes
@@ -1174,6 +1178,90 @@ defmodule Igniter do
     end
   end
 
+  @line_limit 1000
+
+  defp too_long_to_display?(igniter) do
+    if igniter.assigns[:test_mode?] do
+      false
+    else
+      Enum.reduce_while(igniter.rewrite, {0, false}, fn source, {count, res} ->
+        count = count + Enum.count(String.split(source_diff(source, false), "\n"))
+
+        if count > @line_limit do
+          {:halt, {count, true}}
+        else
+          {:cont, {count, res}}
+        end
+      end)
+      |> elem(1)
+    end
+  end
+
+  defp handle_long_diff(igniter, opts) do
+    files_changed =
+      igniter.rewrite
+      |> Enum.filter(&changed?/1)
+      |> Enum.group_by(&Rewrite.Source.from?(&1, :string))
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map_join("\n\n", fn
+        {true, sources} ->
+          "Creating: \n\n" <>
+            Enum.map_join(sources, "\n", &"  * #{Rewrite.Source.get(&1, :path)}")
+
+        {false, sources} ->
+          "Updating: \n\n" <>
+            Enum.map_join(sources, "\n", &"  * #{Rewrite.Source.get(&1, :path)}")
+      end)
+
+    files_changed =
+      if Enum.empty?(igniter.moves) do
+        files_changed
+      else
+        ("Moving: \n\n" <>
+           igniter.moves)
+        |> Enum.sort_by(&elem(&1, 0))
+        |> Enum.map(fn {from, to} ->
+          "#{IO.ANSI.red()} #{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
+        end)
+      end
+
+    options = [
+      write: "Proceed *without* viewing changes. (default)",
+      display: "Display the diff inline anyway.",
+      patch_file:
+        "Write to `.igniter` so you can preview all of the changes, and wait to proceed."
+    ]
+
+    Igniter.Util.IO.select(
+      "Too many changes to automatically display a full diff (>= #{@line_limit} lines changed).\n" <>
+        "The following files will be changed:\n\n" <>
+        files_changed <> "\n\nHow would you like to proceed?",
+      options,
+      display: &elem(&1, 1),
+      default: :write
+    )
+    |> elem(0)
+    |> case do
+      :display ->
+        display_diff(Rewrite.sources(igniter.rewrite), opts)
+
+      :patch_file ->
+        File.write!(
+          ".igniter",
+          diff(Rewrite.sources(igniter.rewrite), Keyword.put(opts, :color?, false))
+        )
+
+        Mix.shell().info(
+          "Diff:\n\n#{IO.ANSI.yellow()}View the diff by opening `#{Path.expand(".igniter")}`.#{IO.ANSI.reset()}"
+        )
+
+      :write ->
+        Mix.shell().info("#{IO.ANSI.yellow()}Not shown due to line count.#{IO.ANSI.reset()}")
+
+        :ok
+    end
+  end
+
   defp display_diff(sources, opts) do
     if !opts[:yes] do
       Mix.shell().info(diff(sources))
@@ -1191,74 +1279,78 @@ defmodule Igniter do
           source -> source
         end
 
-      cond do
-        Rewrite.Source.from?(source, :string) &&
-            String.valid?(Rewrite.Source.get(source, :content)) ->
-          content_lines =
-            source
-            |> Rewrite.Source.get(:content)
-            |> String.split("\n")
+      source_diff(source, color?)
+    end)
+  end
 
-          space_padding =
-            content_lines
-            |> length()
-            |> to_string()
-            |> String.length()
+  defp source_diff(source, color?) do
+    cond do
+      Rewrite.Source.from?(source, :string) &&
+          String.valid?(Rewrite.Source.get(source, :content)) ->
+        content_lines =
+          source
+          |> Rewrite.Source.get(:content)
+          |> String.split("\n")
 
-          diffish_looking_text =
-            content_lines
-            |> Enum.with_index(1)
-            |> Enum.map_join(fn {line, line_number} ->
-              IO.ANSI.format(
-                [
-                  String.pad_trailing(to_string(line_number), space_padding),
-                  " ",
-                  :yellow,
-                  "|",
-                  :green,
-                  line,
-                  "\n"
-                ],
-                color?
-              )
-            end)
+        space_padding =
+          content_lines
+          |> length()
+          |> to_string()
+          |> String.length()
 
-          if String.trim(diffish_looking_text) != "" do
-            """
+        diffish_looking_text =
+          content_lines
+          |> Enum.with_index(1)
+          |> Enum.map_join(fn {line, line_number} ->
+            IO.ANSI.format(
+              [
+                String.pad_trailing(to_string(line_number), space_padding),
+                " ",
+                :yellow,
+                "|",
+                :green,
+                line,
+                "\n"
+              ],
+              color?
+            )
+          end)
 
-            Create: #{Rewrite.Source.get(source, :path)}
-
-            #{diffish_looking_text}
-            """
-          else
-            ""
-          end
-
-        String.valid?(Rewrite.Source.get(source, :content)) ->
-          diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
-
-          if String.trim(diff) != "" do
-            """
-
-            Update: #{Rewrite.Source.get(source, :path)}
-
-            #{diff}
-            """
-          else
-            ""
-          end
-
-        !String.valid?(Rewrite.Source.get(source, :content)) ->
+        if String.trim(diffish_looking_text) != "" do
           """
+
           Create: #{Rewrite.Source.get(source, :path)}
 
-          (content diff can't be displayed)
+          #{diffish_looking_text}
+          """
+        else
+          ""
+        end
+
+      String.valid?(Rewrite.Source.get(source, :content)) ->
+        diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
+
+        if String.trim(diff) != "" do
           """
 
-        :else ->
+          Update: #{Rewrite.Source.get(source, :path)}
+
+          #{diff}
+          """
+        else
           ""
-      end
-    end)
+        end
+
+      !String.valid?(Rewrite.Source.get(source, :content)) ->
+        """
+        Create: #{Rewrite.Source.get(source, :path)}
+
+        (content diff can't be displayed)
+        """
+
+      true ->
+        ""
+    end
   end
 
   @doc false
@@ -1642,7 +1734,7 @@ defmodule Igniter do
     igniter.moves
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(fn {from, to} ->
-      [:red, Path.relative_to_cwd(from), :reset, ": ", :green, to]
+      [:red, from, :reset, ": ", :green, to]
     end)
     |> display_list("These files will be moved:")
   end
