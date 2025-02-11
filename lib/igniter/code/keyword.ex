@@ -160,19 +160,9 @@ defmodule Igniter.Code.Keyword do
   @doc "Removes a key from a keyword list if present. Returns `:error` only if the node is not a list"
   @spec remove_keyword_key(Zipper.t(), atom()) :: {:ok, Zipper.t()} | :error
   def remove_keyword_key(zipper, key) do
-    if Igniter.Code.List.list?(zipper) do
-      Common.within(zipper, fn zipper ->
-        case get_key(zipper, key) do
-          {:ok, zipper} ->
-            {:ok, zipper |> Zipper.up() |> Zipper.remove()}
-
-          :error ->
-            {:ok, zipper}
-        end
-      end)
-    else
-      :error
-    end
+    Igniter.Code.List.remove_from_list(zipper, fn zipper ->
+      Igniter.Code.Tuple.elem_equals?(zipper, 0, key)
+    end)
   end
 
   @doc "Puts into nested keyword lists represented by `path`"
