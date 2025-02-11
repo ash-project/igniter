@@ -23,11 +23,26 @@ defmodule Igniter.Project.Deps do
         add_dependency(igniter, name, version, opts)
 
       {name, version, version_opts} ->
-        if Keyword.keyword?(version) do
-          add_dependency(igniter, name, version ++ version_opts, opts)
-        else
-          add_dependency(igniter, name, version, Keyword.put(opts, :dep_opts, version_opts))
-        end
+        new_igniter =
+          if Keyword.keyword?(version) do
+            add_dependency(igniter, name, version ++ version_opts, opts)
+          else
+            add_dependency(igniter, name, version, Keyword.put(opts, :dep_opts, version_opts))
+          end
+
+        new_igniter =
+          if Enum.count(igniter.issues) != Enum.count(new_igniter.issues) ||
+               Enum.count(igniter.warnings) != Enum.count(new_igniter.warnings) do
+            Igniter.assign(
+              new_igniter,
+              :failed_to_add_deps,
+              [name | igniter.assigns[:failed_to_add_deps] || []]
+            )
+          else
+            new_igniter
+          end
+
+        new_igniter
 
       other ->
         raise ArgumentError, "Invalid dependency: #{inspect(other)}"
@@ -197,71 +212,121 @@ defmodule Igniter.Project.Deps do
   end
 
   defp do_add_dependency(igniter, name, version, opts) do
+    error_tag =
+      if opts[:error?] do
+        :error
+      else
+        :warning
+      end
+
+    quoted =
+      if opts[:dep_opts] do
+        quote do
+          {unquote(name), unquote(version), unquote(opts[:dep_opts])}
+        end
+      else
+        {:__block__, [],
+         [
+           {{:__block__, [], [name]}, {:__block__, [], [version]}}
+         ]}
+      end
+
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
       with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
-           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
-           true <- Igniter.Code.List.list?(zipper) do
-        match =
-          Igniter.Code.List.move_to_list_item(zipper, fn zipper ->
-            if Igniter.Code.Tuple.tuple?(zipper) do
-              case Igniter.Code.Tuple.tuple_elem(zipper, 0) do
-                {:ok, first_elem} ->
-                  Common.nodes_equal?(first_elem, name)
-
-                :error ->
-                  false
-              end
-            end
-          end)
-
-        quoted =
-          if opts[:dep_opts] do
-            quote do
-              {unquote(name), unquote(version), unquote(opts[:dep_opts])}
-            end
-          else
-            {:__block__, [],
-             [
-               {{:__block__, [], [name]}, {:__block__, [], [version]}}
-             ]}
-          end
-
-        case match do
-          {:ok, zipper} ->
-            Igniter.Code.Common.replace_code(zipper, quoted)
-
-          _ ->
-            if Keyword.get(opts, :append?, false) do
-              Igniter.Code.List.append_to_list(zipper, quoted)
+           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
+        case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
+          {m, f, a} ->
+            with {:ok, zipper} <- apply(m, f, [a] ++ [igniter, zipper]) do
+              add_to_deps_list(zipper, name, quoted, opts)
             else
-              Igniter.Code.List.prepend_to_list(zipper, quoted)
+              _ ->
+                {error_tag,
+                 """
+                 Could not add dependency #{inspect({name, version})}
+
+                 #{inspect(m)}.#{f}/#{Enum.count(a) + 2} did not find a deps location
+
+                 Please add the dependency manually.
+                 """}
+            end
+
+          {:variable, name} ->
+            with {:ok, zipper} <-
+                   Igniter.Code.Common.move_to(
+                     zipper,
+                     &Igniter.Code.Common.variable_assignment?(&1, name)
+                   ),
+                 {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
+                 true <- Igniter.Code.List.list?(zipper) do
+              add_to_deps_list(zipper, name, quoted, opts)
+            else
+              _ ->
+                {error_tag,
+                 """
+                 Could not add dependency #{inspect({name, version})}
+
+                 `deps/0` does not contain an assignment of the `#{name}` variable to a literal list
+
+                 Please add the dependency manually.
+                 """}
+            end
+
+          :last_list_literal ->
+            zipper = Zipper.rightmost(zipper)
+
+            if Igniter.Code.List.list?(zipper) do
+              add_to_deps_list(zipper, name, quoted, opts)
+            else
+              {error_tag,
+               """
+               Could not add dependency #{inspect({name, version})}
+
+               `deps/0` does not end in a list literal that can be added to.
+
+               Please add the dependency manually.
+               """}
             end
         end
       else
         _ ->
-          if opts[:error?] do
-            {:error,
-             """
-             Could not add dependency #{inspect({name, version})}
+          {error_tag,
+           """
+           Could not add dependency #{inspect({name, version})}
 
-             `mix.exs` file does not contain a simple list of dependencies in a `deps/0` function.
-             Please add it manually and run the installer again.
-             """}
-          else
-            {:warning,
-             [
-               """
-               Could not add dependency #{inspect({name, version})}
+           `mix.exs` file does not contain a `deps/0` function.
 
-               `mix.exs` file does not contain a simple list of dependencies in a `deps/0` function.
-
-               Please add it manually.
-               """
-             ]}
-          end
+           Please add the dependency manually.
+           """}
       end
     end)
+  end
+
+  defp add_to_deps_list(zipper, name, quoted, opts) do
+    match =
+      Igniter.Code.List.move_to_list_item(zipper, fn zipper ->
+        if Igniter.Code.Tuple.tuple?(zipper) do
+          case Igniter.Code.Tuple.tuple_elem(zipper, 0) do
+            {:ok, first_elem} ->
+              Common.nodes_equal?(first_elem, name)
+
+            :error ->
+              false
+          end
+        end
+      end)
+
+    case match do
+      {:ok, zipper} ->
+        Igniter.Code.Common.replace_code(zipper, quoted)
+
+      _ ->
+        if Keyword.get(opts, :append?, false) do
+          Igniter.Code.List.append_to_list(zipper, quoted)
+        else
+          Igniter.Code.List.prepend_to_list(zipper, quoted)
+        end
+    end
   end
 
   @doc false

@@ -168,10 +168,15 @@ defmodule Igniter.Util.Info do
 
   defp add_deps(igniter, add_deps, opts) do
     Enum.reduce(add_deps, igniter, fn dependency, igniter ->
-      with {_, _, dep_opts} <- dependency,
+      with {name, _, dep_opts} <- dependency,
            only when not is_nil(only) <- dep_opts[:only],
            false <- Mix.env() in only do
-        Igniter.add_warning(igniter, """
+        igniter
+        |> Igniter.assign(
+          :failed_to_add_deps,
+          [name | igniter.assigns[:failed_to_add_deps] || []]
+        )
+        |> Igniter.add_warning("""
         Dependency #{inspect(dependency)} could not be installed,
         because it is configured to be installed with `only: #{inspect(only)}`.
 

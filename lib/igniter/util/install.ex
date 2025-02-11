@@ -99,6 +99,23 @@ defmodule Igniter.Util.Install do
         append?: Keyword.get(opts, :append?, false)
       )
 
+    if igniter.assigns[:failed_to_add_deps] do
+      Mix.shell().error("""
+      Failed to add dependencies to the `mix.exs` file.
+
+      Igniter may not be able to find where to modify your `deps/0` function.
+      To address this, modify your `.igniter.exs` file's `deps_location` option.
+
+      If you don't yet have a `.igniter.exs`, run `mix igniter.setup`.
+
+      For more information, see: 
+
+      https://hexdocs.pm/igniter/Igniter.Project.IgniterConfig.html
+      """)
+
+      exit({:shutdown, 1})
+    end
+
     installing_names = Enum.join(installing, ", ")
 
     igniter =
