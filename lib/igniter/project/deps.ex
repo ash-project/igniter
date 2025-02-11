@@ -51,11 +51,18 @@ defmodule Igniter.Project.Deps do
 
   @deprecated "Use `add_dep/2` or `add_dep/3` instead."
   def add_dependency(igniter, name, version, opts \\ []) do
-    case get_dependency_declaration(igniter, name) do
-      nil ->
+    case get_dep(igniter, name) do
+      {:ok, nil} ->
         do_add_dependency(igniter, name, version, opts)
 
-      current ->
+      {:error, error} ->
+        if opts[:error?] do
+          Igniter.add_issue(igniter, error)
+        else
+          Igniter.add_warning(igniter, error)
+        end
+
+      {:ok, current} ->
         desired = Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
         current = Code.eval_string(current) |> elem(0)
 
@@ -145,7 +152,17 @@ defmodule Igniter.Project.Deps do
   end
 
   @doc "Gets the current dependency declaration in mix.exs for a given dependency."
+  @deprecated "use `get_dep/2` instead, which can return ok/error tuple"
   def get_dependency_declaration(igniter, name) do
+    case get_dep(igniter, name) do
+      {:ok, dep} -> dep
+      _ -> nil
+    end
+  end
+
+  @doc "Gets the current dependency declaration in mix.exs for a given dependency."
+  @spec get_dep(Igniter.t(), name :: atom()) :: {:ok, nil | String.t()} | {:error, String.t()}
+  def get_dep(igniter, name) do
     zipper =
       igniter
       |> Igniter.include_existing_file("mix.exs")
@@ -155,10 +172,163 @@ defmodule Igniter.Project.Deps do
       |> Zipper.zip()
 
     with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
-         {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
-         true <- Common.node_matches_pattern?(zipper, value when is_list(value)),
-         {:ok, current_declaration} <-
-           Igniter.Code.List.move_to_list_item(zipper, fn item ->
+         {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
+      case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
+        {m, f, a} ->
+          case apply(m, f, [a] ++ [igniter, zipper]) do
+            {:ok, zipper} ->
+              get_dep_declaration(zipper, name)
+
+            :error ->
+              {:error,
+               """
+               Could not get dependency #{inspect(name)}
+
+               #{inspect(m)}.#{f}/#{Enum.count(a) + 2} did not find a deps location
+
+               Please remove the dependency manually.
+               """}
+          end
+
+        {:variable, name} ->
+          with {:ok, zipper} <-
+                 Igniter.Code.Common.move_to(
+                   zipper,
+                   &Igniter.Code.Common.variable_assignment?(&1, name)
+                 ),
+               {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
+               true <- Igniter.Code.List.list?(zipper) do
+            get_dep_declaration(zipper, name)
+          else
+            _ ->
+              {:error,
+               """
+               Could not get dependency #{inspect(name)}
+
+               `deps/0` does not contain an assignment of the `#{name}` variable to a literal list
+
+               Please remove the dependency manually.
+               """}
+          end
+
+        :last_list_literal ->
+          zipper = Zipper.rightmost(zipper)
+
+          if Igniter.Code.List.list?(zipper) do
+            get_dep_declaration(zipper, name)
+          else
+            {:error,
+             """
+             Could not get dependency #{inspect(name)}
+
+             `deps/0` does not end in a list literal that can be read.
+             """}
+          end
+      end
+    else
+      _ ->
+        nil
+    end
+  end
+
+  defp get_dep_declaration(zipper, name) do
+    case Igniter.Code.List.move_to_list_item(zipper, fn item ->
+           if Igniter.Code.Tuple.tuple?(item) do
+             case Igniter.Code.Tuple.tuple_elem(item, 0) do
+               {:ok, first_elem} ->
+                 Common.nodes_equal?(first_elem, name)
+
+               :error ->
+                 false
+             end
+           end
+         end) do
+      {:ok, current_declaration} ->
+        {:ok,
+         current_declaration
+         |> Zipper.node()
+         |> Sourceror.to_string()}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  @doc "Removes a dependency from mix.exs"
+  def remove_dep(igniter, name) do
+    igniter
+    |> Igniter.update_elixir_file("mix.exs", fn zipper ->
+      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
+        case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
+          {m, f, a} ->
+            case apply(m, f, [a] ++ [igniter, zipper]) do
+              {:ok, zipper} ->
+                remove_from_deps_list(zipper, name)
+
+              :error ->
+                {:warning,
+                 """
+                 Could not remove dependency #{inspect(name)}
+
+                 #{inspect(m)}.#{f}/#{Enum.count(a) + 2} did not find a deps location
+
+                 Please remove the dependency manually.
+                 """}
+            end
+
+          {:variable, name} ->
+            with {:ok, zipper} <-
+                   Igniter.Code.Common.move_to(
+                     zipper,
+                     &Igniter.Code.Common.variable_assignment?(&1, name)
+                   ),
+                 {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
+                 true <- Igniter.Code.List.list?(zipper) do
+              remove_from_deps_list(zipper, name)
+            else
+              _ ->
+                {:warning,
+                 """
+                 Could not remove dependency #{inspect(name)}
+
+                 `deps/0` does not contain an assignment of the `#{name}` variable to a literal list
+
+                 Please remove the dependency manually.
+                 """}
+            end
+
+          :last_list_literal ->
+            zipper = Zipper.rightmost(zipper)
+
+            if Igniter.Code.List.list?(zipper) do
+              remove_from_deps_list(zipper, name)
+            else
+              {:warning,
+               """
+               Could not remove dependency #{inspect(name)}
+
+               `deps/0` does not end in a list literal that can be removed from.
+
+               Please remove the dependency manually.
+               """}
+            end
+        end
+      else
+        _ ->
+          {:warning,
+           """
+           Failed to remove dependency #{inspect(name)} from `mix.exs`.
+
+           Please remove the dependency manually.
+           """}
+      end
+    end)
+  end
+
+  defp remove_from_deps_list(zipper, name) do
+    with current_declaration_index when not is_nil(current_declaration_index) <-
+           Igniter.Code.List.find_list_item_index(zipper, fn item ->
              if Igniter.Code.Tuple.tuple?(item) do
                case Igniter.Code.Tuple.tuple_elem(item, 0) do
                  {:ok, first_elem} ->
@@ -168,47 +338,18 @@ defmodule Igniter.Project.Deps do
                    false
                end
              end
-           end) do
-      current_declaration
-      |> Zipper.node()
-      |> Sourceror.to_string()
+           end),
+         {:ok, zipper} <- Igniter.Code.List.remove_index(zipper, current_declaration_index) do
+      {:ok, zipper}
     else
       _ ->
-        nil
+        {:warning,
+         """
+         Failed to remove dependency #{inspect(name)} from `mix.exs`.
+
+         Please remove the old dependency manually.
+         """}
     end
-  end
-
-  @doc "Removes a dependency from mix.exs"
-  def remove_dep(igniter, name) do
-    igniter
-    |> Igniter.update_elixir_file("mix.exs", fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
-           {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
-           true <- Igniter.Code.List.list?(zipper),
-           current_declaration_index when not is_nil(current_declaration_index) <-
-             Igniter.Code.List.find_list_item_index(zipper, fn item ->
-               if Igniter.Code.Tuple.tuple?(item) do
-                 case Igniter.Code.Tuple.tuple_elem(item, 0) do
-                   {:ok, first_elem} ->
-                     Common.nodes_equal?(first_elem, name)
-
-                   :error ->
-                     false
-                 end
-               end
-             end),
-           {:ok, zipper} <- Igniter.Code.List.remove_index(zipper, current_declaration_index) do
-        {:ok, zipper}
-      else
-        _ ->
-          {:warning,
-           """
-           Failed to remove dependency #{inspect(name)} from `mix.exs`.
-
-           Please remove the old dependency manually.
-           """}
-      end
-    end)
   end
 
   defp do_add_dependency(igniter, name, version, opts) do

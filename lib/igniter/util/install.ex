@@ -128,30 +128,37 @@ defmodule Igniter.Util.Install do
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
 
-    case available_tasks do
+    case igniter.issues do
       [] ->
-        :ok
+        case available_tasks do
+          [] ->
+            :ok
 
-      [{name, _}] = tasks ->
-        run_installers(
-          igniter,
-          tasks,
-          "The following installer was found and executed: `#{name}.install`",
-          argv,
-          options
-        )
+          [{name, _}] = tasks ->
+            run_installers(
+              igniter,
+              tasks,
+              "The following installer was found and executed: `#{name}.install`",
+              argv,
+              options
+            )
 
-      tasks ->
-        run_installers(
-          igniter,
-          tasks,
-          "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{elem(&1, 0)}.install`")}",
-          argv,
-          options
-        )
+          tasks ->
+            run_installers(
+              igniter,
+              tasks,
+              "The following installers were found and executed: #{Enum.map_join(tasks, ", ", &"`#{elem(&1, 0)}.install`")}",
+              argv,
+              options
+            )
+        end
+
+        IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, "\n", &"* #{&1}")}")
+
+      _issues ->
+        Igniter.display_issues(igniter)
+        exit({:shutdown, 1})
     end
-
-    IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, "\n", &"* #{&1}")}")
   end
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
@@ -287,13 +294,29 @@ defmodule Igniter.Util.Install do
         only = List.wrap(opts1[:only]) ++ List.wrap(opts2[:only])
 
         igniter =
-          case Igniter.Project.Deps.get_dependency_declaration(igniter, dep) do
-            nil ->
+          case Igniter.Project.Deps.get_dep(igniter, dep) do
+            {:error, error} ->
+              Mix.shell().error("""
+              Failed to add dependencies to the `mix.exs` file.
+
+              #{error}
+
+              Igniter may not be able to find where to modify your `deps/0` function.
+              To address this, modify your `.igniter.exs` file's `deps_location` option.
+
+              If you don't yet have a `.igniter.exs`, run `mix igniter.setup`.
+
+              For more information, see: 
+
+              https://hexdocs.pm/igniter/Igniter.Project.IgniterConfig.html
+              """)
+
+            {:ok, nil} ->
               Igniter.Project.Deps.add_dep(igniter, {dep, req, Keyword.put(opts1, :only, only)},
                 yes?: true
               )
 
-            string ->
+            {:ok, string} ->
               {existing_statement, _} = Code.eval_string(string)
 
               case existing_statement do

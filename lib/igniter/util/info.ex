@@ -27,10 +27,7 @@ defmodule Igniter.Util.Info do
         igniter =
           igniter
           |> add_deps(
-            Enum.reject(List.wrap(schema.adds_deps), fn dep ->
-              # temporary fix for oban installer
-              dep == {:oban, "oban"}
-            end),
+            List.wrap(schema.adds_deps),
             opts
           )
           |> Igniter.apply_and_fetch_dependencies(
@@ -186,11 +183,29 @@ defmodule Igniter.Util.Info do
         """)
       else
         _ ->
-          Igniter.Project.Deps.add_dep(
-            igniter,
-            dependency,
-            Keyword.merge(opts, notify_on_present?: true, yes?: !!opts[:yes])
-          )
+          new_igniter =
+            Igniter.Project.Deps.add_dep(
+              igniter,
+              dependency,
+              Keyword.merge(opts, error?: true, notify_on_present?: true, yes?: !!opts[:yes])
+            )
+
+          name =
+            case dependency do
+              {name, _} -> name
+              {name, _, _} -> name
+            end
+
+          if Enum.count(igniter.issues) != Enum.count(new_igniter.issues) ||
+               Enum.count(igniter.warnings) != Enum.count(new_igniter.warnings) do
+            Igniter.assign(
+              new_igniter,
+              :failed_to_add_deps,
+              [name | igniter.assigns[:failed_to_add_deps] || []]
+            )
+          else
+            new_igniter
+          end
       end
     end)
   end

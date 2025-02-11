@@ -26,10 +26,10 @@ defmodule Igniter.Project.IgniterConfig do
       doc: """
       The strategy for finding the `deps` list to add new dependencies to, in your `deps/0` function in `mix.exs`
 
-      - `:last_list_literal` expects your deps function to return a literal list which will be prepended to
-      - `{:variable, :name}` expects to find an assignment from the given variable to a list literal, i.e `deps = [...]`, and prepends to that
-      - `:mfa` will call the given mfa with the igniter and the zipper within the `deps/0` function. It should return `{:ok, zipper}`
-         at the position where the dep should be prepended, or :error if the location could not be found.
+        - `:last_list_literal` expects your deps function to return a literal list which will be prepended to
+        - `{:variable, :name}` expects to find an assignment from the given variable to a list literal, i.e `deps = [...]`, and prepends to that
+        - `:mfa` will call the given mfa with the igniter and the zipper within the `deps/0` function. It should return `{:ok, zipper}`
+           at the position where the dep should be prepended, or :error if the location could not be found.
       """
     ],
     source_folders: [

@@ -5,12 +5,12 @@ defmodule Igniter.Project.DepsTest do
 
   describe "add_dep/3" do
     test "adds the provided dependency" do
-      refute Igniter.Project.Deps.get_dependency_declaration(Igniter.new(), :foobar)
+      assert {:ok, nil} = Igniter.Project.Deps.get_dep(Igniter.new(), :foobar)
 
       igniter = Igniter.Project.Deps.add_dep(Igniter.new(), {:foobar, "~> 2.0"})
 
-      assert Igniter.Project.Deps.get_dependency_declaration(igniter, :foobar) ==
-               "{:foobar, \"~> 2.0\"}"
+      assert Igniter.Project.Deps.get_dep(igniter, :foobar) ==
+               {:ok, "{:foobar, \"~> 2.0\"}"}
     end
 
     test "adds the provided dependency in a tuple format" do
