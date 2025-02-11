@@ -5,6 +5,31 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.22](https://github.com/ash-project/igniter/compare/v0.5.21...v0.5.22) (2025-02-11)
+
+
+
+
+### Bug Fixes:
+
+* fix & simplify keyword removal
+
+* don't pass --from-elixir-install in with-args by default
+
+* `web_module/1` duplicating Web (#221)
+
+* ensure that installer includes apps igniter needs
+
+* properly split --with-args
+
+### Improvements:
+
+* support non-literal/non-standard deps lists
+
+* better UX around large files (#222)
+
+* Change default updater fn for configure_runtime_env/6 to match configure/6 (#220)
+
 ## [v0.5.21](https://github.com/ash-project/igniter/compare/v0.5.20...v0.5.21) (2025-02-03)
 
 
