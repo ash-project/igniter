@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.23](https://github.com/ash-project/igniter/compare/v0.5.22...v0.5.23) (2025-02-11)
+
+
+
+
+### Bug Fixes:
+
+* better error messages and fixes for unconventional deps
+
 ## [v0.5.22](https://github.com/ash-project/igniter/compare/v0.5.21...v0.5.22) (2025-02-11)
 
 
