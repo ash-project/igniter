@@ -237,10 +237,11 @@ defmodule Igniter.Project.Deps do
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
         case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
           {m, f, a} ->
-            with {:ok, zipper} <- apply(m, f, [a] ++ [igniter, zipper]) do
-              add_to_deps_list(zipper, name, quoted, opts)
-            else
-              _ ->
+            case apply(m, f, [a] ++ [igniter, zipper]) do
+              {:ok, zipper} ->
+                add_to_deps_list(zipper, name, quoted, opts)
+
+              :error ->
                 {error_tag,
                  """
                  Could not add dependency #{inspect({name, version})}
