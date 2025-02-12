@@ -202,7 +202,7 @@ defmodule Igniter.Project.Config do
   end
 
   defp config_file_path(igniter, file_name) do
-    case igniter |>  Igniter.Project.Application.config_path() |> Path.split() do
+    case igniter |> Igniter.Project.Application.config_path() |> Path.split() do
       [path] -> [path]
       path -> Enum.drop(path, -1)
     end
