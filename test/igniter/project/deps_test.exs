@@ -22,12 +22,12 @@ defmodule Igniter.Project.DepsTest do
     end
 
     test "adds the provided dependency with options" do
-      refute Igniter.Project.Deps.get_dependency_declaration(Igniter.new(), :foobar)
+      assert {:ok, nil} = Igniter.Project.Deps.get_dep(Igniter.new(), :foobar)
 
       igniter = Igniter.Project.Deps.add_dep(Igniter.new(), {:foobar, "~> 2.0", only: :test})
 
-      assert Igniter.Project.Deps.get_dependency_declaration(igniter, :foobar) ==
-               "{:foobar, \"~> 2.0\", only: :test}"
+      assert {:ok, "{:foobar, \"~> 2.0\", only: :test}"} =
+               Igniter.Project.Deps.get_dep(igniter, :foobar)
     end
 
     test "can be configured to add deps to a specific variable" do
