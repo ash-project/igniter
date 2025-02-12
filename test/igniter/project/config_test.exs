@@ -486,6 +486,37 @@ defmodule Igniter.Project.ConfigTest do
          6 + |config :fake, bar: [:baz], foo: foo
       """)
     end
+
+    test "respect mix.exs :config_path" do
+      mix_exs = """
+      defmodule Test.MixProject do
+        use Mix.Project
+
+        def project do
+          [
+            app: :test,
+            config_path: "../../config/config.exs"
+          ]
+        end
+      end
+      """
+
+      igniter =
+        assert test_project()
+               |> Igniter.create_or_update_elixir_file(
+                 "mix.exs",
+                 mix_exs,
+                 &{:ok, Igniter.Code.Common.replace_code(&1, mix_exs)}
+               )
+               |> apply_igniter!()
+
+      igniter
+      |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
+      |> assert_creates("../../config/fake.exs", """
+      import Config
+      config :fake, foo: [bar: "baz"]
+      """)
+    end
   end
 
   @tag :regression
