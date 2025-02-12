@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.24](https://github.com/ash-project/igniter/compare/v0.5.23...v0.5.24) (2025-02-12)
+
+
+
+
+### Bug Fixes:
+
+* resolve project :config_path (#226)
+
 ## [v0.5.23](https://github.com/ash-project/igniter/compare/v0.5.22...v0.5.23) (2025-02-11)
 
 
