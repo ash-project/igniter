@@ -49,9 +49,11 @@ defmodule Igniter.Project.Config do
       end
       """
 
+    config_file_path = config_file_path(igniter, "runtime.exs")
+
     igniter
-    |> Igniter.create_or_update_elixir_file("config/runtime.exs", default_runtime, &{:ok, &1})
-    |> Igniter.update_elixir_file("config/runtime.exs", fn zipper ->
+    |> Igniter.create_or_update_elixir_file(config_file_path, default_runtime, &{:ok, &1})
+    |> Igniter.update_elixir_file(config_file_path, fn zipper ->
       patterns = [
         """
         if config_env() == #{inspect(env)} do
@@ -111,7 +113,7 @@ defmodule Igniter.Project.Config do
 
               {:warning,
                """
-               Could not set #{inspect([app_name | config_path])} in `#{inspect(env)}` of `config/runtime.exs`.
+               Could not set #{inspect([app_name | config_path])} in `#{inspect(env)}` of `#{config_file_path}`.
 
                ```elixir
                # in `runtime.exs`
@@ -162,7 +164,7 @@ defmodule Igniter.Project.Config do
   def configure(igniter, file_name, app_name, config_path, value, opts \\ []) do
     file_contents = "import Config\n"
 
-    file_path = Path.join("config", file_name)
+    file_path = config_file_path(igniter, file_name)
     config_path = List.wrap(config_path)
 
     value =
@@ -174,7 +176,7 @@ defmodule Igniter.Project.Config do
     updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     igniter
-    |> ensure_default_configs_exist(file_path)
+    |> ensure_default_configs_exist()
     |> Igniter.include_or_create_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
       case Zipper.find(zipper, fn
@@ -199,29 +201,34 @@ defmodule Igniter.Project.Config do
     end)
   end
 
-  @doc false
-  defp ensure_default_configs_exist(igniter, file)
-       when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
+  defp config_file_path(igniter, file_name) do
+    case igniter |>  Igniter.Project.Application.config_path() |> Path.split() do
+      [path] -> [path]
+      path -> Enum.drop(path, -1)
+    end
+    |> Path.join()
+    |> Path.join(file_name)
+  end
+
+  defp ensure_default_configs_exist(igniter) do
     igniter
-    |> Igniter.include_or_create_file("config/config.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "config.exs"), """
     import Config
     """)
     |> ensure_config_evaluates_env()
-    |> Igniter.include_or_create_file("config/dev.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "dev.exs"), """
     import Config
     """)
-    |> Igniter.include_or_create_file("config/test.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "test.exs"), """
     import Config
     """)
-    |> Igniter.include_or_create_file("config/prod.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "prod.exs"), """
     import Config
     """)
   end
 
-  defp ensure_default_configs_exist(igniter, _), do: igniter
-
   defp ensure_config_evaluates_env(igniter) do
-    Igniter.update_elixir_file(igniter, "config/config.exs", fn zipper ->
+    Igniter.update_elixir_file(igniter, config_file_path(igniter, "config.exs"), fn zipper ->
       case Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :import_config, 1) do
         {:ok, _} ->
           {:ok, zipper}
@@ -520,7 +527,7 @@ defmodule Igniter.Project.Config do
   end
 
   defp load_config_zipper(igniter, config_file_name) do
-    config_file_path = Path.join("config", config_file_name)
+    config_file_path = config_file_path(igniter, config_file_name)
 
     igniter =
       Igniter.include_existing_file(igniter, config_file_path, required?: false)

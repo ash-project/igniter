@@ -29,7 +29,7 @@ defmodule Igniter.Project.Application do
          zipper <- Igniter.Code.Common.rightmost(zipper),
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :app),
-         {:ok, app_name} when is_atom(app_name) <- expand_app_name(zipper) do
+         {:ok, app_name} when is_atom(app_name) <- expand_key_value(zipper) do
       app_name
     else
       _ ->
@@ -42,7 +42,31 @@ defmodule Igniter.Project.Application do
     end
   end
 
-  defp expand_app_name(zipper) do
+  @doc "Returns the config_path of the application."
+  @spec config_path(Igniter.t()) :: binary()
+  def config_path(igniter) do
+    zipper =
+      igniter
+      |> Igniter.include_existing_file("mix.exs")
+      |> Map.get(:rewrite)
+      |> Rewrite.source!("mix.exs")
+      |> Rewrite.Source.get(:quoted)
+      |> Sourceror.Zipper.zip()
+
+    with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :project, 0),
+         zipper <- Igniter.Code.Common.rightmost(zipper),
+         true <- Igniter.Code.List.list?(zipper),
+         {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :config_path),
+         {:ok, config_path} when is_binary(config_path) <- expand_key_value(zipper) do
+      config_path
+    else
+      _ ->
+        # https://github.com/elixir-lang/elixir/blob/0bc8a60c9befd057be83d378d76c35850ef0d111/lib/mix/lib/mix/project.ex#L992
+        "config/config.exs"
+    end
+  end
+
+  defp expand_key_value(zipper) do
     case Common.expand_literal(zipper) do
       :error ->
         expand_attribute(zipper)
