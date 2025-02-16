@@ -1,7 +1,7 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.5.24"
+  @version "0.5.25"
   @install_version "~> 0.5"
 
   @description """

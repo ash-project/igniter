@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.25](https://github.com/ash-project/igniter/compare/v0.5.24...v0.5.25) (2025-02-16)
+
+
+
+
+### Bug Fixes:
+
+* check file changed by actually comparing content
+
+* pattern match error when default option is selected on long diff
+
 ## [v0.5.24](https://github.com/ash-project/igniter/compare/v0.5.23...v0.5.24) (2025-02-12)
 
 
