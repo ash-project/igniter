@@ -998,19 +998,19 @@ defmodule Igniter do
 
     case igniter do
       %{issues: []} ->
-        result_of_dry_run =
+        result_of_diff_handling =
           if has_changes?(igniter) do
             if opts[:dry_run] || !opts[:yes] do
               Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
               if !opts[:yes] && too_long_to_display?(igniter) do
                 handle_long_diff(igniter, opts)
+                :no_confirm_dry_run_with_changes
               else
                 display_diff(Rewrite.sources(igniter.rewrite), opts)
+                :dry_run_with_changes
               end
             end
-
-            :dry_run_with_changes
           else
             if !(opts[:quiet_on_no_changes?] || opts[:yes]) do
               Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
@@ -1021,20 +1021,32 @@ defmodule Igniter do
             :dry_run_with_no_changes
           end
 
-        display_warnings(igniter, title)
+        result_of_dry_run =
+          case result_of_diff_handling do
+            :no_confirm_dry_run_with_changes ->
+              :dry_run_with_changes
+
+            other ->
+              other
+          end
 
         display_mkdirs(igniter)
 
         display_moves(igniter)
 
+        display_warnings(igniter, title)
+
         display_tasks(igniter, result_of_dry_run, opts)
 
         if opts[:dry_run] ||
-             (result_of_dry_run == :dry_run_with_no_changes && Enum.empty?(igniter.tasks) &&
+             (result_of_diff_handling == :dry_run_with_no_changes &&
+                Enum.empty?(igniter.tasks) &&
                 Enum.empty?(igniter.moves)) do
           result_of_dry_run
         else
-          if opts[:yes] ||
+          display_diff(Rewrite.sources(igniter.rewrite), opts)
+
+          if opts[:yes] || result_of_diff_handling == :no_confirm_dry_run_with_changes ||
                Igniter.Util.IO.yes?(message_with_git_warning(igniter, opts)) do
             igniter.rewrite
             |> Enum.any?(fn source ->
@@ -1238,12 +1250,13 @@ defmodule Igniter do
         files_changed <> "\n\nHow would you like to proceed?",
       options,
       display: &elem(&1, 1),
-      default: :write
+      default: {:write, nil}
     )
     |> elem(0)
     |> case do
       :display ->
         display_diff(Rewrite.sources(igniter.rewrite), opts)
+        :ok
 
       :patch_file ->
         File.write!(
@@ -1255,10 +1268,10 @@ defmodule Igniter do
           "Diff:\n\n#{IO.ANSI.yellow()}View the diff by opening `#{Path.expand(".igniter")}`.#{IO.ANSI.reset()}"
         )
 
-      :write ->
-        Mix.shell().info("#{IO.ANSI.yellow()}Not shown due to line count.#{IO.ANSI.reset()}")
-
         :ok
+
+      :write ->
+        :no_confirm
     end
   end
 
@@ -1655,8 +1668,13 @@ defmodule Igniter do
   end
 
   def changed?(%Rewrite.Source{} = source) do
-    Rewrite.Source.from?(source, :string) ||
-      Rewrite.Source.updated?(source, :content)
+    if Rewrite.Source.from?(source, :string) do
+      true
+    else
+      Rewrite.Source.version(source) > 1 and
+        Rewrite.Source.get(source, :content, 1) !=
+          Rewrite.Source.get(source, :content)
+    end
   end
 
   @doc false
