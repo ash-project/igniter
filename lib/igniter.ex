@@ -1379,11 +1379,20 @@ defmodule Igniter do
       |> reevaluate_igniter_config(adding_paths, reevaluate_igniter_config?)
     else
       igniter =
-        "**/.formatter.exs"
-        |> Path.wildcard()
-        |> Enum.reduce(igniter, fn path, igniter ->
-          Igniter.include_existing_file(igniter, path)
-        end)
+        if igniter.assigns[:test_mode?] do
+          igniter
+        else
+          igniter.rewrite
+          |> Stream.map(& &1.path)
+          |> Stream.map(&Path.split/1)
+          |> Stream.map(&List.first/1)
+          |> Stream.uniq()
+          |> Stream.flat_map(
+            &[Path.join(&1, "**/.formatter.exs"), Path.join(&1, ".formatter.exs")]
+          )
+          |> Stream.flat_map(&Path.wildcard(&1))
+          |> Enum.reduce(igniter, &Igniter.include_existing_file(&2, &1))
+        end
 
       igniter =
         if exists?(igniter, ".formatter.exs") do
