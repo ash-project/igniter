@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.26](https://github.com/ash-project/igniter/compare/v0.5.25...v0.5.26) (2025-02-20)
+
+
+
+
+### Bug Fixes:
+
+* only look for .formatter.exs files in known directories
+
+* load all known archives when running the archive installer
+
 ## [v0.5.25](https://github.com/ash-project/igniter/compare/v0.5.24...v0.5.25) (2025-02-16)
 
 
