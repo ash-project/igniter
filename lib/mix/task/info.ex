@@ -10,6 +10,8 @@ defmodule Igniter.Mix.Task.Info do
   * `positional` - A list of positional arguments that this task accepts. A list of atoms, or a keyword list with the option and config.
     See the positional arguments section for more.
   * `aliases` - A map of aliases to the schema keys.
+  * `only` - For installers, a list of environments that the dependency should be installed to.
+  * `dep_opts` - For installers, dependency options that should be set, like `runtime: false`. Use the `only` key for `only` option.
   * `composes` - A list of tasks that this task might compose.
   * `installs` - A list of dependencies that should be installed before continuing.
   * `adds_deps` - A list of dependencies that should be added to the `mix.exs`, but do not need to be installed before continuing.
@@ -88,6 +90,7 @@ defmodule Igniter.Mix.Task.Info do
             group: nil,
             composes: [],
             only: nil,
+            dep_opts: [],
             installs: [],
             adds_deps: [],
             positional: [],
@@ -105,6 +108,7 @@ defmodule Igniter.Mix.Task.Info do
           group: atom | nil,
           composes: [String.t()],
           only: [atom()] | nil,
+          dep_opts: Keyword.t(),
           positional: list(atom | {atom, [{:optional, boolean()}, {:rest, boolean()}]}),
           installs: [{atom(), String.t()}],
           adds_deps: [{atom(), String.t()}],

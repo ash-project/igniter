@@ -61,7 +61,7 @@ defmodule Igniter.Util.Info do
         |> Igniter.apply_and_fetch_dependencies(
           Keyword.put(opts, :operation, "compiling #{names_message}")
         )
-        |> maybe_set_only(install_names, argv, task_name)
+        |> maybe_set_dep_options(install_names, argv, task_name)
         |> compose_install_and_validate!(
           argv,
           %{
@@ -146,16 +146,28 @@ defmodule Igniter.Util.Info do
     end
   end
 
-  defp maybe_set_only(igniter, install_names, argv, parent) do
+  defp maybe_set_dep_options(igniter, install_names, argv, parent) do
     Enum.reduce(install_names, igniter, fn install, igniter ->
       composing_task = "#{install}.install"
 
       with composing_task when not is_nil(composing_task) <- Mix.Task.get(composing_task),
            true <- function_exported?(composing_task, :info, 2),
            composing_schema when not is_nil(composing_schema) <-
-             composing_task.info(argv, parent),
-           only when not is_nil(only) <- composing_schema.only do
-        Igniter.Project.Deps.set_dep_option(igniter, install, :only, only)
+             composing_task.info(argv, parent) do
+        options =
+          if composing_schema.only do
+            Keyword.put(composing_schema.dep_opts, :only, composing_schema.only)
+          else
+            composing_schema.dep_opts
+          end
+
+        if options == [] do
+          igniter
+        else
+          Enum.reduce(options, igniter, fn {key, val}, igniter ->
+            Igniter.Project.Deps.set_dep_option(igniter, install, key, val)
+          end)
+        end
       else
         _ ->
           igniter
