@@ -361,9 +361,18 @@ defmodule Igniter.Project.Deps do
       end
 
     quoted =
-      if opts[:dep_opts] do
+      if opts[:dep_opts] && opts[:dep_opts] != [] do
+        dep_opts =
+          Enum.map(opts[:dep_opts], fn
+            {key, {:code, val}} ->
+              {key, Sourceror.parse_string!(val)}
+
+            {key, value} ->
+              {key, value}
+          end)
+
         quote do
-          {unquote(name), unquote(version), unquote(opts[:dep_opts])}
+          {unquote(name), unquote(version), unquote(dep_opts)}
         end
       else
         {:__block__, [],
@@ -472,7 +481,39 @@ defmodule Igniter.Project.Deps do
   end
 
   @doc false
+  def determine_dep_opts(requirement) do
+    case String.split(requirement, "#", trim: true, parts: 2) do
+      [_] ->
+        []
+
+      [_, opt_string] ->
+        opt_string
+        |> URI.decode_query()
+        |> Enum.reduce([], fn {key, value}, acc ->
+          case {key, value} do
+            {"app", "false"} -> Keyword.put(acc, :app, false)
+            {"env", env} -> Keyword.put(acc, :env, String.to_atom(env))
+            {"compile", compile} -> Keyword.put(acc, :compile, compile)
+            # skipping only now since it has special handling
+            # {"only", only} -> Keyword.put(acc, :only, {:code, only})
+            {"targets", targets} -> Keyword.put(acc, :targets, {:code, targets})
+            {"override", "true"} -> Keyword.put(acc, :override, true)
+            {"manager", manager} -> Keyword.put(acc, :manager, String.to_atom(manager))
+            {"runtime", "false"} -> Keyword.put(acc, :runtime, false)
+            {"system_env", system_env} -> Keyword.put(acc, :system_env, {:code, system_env})
+            # Arbitrary options are used by Nerves for example:
+            # {:nerves_system_rpi4, path: "foo", nerves: [compile: true]}
+            {key, value} -> Keyword.put(acc, String.to_atom(key), {:code, value})
+          end
+        end)
+    end
+  end
+
+  @doc false
   def determine_dep_type_and_version(requirement) do
+    # Drop any fragment-style options
+    requirement = String.split(requirement, "#") |> hd()
+
     case String.split(requirement, "@", trim: true, parts: 2) do
       [package] ->
         if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do

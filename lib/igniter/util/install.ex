@@ -26,12 +26,16 @@ defmodule Igniter.Util.Install do
   def install([head | _] = deps, argv, igniter, opts) when is_binary(head) do
     deps =
       Enum.map(deps, fn dep ->
-        case Igniter.Project.Deps.determine_dep_type_and_version(dep) do
-          {install, requirement} ->
-            {install, requirement}
-
-          :error ->
+        case {Igniter.Project.Deps.determine_dep_type_and_version(dep),
+              Igniter.Project.Deps.determine_dep_opts(dep)} do
+          {:error, _} ->
             raise "Could not determine source for requested package #{dep}"
+
+          {_, :error} ->
+            raise "Could not parse options for request package #{dep}"
+
+          {{install, requirement}, options} ->
+            {install, requirement, options}
         end
       end)
 
@@ -108,7 +112,7 @@ defmodule Igniter.Util.Install do
 
       If you don't yet have a `.igniter.exs`, run `mix igniter.setup`.
 
-      For more information, see: 
+      For more information, see:
 
       https://hexdocs.pm/igniter/Igniter.Project.IgniterConfig.html
       """)
@@ -306,7 +310,7 @@ defmodule Igniter.Util.Install do
 
               If you don't yet have a `.igniter.exs`, run `mix igniter.setup`.
 
-              For more information, see: 
+              For more information, see:
 
               https://hexdocs.pm/igniter/Igniter.Project.IgniterConfig.html
               """)
@@ -376,7 +380,7 @@ defmodule Igniter.Util.Install do
 
           igniter ->
             message = """
-            Conflict in `only` option for dependency #{inspect(dep)}. 
+            Conflict in `only` option for dependency #{inspect(dep)}.
             Between #{source1} and #{source2}.
 
             We must update the `only` option as shown to continue.

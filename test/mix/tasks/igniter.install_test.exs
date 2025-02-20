@@ -43,6 +43,61 @@ defmodule Mix.Tasks.Igniter.InstallTest do
                "Dependency jason is already in mix.exs with the desired version. Skipping."
              )
     end
+
+    test "support fragment style options" do
+      cmd!("mix", ["deps.compile"], cd: "test_project")
+      cmd!("mix", ["igniter.install", "poison#runtime=false", "--yes"], cd: "test_project")
+
+      dep_line =
+        "./test_project/mix.exs"
+        |> File.read!()
+        |> String.split("\n")
+        |> Enum.find(&String.contains?(&1, ":poison"))
+
+      assert dep_line =~ "runtime: false"
+    end
+
+    test "support many fragment style options" do
+      cmd!("mix", ["deps.compile"], cd: "test_project")
+
+      opts =
+        %{
+          app: "false",
+          env: :prod,
+          compile: "rebar",
+          # skipping only as it has special handling
+          # only: "[:prod]",
+          targets: "[:rpi4, :rpi5]",
+          override: true,
+          manager: :mix,
+          runtime: "false",
+          system_env: "%{\"FUN\" => \"true\", \"DULL\" => \"false\"}",
+          nerves: "[compile: true]",
+          other: true
+        }
+        |> URI.encode_query()
+
+      cmd!("mix", ["igniter.install", "poison##{opts}", "--yes"], cd: "test_project")
+
+      dep_block =
+        "./test_project/mix.exs"
+        |> File.read!()
+        |> String.split(":poison, ", parts: 2)
+        |> Enum.at(1)
+
+      assert dep_block =~ "app: false"
+      assert dep_block =~ "env: :prod"
+      assert dep_block =~ "compile: \"rebar\""
+      # skipping only as it has special handling
+      # assert dep_block =~ "only: [:prod]"
+      assert dep_block =~ "targets: [:rpi4, :rpi5]"
+      assert dep_block =~ "override: true"
+      assert dep_block =~ "manager: :mix"
+      assert dep_block =~ "runtime: false"
+      assert dep_block =~ "system_env: %{\"FUN\" => \"true\", \"DULL\" => \"false\"}"
+      assert dep_block =~ "nerves: [compile: true]"
+      assert dep_block =~ "other: true"
+    end
   end
 
   defp add_igniter_dep(contents) do
@@ -63,6 +118,11 @@ defmodule Mix.Tasks.Igniter.InstallTest do
 
   defp cmd!(cmd, args, opts \\ []) do
     {output, status} = System.cmd(cmd, args, opts)
+
+    if status > 0 do
+      IO.puts(output)
+    end
+
     assert status == 0, "Command failed with exit code #{status}: #{cmd} #{inspect(args)}"
 
     output
