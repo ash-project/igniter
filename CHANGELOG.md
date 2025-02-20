@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.27](https://github.com/ash-project/igniter/compare/v0.5.26...v0.5.27) (2025-02-20)
+
+
+
+
+### Improvements:
+
+* support dep_opts in schema info
+
 ## [v0.5.26](https://github.com/ash-project/igniter/compare/v0.5.25...v0.5.26) (2025-02-20)
 
 
