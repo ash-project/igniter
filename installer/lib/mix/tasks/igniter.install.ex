@@ -37,8 +37,31 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
-      for app <- @apps do
-        Mix.ensure_application!(app)
+      archives_path = Mix.path_for(:archives)
+
+      archive_apps =
+        archives_path
+        |> File.ls()
+        |> case do
+          {:ok, entries} ->
+            entries
+
+          _ ->
+            []
+        end
+        |> Enum.map(&Mix.Local.archive_ebin/1)
+        |> Enum.map(&Path.join([archives_path, &1, "*.app"]))
+        |> Enum.flat_map(&Path.wildcard/1)
+        |> Enum.map(&Path.basename(&1, ".app"))
+        |> Enum.map(&String.to_atom/1)
+
+      for app <- @apps ++ archive_apps do
+        try do
+          Mix.ensure_application!(app)
+        rescue
+          _ ->
+            :ok
+        end
       end
 
       message =
