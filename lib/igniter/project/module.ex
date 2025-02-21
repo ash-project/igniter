@@ -236,7 +236,8 @@ defmodule Igniter.Project.Module do
 
     matching_modules =
       igniter
-      |> Map.get(:rewrite)
+      |> Map.get([:rewrite, :sources], %{})
+      |> Map.values()
       |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
       |> Task.async_stream(
         fn source ->
