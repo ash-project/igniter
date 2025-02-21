@@ -26,8 +26,10 @@ defmodule Igniter.Project.Application do
       |> Sourceror.Zipper.zip()
 
     with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :project, 0),
-         zipper <- Igniter.Code.Common.rightmost(zipper),
-         true <- Igniter.Code.List.list?(zipper),
+         {:ok, zipper} <-
+           Igniter.Code.Common.move_to(zipper, &match?({:__block__, _, [:app]}, &1.node)),
+         zipper = Zipper.up(zipper),
+         zipper = Zipper.up(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :app),
          {:ok, app_name} when is_atom(app_name) <- expand_key_value(zipper) do
       app_name

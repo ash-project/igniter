@@ -231,6 +231,56 @@ defmodule Igniter.Project.ApplicationTest do
       assert Igniter.Project.Application.app_name(igniter) == :igniter_test
     end
 
+    test "it returns the application name when keyword list is defined at the end" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                releases = [
+                  test: []
+                ]
+
+                [
+                  app: :igniter_test,
+                  releases: releases
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_name(igniter) == :igniter_test
+    end
+
+    test "it returns the application name when keyword list is assigned to a variable" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule IgniterTest.MixProject do
+              use Mix.Project
+
+              def project do
+                project = [
+                  app: :igniter_test,
+                  releases: releases
+                ]
+
+                project
+              end
+            end
+            """
+          }
+        )
+
+      assert Igniter.Project.Application.app_name(igniter) == :igniter_test
+    end
+
     test "it raises if the application name can't be resolved" do
       igniter =
         test_project(
