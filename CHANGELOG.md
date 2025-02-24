@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.28](https://github.com/ash-project/igniter/compare/v0.5.27...v0.5.28) (2025-02-24)
+
+
+
+
+### Improvements:
+
+* add phx_test_project for testing(#239)
+
 ## [v0.5.27](https://github.com/ash-project/igniter/compare/v0.5.26...v0.5.27) (2025-02-20)
 
 
