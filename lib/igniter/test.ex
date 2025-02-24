@@ -47,6 +47,35 @@ defmodule Igniter.Test do
   end
 
   @doc """
+  Sets up a test igniter that mimics a new phoenix project
+  """
+  @spec test_project(opts :: Keyword.t()) :: Igniter.t()
+  def phx_test_project(opts \\ []) do
+    app_name = opts[:app_name] || :test
+
+    Igniter.new()
+    |> Igniter.assign(:test_mode?, true)
+    |> Igniter.assign(
+      :test_files,
+      add_mix_new(opts)
+    )
+    # need them all back in the igniter
+    |> Igniter.include_glob("**/.formatter.exs")
+    |> Igniter.include_glob(".formatter.exs")
+    |> Igniter.include_glob("**/*.*")
+    |> Igniter.Project.IgniterConfig.setup()
+    |> Igniter.compose_task("igniter.phx.install", [
+      ".",
+      "--module",
+      Macro.camelize(Atom.to_string(app_name)),
+      "--app",
+      Atom.to_string(app_name),
+      "--yes"
+    ])
+    |> apply_igniter!()
+  end
+
+  @doc """
   Print the current `igniter` diff, returning the `igniter`.
 
   This is primarily used for debugging purposes.
