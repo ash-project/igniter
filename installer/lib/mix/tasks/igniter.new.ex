@@ -420,7 +420,6 @@ defmodule Mix.Tasks.Igniter.New do
               ])
             )
           )
-          |> IO.inspect()
 
         if !continue? do
           throw(:abort)
