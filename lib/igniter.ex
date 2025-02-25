@@ -1044,8 +1044,6 @@ defmodule Igniter do
                 Enum.empty?(igniter.moves)) do
           result_of_dry_run
         else
-          display_diff(Rewrite.sources(igniter.rewrite), opts)
-
           if opts[:yes] || result_of_diff_handling == :no_confirm_dry_run_with_changes ||
                Igniter.Util.IO.yes?(message_with_git_warning(igniter, opts)) do
             igniter.rewrite
