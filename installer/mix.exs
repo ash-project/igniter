@@ -27,6 +27,12 @@ defmodule Igniter.New.MixProject do
     ]
   end
 
+  def application do
+    [
+      extra_applications: [:eex, :crypto, :public_key]
+    ]
+  end
+
   def deps do
     [
       {:ex_doc, "~> 0.24", only: [:dev, :test], runtime: false}

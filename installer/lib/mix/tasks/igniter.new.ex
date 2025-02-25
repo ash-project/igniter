@@ -14,6 +14,7 @@ defmodule Mix.Tasks.Igniter.New do
   * `--yes` or `-y` - Skips confirmations during installers. The `-y` option cannot be applied
     to the `--with` command, as it may or may not support it. Use `--with-args`
     to provide arguments to that command.
+  * `--no-installer-version-check` - skip the version check for the latest igniter_new version
 
   ## Options for `mix.new`
 
@@ -29,6 +30,7 @@ defmodule Mix.Tasks.Igniter.New do
   use Mix.Task
 
   @igniter_version "~> 0.5"
+  @installer_version Igniter.New.MixProject.project()[:version]
 
   @impl Mix.Task
   def run(argv) do
@@ -68,7 +70,8 @@ defmodule Mix.Tasks.Igniter.New do
           with: :string,
           module: :string,
           sup: :boolean,
-          umbrella: :boolean
+          umbrella: :boolean,
+          installer_version_check: :boolean
         ],
         aliases: [i: :install, l: :local, e: :example, w: :with]
       )
@@ -98,6 +101,11 @@ defmodule Mix.Tasks.Igniter.New do
 
       exit({:shutdown, 1})
     end
+
+    version_task =
+      if Keyword.get(options, :installer_version_check, true) do
+        get_latest_version("igniter_new")
+      end
 
     with_args =
       [name | with_args(argv)]
@@ -206,14 +214,33 @@ defmodule Mix.Tasks.Igniter.New do
             []
         end
 
+      do_warn_outdated(version_task)
+
       Mix.Task.run(
         "igniter.install",
         install_args ++
           rest_args ++ ["--yes-to-deps", "--from-igniter-new", "--new-with", "phx-new"]
       )
+    else
+      do_warn_outdated(version_task)
     end
 
     :ok
+  end
+
+  defp do_warn_outdated(version_task) do
+    if version_task do
+      try do
+        # if we get anything else than a `Version`, we'll get a MatchError
+        # and fail silently
+        %Version{} = latest_version = Task.await(version_task, 3_000)
+        maybe_warn_outdated(latest_version)
+      rescue
+        _ -> :ok
+      catch
+        :exit, _ -> :ok
+      end
+    end
   end
 
   defp with_args(argv, acc \\ [])
@@ -260,7 +287,7 @@ defmodule Mix.Tasks.Igniter.New do
     end
   end
 
-  @flags ~w(example sup umbrella)
+  @flags ~w(example sup umbrella installer-version-check no-installer-version-check)
   @flags_with_values ~w(install local with with-args module)
   @switches ~w(e)
   @switches_with_values ~w(i l)
@@ -343,4 +370,91 @@ defmodule Mix.Tasks.Igniter.New do
 
   @doc false
   def igniter_version, do: @igniter_version
+
+  defp maybe_warn_outdated(latest_version) do
+    if Version.compare(@installer_version, latest_version) == :lt do
+      Mix.shell().info([
+        :yellow,
+        "A new version of igniter.new is available:",
+        :green,
+        " v#{latest_version}",
+        :reset,
+        ".",
+        "\n",
+        "You are currently running ",
+        :red,
+        "v#{@installer_version}",
+        :reset,
+        ".\n",
+        "To update, run:\n\n",
+        "    $ mix archive.install hex igniter_new --force\n"
+      ])
+    end
+  end
+
+  # we need to parse JSON, so we only check for new versions on Elixir 1.18+
+  if Version.match?(System.version(), "~> 1.18") do
+    defp get_latest_version(package) do
+      Task.async(fn ->
+        # ignore any errors to not prevent the generators from running
+        # due to any issues while checking the version
+        try do
+          with {:ok, package} <- get_package(package) do
+            versions =
+              for release <- package["releases"],
+                  version = Version.parse!(release["version"]),
+                  # ignore pre-releases like release candidates, etc.
+                  version.pre == [] do
+                version
+              end
+
+            Enum.max(versions, Version)
+          end
+        rescue
+          e -> {:error, e}
+        catch
+          :exit, e -> {:error, :exit, e}
+        end
+      end)
+    end
+
+    defp get_package(name) do
+      http_options =
+        [
+          ssl: [
+            verify: :verify_peer,
+            cacerts: :public_key.cacerts_get(),
+            depth: 2,
+            customize_hostname_check: [
+              match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+            ],
+            versions: [:"tlsv1.2", :"tlsv1.3"]
+          ]
+        ]
+
+      options = [body_format: :binary]
+
+      Application.ensure_all_started(:ssl)
+      :inets.start()
+
+      case :httpc.request(
+             :get,
+             {~c"https://hex.pm/api/packages/#{name}",
+              [{~c"user-agent", ~c"Mix.Tasks.Igniter.New/#{@installer_version}"}]},
+             http_options,
+             options
+           ) do
+        {:ok, {{_, 200, _}, _headers, body}} ->
+          {:ok, JSON.decode!(body)}
+
+        {:ok, {{_, status, _}, _, _}} ->
+          {:error, status}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  else
+    defp get_latest_version(_), do: nil
+  end
 end

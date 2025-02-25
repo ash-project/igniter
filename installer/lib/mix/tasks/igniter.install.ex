@@ -77,6 +77,14 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
         end
 
       Igniter.Installer.Loading.with_spinner(
+        "Updating project's igniter dependency",
+        fn ->
+          System.cmd("mix", ["deps.update", "igniter"])
+        end,
+        verbose?: "--verbose" in argv
+      )
+
+      Igniter.Installer.Loading.with_spinner(
         message,
         fn ->
           if Code.ensure_loaded?(Igniter.Util.Install) do
