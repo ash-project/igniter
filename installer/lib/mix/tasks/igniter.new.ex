@@ -138,6 +138,13 @@ defmodule Mix.Tasks.Igniter.New do
         with_args
       end
 
+    yes =
+      if "--yes" in argv or "-y" in argv do
+        "--yes"
+      end
+
+    do_warn_outdated(version_task, yes: yes)
+
     Mix.Task.run(install_with, with_args)
 
     version_requirement =
@@ -178,11 +185,6 @@ defmodule Mix.Tasks.Igniter.New do
           "--example"
         end
 
-      yes =
-        if "--yes" in argv or "-y" in argv do
-          "--yes"
-        end
-
       install_args =
         Enum.filter([Enum.join(install, ","), example, yes], & &1)
 
@@ -214,31 +216,32 @@ defmodule Mix.Tasks.Igniter.New do
             []
         end
 
-      do_warn_outdated(version_task)
-
       Mix.Task.run(
         "igniter.install",
         install_args ++
           rest_args ++ ["--yes-to-deps", "--from-igniter-new", "--new-with", "phx-new"]
       )
-    else
-      do_warn_outdated(version_task)
     end
 
     :ok
   end
 
-  defp do_warn_outdated(version_task) do
+  defp do_warn_outdated(version_task, opts) do
     if version_task do
       try do
         # if we get anything else than a `Version`, we'll get a MatchError
         # and fail silently
         %Version{} = latest_version = Task.await(version_task, 3_000)
-        maybe_warn_outdated(latest_version)
+        maybe_warn_outdated(latest_version, opts)
       rescue
-        _ -> :ok
+        _e ->
+          :ok
       catch
-        :exit, _ -> :ok
+        :abort ->
+          exit({:shutdown, 1})
+
+        :exit, _e ->
+          :ok
       end
     end
   end
@@ -371,24 +374,58 @@ defmodule Mix.Tasks.Igniter.New do
   @doc false
   def igniter_version, do: @igniter_version
 
-  defp maybe_warn_outdated(latest_version) do
+  defp maybe_warn_outdated(latest_version, opts) do
     if Version.compare(@installer_version, latest_version) == :lt do
-      Mix.shell().info([
-        :yellow,
-        "A new version of igniter.new is available:",
-        :green,
-        " v#{latest_version}",
-        :reset,
-        ".",
-        "\n",
-        "You are currently running ",
-        :red,
-        "v#{@installer_version}",
-        :reset,
-        ".\n",
-        "To update, run:\n\n",
-        "    $ mix archive.install hex igniter_new --force\n"
-      ])
+      if opts[:yes] do
+        Mix.shell().info([
+          :yellow,
+          "A new version of igniter.new is available:",
+          :green,
+          " v#{latest_version}",
+          :reset,
+          ".",
+          "\n",
+          "You are currently running ",
+          :red,
+          "v#{@installer_version}",
+          :reset,
+          ".\n",
+          "To update, run:\n\n",
+          "    $ mix archive.install hex igniter_new --force\n"
+        ])
+      else
+        continue? =
+          Mix.shell().yes?(
+            IO.iodata_to_binary(
+              IO.ANSI.format([
+                :yellow,
+                "A new version of igniter.new is available:",
+                :green,
+                " v#{latest_version}",
+                :reset,
+                ".",
+                "\n",
+                "You are currently running ",
+                :red,
+                "v#{@installer_version}",
+                :reset,
+                ".\n",
+                "To update, run:\n\n",
+                "    $ mix archive.install hex igniter_new --force\n\n",
+                "Would you like to continue with ",
+                :red,
+                "v#{@installer_version} ",
+                :reset,
+                "anyway?"
+              ])
+            )
+          )
+          |> IO.inspect()
+
+        if !continue? do
+          throw(:abort)
+        end
+      end
     end
   end
 
