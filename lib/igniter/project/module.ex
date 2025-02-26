@@ -291,7 +291,7 @@ defmodule Igniter.Project.Module do
     check_first =
       if Code.ensure_loaded?(module_name) do
         if source = module_name.module_info()[:compile][:source] do
-          Path.relative_to_cwd(List.to_string(source))
+          Path.relative_to_cwd(List.to_string(source), force: true)
         end
       end
 
@@ -389,7 +389,7 @@ defmodule Igniter.Project.Module do
 
     split_path =
       source.path
-      |> Path.relative_to_cwd()
+      |> Path.relative_to_cwd(force: true)
       |> Path.split()
 
     igniter
