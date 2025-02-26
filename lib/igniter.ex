@@ -503,6 +503,7 @@ defmodule Igniter do
   """
   @spec update_file(t(), Path.t(), (Rewrite.Source.t() -> Rewrite.Source.t())) :: t()
   def update_file(igniter, path, updater, opts \\ []) do
+    path = Path.relative_to_cwd(path)
     source_handler = source_handler(path, opts)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
@@ -562,6 +563,8 @@ defmodule Igniter do
   @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
   @spec include_or_create_file(t(), Path.t(), contents :: String.t()) :: t()
   def include_or_create_file(igniter, path, contents \\ "") do
+    path = Path.relative_to_cwd(path)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
@@ -585,6 +588,8 @@ defmodule Igniter do
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function of type `zipper_updater()` if it already exists."
   @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
   def create_or_update_elixir_file(igniter, path, contents, updater) do
+    path = Path.relative_to_cwd(path)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
       |> update_elixir_file(path, updater)
@@ -614,6 +619,8 @@ defmodule Igniter do
 
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function as in `update_file/3` (or with `zipper_updater()` for elixir files) if it already exists."
   def create_or_update_file(igniter, path, contents, updater) do
+    path = Path.relative_to_cwd(path)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
       |> update_file(path, updater)
@@ -700,6 +707,7 @@ defmodule Igniter do
   """
   @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_file(igniter, path, contents \\ "", opts \\ []) do
+    path = Path.relative_to_cwd(path)
     source_handler = source_handler(path, opts)
 
     {igniter, source} =
