@@ -391,7 +391,7 @@ defmodule Mix.Tasks.Igniter.New do
           :reset,
           ".\n",
           "To update, run:\n\n",
-          "    $ mix archive.install hex igniter_new --force\n"
+          "    $ mix local.igniter\n"
         ])
       else
         continue? =
@@ -411,7 +411,7 @@ defmodule Mix.Tasks.Igniter.New do
                 :reset,
                 ".\n",
                 "To update, run:\n\n",
-                "    $ mix archive.install hex igniter_new --force\n\n",
+                "    $ mix local.igniter\n\n",
                 "Would you like to continue with ",
                 :red,
                 "v#{@installer_version} ",
