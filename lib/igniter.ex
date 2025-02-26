@@ -1392,7 +1392,11 @@ defmodule Igniter do
           |> Stream.map(& &1.path)
           |> Stream.map(&Path.split/1)
           |> Stream.map(&List.first/1)
+          # we don't want to be searching for .formatter.exs
+          # outside the project
+          |> Stream.reject(&String.starts_with?(&1, ".."))
           |> Stream.uniq()
+          # we should walk the tree up to each file instead of using **
           |> Stream.flat_map(
             &[Path.join(&1, "**/.formatter.exs"), Path.join(&1, ".formatter.exs")]
           )
