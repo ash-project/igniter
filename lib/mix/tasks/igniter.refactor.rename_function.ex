@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Igniter.Refactor.RenameFunction do
 
   @example "mix igniter.refactor.rename_function Mod.fun NewMod.new_fun"
 
-  @shortdoc "A short description of your task"
+  @shortdoc "Rename functions across a project with automatic reference updates."
   @moduledoc """
   #{@shortdoc}
 
