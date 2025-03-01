@@ -309,7 +309,7 @@ defmodule Igniter.Project.Module do
         igniter = Igniter.include_all_elixir_files(igniter)
 
         igniter
-        |> Map.get(:rewrite)
+        |> Map.get([:rewrite, :sources])
         |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
         |> Task.async_stream(
           fn source ->
