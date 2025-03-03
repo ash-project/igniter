@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.30](https://github.com/ash-project/igniter/compare/v0.5.29...v0.5.30) (2025-03-03)
+
+
+
+
+### Bug Fixes:
+
+* various fixes with cross project function renaming
+
+* ensure all paths are relative_to_cwd
+
+### Improvements:
+
+* mix igniter.refactor.rename_function short doc (#243)
+
+* add `local.igniter` task for easier upgrading
+
 ## [v0.5.29](https://github.com/ash-project/igniter/compare/v0.5.28...v0.5.29) (2025-02-25)
 
 
