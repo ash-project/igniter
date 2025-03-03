@@ -200,8 +200,6 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
                 # *other* dependencies to add and call their associated installers, if they exist
                 # i.e `{:foo, "~> 2.0"}`
                 installs: [],
-                # An example invocation
-                example: __MODULE__.Docs.example(),
                 # a list of positional arguments, i.e `[:file]`
                 positional: [:from, :to],
                 # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
