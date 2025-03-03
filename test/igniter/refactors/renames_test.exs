@@ -111,8 +111,7 @@ defmodule Igniter.Refactors.RenameTest do
     |> apply_igniter!()
     |> Igniter.Refactors.Rename.rename_function(
       {Example, :some_function},
-      {Example, :some_other_function},
-      arity: 0
+      {Example, :some_other_function}
     )
     |> assert_content_equals("lib/example.ex", """
     defmodule Example do

@@ -23,6 +23,8 @@ defmodule Igniter.Refactors.Rename do
   def rename_function(igniter, old, new, opts \\ [])
 
   def rename_function(igniter, {old_module, old_function}, {new_module, new_function}, opts) do
+    opts = Keyword.put(opts, :arity, opts[:arity] || :any)
+
     Igniter.update_all_elixir_files(igniter, fn zipper ->
       Enum.reduce(List.wrap(opts[:arity]), {:ok, zipper}, fn arity, {:ok, zipper} ->
         with {:ok, zipper} <-
