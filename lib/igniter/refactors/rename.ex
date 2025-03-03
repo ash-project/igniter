@@ -81,7 +81,7 @@ defmodule Igniter.Refactors.Rename do
             bodies =
               Igniter.Code.Common.find_all(old_zipper, fn zipper ->
                 case subsume_module_attrs(zipper) do
-                  %{node: {:def, _, [{^old_function, _, args}, _]}} ->
+                  {%{node: {:def, _, [{^old_function, _, args}, _]}}, _} ->
                     arity == :any || length(args) in List.wrap(arity)
 
                   _ ->
@@ -126,13 +126,13 @@ defmodule Igniter.Refactors.Rename do
     end
   end
 
-  def subsume_module_attrs(zipper) do
+  def subsume_module_attrs(zipper, attrs \\ []) do
     case zipper.node do
-      {:@, _, [{attr, _, _}]} when attr in @function_module_attrs ->
-        subsume_module_attrs(Zipper.right(zipper))
+      {:@, _, [{attr, _, _}]} = node when attr in @function_module_attrs ->
+        subsume_module_attrs(Zipper.right(zipper), [node | attrs])
 
-      _value ->
-        zipper
+      _ ->
+        {zipper, attrs}
     end
   end
 
@@ -199,7 +199,7 @@ defmodule Igniter.Refactors.Rename do
         zipper,
         fn zipper ->
           case subsume_module_attrs(zipper) do
-            %{node: {:def, _, [{^old_function, _, args}, _body]}} ->
+            {%{node: {:def, _, [{^old_function, _, args}, _body]}}, _} ->
               arity == :any || length(args) == arity
 
             _other ->
@@ -208,20 +208,20 @@ defmodule Igniter.Refactors.Rename do
         end,
         fn zipper ->
           if !deprecate && old_module == new_module do
-            case zipper.node do
-              {:def, def_meta, [{^old_function, meta, args}, body]} ->
-                {:ok,
-                 Igniter.Code.Common.replace_code(
-                   zipper,
-                   {:def, def_meta, [{new_function, meta, args}, body]}
-                 )}
+            case subsume_module_attrs(zipper) do
+              {%{node: {:def, def_meta, [{^old_function, meta, args}, body]} = node}, attrs} ->
+                {:halt_depth,
+                 zipper
+                 |> remove_until(node)
+                 |> Zipper.replace({:def, def_meta, [{new_function, meta, args}, body]})
+                 |> prepend_attrs(attrs, old_function, new_function)}
 
-              _ ->
-                {:ok, zipper}
+              other ->
+                other
             end
           else
             case subsume_module_attrs(zipper) do
-              %{node: {:def, _, [{^old_function, _, args}, _]}} ->
+              {%{node: {:def, def_meta, [{^old_function, meta, args}, body]}}, attrs} ->
                 if deprecate do
                   if has_deprecation_type?(zipper, deprecate) do
                     {:halt_depth, zipper}
@@ -244,12 +244,24 @@ defmodule Igniter.Refactors.Rename do
 
                     {:ok, zipper} = Igniter.Code.Function.move_to_def(zipper)
 
-                    {:ok,
-                     Igniter.Code.Common.add_code(
-                       zipper,
-                       deprecation,
-                       placement: :before
-                     )}
+                    Igniter.Code.Common.add_code(
+                      zipper,
+                      deprecation,
+                      placement: :before
+                    )
+                    |> then(fn zipper ->
+                      if new_module == old_module do
+                        Igniter.Code.Common.add_code(
+                          zipper,
+                          {:def, def_meta, [{new_function, meta, args}, body]},
+                          placement: :before
+                        )
+                        |> prepend_attrs(attrs, old_function, new_function)
+                      else
+                        zipper
+                      end
+                    end)
+                    |> then(&{:halt_depth, &1})
                   end
                 else
                   {:ok, Zipper.remove(zipper)}
@@ -264,6 +276,50 @@ defmodule Igniter.Refactors.Rename do
     end)
   end
 
+  defp remove_until(zipper, node) do
+    if zipper.node == node do
+      zipper
+    else
+      zipper
+      |> Zipper.remove()
+      |> Zipper.next()
+      |> case do
+        nil ->
+          zipper
+
+        next ->
+          remove_until(next, node)
+      end
+    end
+  end
+
+  defp prepend_attrs(zipper, attrs, old_function, new_function) do
+    Enum.reduce(attrs, zipper, fn attr, zipper ->
+      attr =
+        case attr do
+          {:@, at_meta,
+           [
+             {:spec, spec_meta,
+              [
+                {:"::", returns_meta, [{^old_function, name_meta, args}, returns]}
+              ]}
+           ]} ->
+            {:@, at_meta,
+             [
+               {:spec, spec_meta,
+                [
+                  {:"::", returns_meta, [{new_function, name_meta, args}, returns]}
+                ]}
+             ]}
+
+          other ->
+            other
+        end
+
+      Igniter.Code.Common.add_code(zipper, attr, placement: :before)
+    end)
+  end
+
   defp has_deprecation_type?(nil, _), do: false
 
   defp has_deprecation_type?(zipper, type) do
@@ -275,7 +331,7 @@ defmodule Igniter.Refactors.Rename do
         {:@, _, [{v, _, _}]} when is_atom(v) ->
           has_deprecation_type?(Zipper.right(zipper), type)
 
-        _ ->
+        _node ->
           false
       end
     else
@@ -667,7 +723,6 @@ defmodule Igniter.Refactors.Rename do
       {^old_function, meta, args} when imported? and (arity == :any or length(args) == arity) ->
         if new_module == old_module do
           {:ok, Zipper.replace(zipper, {new_function, meta, args})}
-          # Igniter.Code.Common.replace_code(zipper, {new_function, meta, args})}
         else
           {:ok,
            Igniter.Code.Common.replace_code(

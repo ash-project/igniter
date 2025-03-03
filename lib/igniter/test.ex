@@ -169,6 +169,33 @@ defmodule Igniter.Test do
     end
   end
 
+  defmacro assert_content_equals(igniter, path, text) do
+    quote bind_quoted: [igniter: igniter, path: path, text: text] do
+      content =
+        igniter.rewrite
+        |> Rewrite.source!(path)
+        |> Rewrite.Source.get(:content)
+
+      if content != text do
+        flunk("""
+        Expected content of `#{path}` to equal:
+
+        #{text}
+
+        Actual Content
+
+        #{content}
+
+        Diff of actual content against expected content
+
+        #{TextDiff.format(text, content, color: false)}
+        """)
+      end
+
+      igniter
+    end
+  end
+
   defmacro assert_has_patch(igniter, path, patch) do
     quote bind_quoted: [igniter: igniter, path: path, patch: patch] do
       diff =

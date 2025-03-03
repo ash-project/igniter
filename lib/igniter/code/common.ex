@@ -475,41 +475,65 @@ defmodule Igniter.Code.Common do
              | {:warning | :error, term()})
         ) ::
           {:ok, Zipper.t()} | {:warning | :error, term()}
+
   def update_all_matches(zipper, pred, fun) do
+    do_update_all_matches(zipper, pred, fun, false)
+  end
+
+  defp do_update_all_matches(zipper, pred, fun, nested?) do
     # we check for a single match before traversing as an optimization
     case move_to(zipper, pred) do
       :error ->
         {:ok, zipper}
 
       {:ok, _} ->
-        Zipper.traverse(zipper, false, fn zipper, acc ->
-          if pred.(zipper) do
-            case within(zipper, fun) do
-              {:code, new_code} ->
-                {replace_code(zipper, new_code), true}
+        Zipper.traverse(zipper, false, fn
+          zipper, acc ->
+            if pred.(zipper) do
+              case fun.(zipper) do
+                {:code, new_code} ->
+                  {replace_code(zipper, new_code), true}
 
-              {:ok, ^zipper} ->
-                {zipper, acc}
+                {:ok, ^zipper} ->
+                  {zipper, acc}
 
-              {:ok, zipper} ->
-                {zipper, true}
+                {:ok, zipper} ->
+                  {zipper, true}
 
-              {:halt_depth, zipper} ->
-                {zipper, acc}
+                {:halt_depth, zipper} ->
+                  {%{zipper | node: {:__replacement__, [node: zipper.node], []}}, acc}
 
-              other ->
-                throw({:other_res, other})
+                other ->
+                  throw({:other_res, other})
+              end
+            else
+              {zipper, acc}
             end
-          else
-            {zipper, acc}
-          end
         end)
         |> case do
           {zipper, false} ->
             {:ok, zipper}
 
           {zipper, true} ->
-            update_all_matches(zipper, pred, fun)
+            do_update_all_matches(zipper, pred, fun, true)
+        end
+        |> case do
+          {:ok, zipper} ->
+            if nested? do
+              {:ok, zipper}
+            else
+              {:ok,
+               Zipper.traverse(zipper, fn
+                 %{node: {:__replacement__, [node: node], []}} = zipper ->
+                   %{zipper | node: node}
+
+                 other ->
+                   other
+               end)}
+            end
+
+          other ->
+            other
         end
     end
   catch
