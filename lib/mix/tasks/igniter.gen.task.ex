@@ -197,8 +197,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             # *other* dependencies to add and call their associated installers, if they exist
             # i.e `{:foo, "~> 2.0"}`
             installs: [],
-            # An example invocation
-            example: __MODULE__.Docs.example(),
+            #{example(opts, task_name)}\
             #{only(opts, task_name)}\
             # a list of positional arguments, i.e `[:file]`
             positional: #{positional(opts)},
@@ -268,6 +267,17 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       """
     else
       ""
+    end
+  end
+
+  defp example(opts, _task_name) do
+    if opts[:private] do
+      ""
+    else
+      """
+      # An example invocation
+      example: __MODULE__.Docs.example(),
+      """
     end
   end
 
