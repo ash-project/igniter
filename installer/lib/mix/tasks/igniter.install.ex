@@ -76,13 +76,17 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             "checking for igniter in project"
         end
 
-      Igniter.Installer.Loading.with_spinner(
-        "Updating project's igniter dependency",
-        fn ->
-          System.cmd("mix", ["deps.update", "igniter"], stderr_to_stdout: true)
-        end,
-        verbose?: "--verbose" in argv
-      )
+      if !Process.get(:updated_igniter?) do
+        Igniter.Installer.Loading.with_spinner(
+          "Updating project's igniter dependency",
+          fn ->
+            System.cmd("mix", ["deps.update", "igniter"], stderr_to_stdout: true)
+          end,
+          verbose?: "--verbose" in argv
+        )
+
+        Process.put(:updated_igniter?, true)
+      end
 
       Igniter.Installer.Loading.with_spinner(
         message,
