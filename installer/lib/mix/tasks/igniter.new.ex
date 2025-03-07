@@ -176,8 +176,13 @@ defmodule Mix.Tasks.Igniter.New do
       File.write!("mix.exs", new_contents)
     end
 
-    System.cmd("mix", ["deps.get"])
-    System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
+    Igniter.Installer.Loading.with_spinner(
+      "Fetching and compiling dependencies",
+      fn ->
+        System.cmd("mix", ["deps.get"])
+        System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
+      end
+    )
 
     if !Enum.empty?(install) do
       example =
