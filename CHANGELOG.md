@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.32](https://github.com/ash-project/igniter/compare/v0.5.31...v0.5.32) (2025-03-08)
+
+
+
+
+### Bug Fixes:
+
+* properly replace `_` with `-` in task group names
+
 ## [v0.5.31](https://github.com/ash-project/igniter/compare/v0.5.30...v0.5.31) (2025-03-04)
 
 
