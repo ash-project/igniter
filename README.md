@@ -9,6 +9,13 @@
 
 Igniter is a code generation and project patching framework.
 
+There are two audiences for Igniter:
+- library authors and platform teams: Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files in end-user's projects (e.g. codemods)
+- end-users:
+  - Igniter provides tasks like `mix igniter.install` to automatically add dependencies to your project
+  - Igniter provides upgraders to upgrade your deps and apply codemods at the same time
+  - Igniter provides refactors like `mix igniter.refactor.rename_function` to refactor your code automatically
+
 ## For library authors and platform teams
 
 Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files.
@@ -26,7 +33,7 @@ makes it useful to keep around.
 The `mix igniter.upgrade` mix task is a drop-in replacement for `mix deps.update` but it will additionally
 run any upgrade patchers defined in the target package (if there are any).
 
-See [upgrades guide](/documentation/upgrades.md) guide for more.
+See the [upgrades guide](/documentation/upgrades.md) guide for more.
 
 ### Refactors
 
