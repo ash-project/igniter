@@ -402,7 +402,9 @@ defmodule Igniter.Util.Info do
   end
 
   @doc false
-  def group(%{group: group}, _task_name) when not is_nil(group), do: to_string(group)
+  def group(%{group: group}, _task_name) when not is_nil(group),
+    do: String.replace(to_string(group), "_", "-")
+
   def group(_, task_name), do: String.replace(task_name, "_", "-")
 
   defp merge_schemas(schema, composing_schema) do
