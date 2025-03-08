@@ -10,15 +10,11 @@
 Igniter is a code generation and project patching framework.
 
 There are two audiences for Igniter:
-- library authors and platform teams: Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files in end-user's projects (e.g. codemods)
-- end-users:
-  - Igniter provides tasks like `mix igniter.install` to automatically add dependencies to your project
-  - Igniter provides upgraders to upgrade your deps and apply codemods at the same time
-  - Igniter provides refactors like `mix igniter.refactor.rename_function` to refactor your code automatically
-
-## For library authors and platform teams
-
-Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files.
+- **end-users**:
+  - Provides tasks like `mix igniter.install` to automatically add dependencies to your project
+  - Provides upgraders to upgrade your deps and apply codemods at the same time
+  - Provides refactors like `mix igniter.refactor.rename_function` to refactor your code automatically
+- **library authors and platform teams**: Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files in end-user's projects (e.g. codemods)
 
 ## For end-users
 
@@ -46,9 +42,10 @@ In addition to providing tools for library authors to patch your code, common op
 - `mix igniter.update_gettext` - Use this to update [gettext](https://github.com/elixir-gettext/gettext) if your version of gettext is lower than 0.26.1 and you are seeing a compile warning
   about gettext backends.
 
-## Installation
 
-### Standard Installation for end-users
+### Installation
+
+#### Standard Installation for end-users
 
 Add Igniter to an existing elixir project by adding it to your dependencies in `mix.exs`:
 
@@ -58,7 +55,7 @@ Add Igniter to an existing elixir project by adding it to your dependencies in `
 
 Note: If you only want to use `mix igniter.install` to add dependencies to your project then you can install the archive instead of adding Igniter to your project.
 
-### Installing globally via an archive
+#### Installing globally via an archive
 
 First, install the archive:
 
@@ -72,7 +69,7 @@ Then you can run `mix igniter.new` to generate a new elixir project
 mix igniter.new app_name --install ash
 ```
 
-## Creating a new mix project using Igniter
+### Creating a new mix project using Igniter
 
 If you want to create a new mix project that uses ash and ecto you can run a command like:
 
@@ -86,7 +83,11 @@ You can also combine an Igniter install command with existing project generators
 mix igniter.new app_name --install ash --with phx.new --with-args="--no-ecto --no-html"
 ```
 
-### Library Authors
+## For library authors and platform teams
+
+Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files.
+
+### Installing for library authors
 
 For library authors, add Igniter to your `mix.exs` with `optional: true`:
 
@@ -94,9 +95,9 @@ For library authors, add Igniter to your `mix.exs` with `optional: true`:
 {:igniter, "~> 0.5", optional: true}
 ```
 
-This ensures that end users can install as outlined above, and `:igniter` will not be compiled into their production application.
+`optional: true` ensures that end users can install as outlined above, and `:igniter` will not be included in their production application.
 
-## Patterns
+### Patterns
 
 Mix tasks built with Igniter are both individually callable, _and_ composable. This means that tasks can call each other, and also end-users can create and customize their own generators composing existing tasks.
 
