@@ -4,6 +4,7 @@ defmodule Igniter.Code.CommonTest do
   use ExUnit.Case
   require Igniter.Code.Function
   import ExUnit.CaptureLog
+  doctest Igniter.Code.Common
 
   describe "move_to_last/2" do
     test "no matching nodes returns :error" do

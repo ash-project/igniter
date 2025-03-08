@@ -257,31 +257,18 @@ defmodule Igniter.Code.Common do
 
   ## Example:
 
-  ```elixir
-  existing_zipper = \"\"\"
-  IO.inspect("Hello, world!")
-  \"\"\"
-  |> Sourceror.parse_string!()
-  |> Sourceror.Zipper.zip()
-
-  new_code = \"\"\"
-  IO.inspect("Goodbye, world!")
-  \"\"\"
-
-  existing_zipper
-  |> Igniter.Common.add_code(new_code)
-  |> Sourceror.Zipper.root()
-  |> Sourceror.to_string()
-  ```
-
-  Which will produce
-
-  ```elixir
-  \"\"\"
-  IO.inspect("Hello, world!")
-  IO.inspect("Goodbye, world!")
-  \"\"\"
-  ```
+      iex> existing_zipper = Igniter.Code.Common.parse_to_zipper!("""
+      ...> IO.inspect("abc")
+      ...> """)
+      ...>
+      ...> existing_zipper
+      ...> |> Igniter.Code.Common.add_code("""
+      ...> IO.inspect("Goodbye, world!")
+      ...> """, after: true)
+      ...> |> Sourceror.Zipper.root()
+      ...> |> Sourceror.to_string()
+      "IO.inspect(\\"abc\\")
+      IO.inspect(\\"Goodbye, world!\\")"
   """
   @spec add_code(Zipper.t(), String.t() | Macro.t(), [opt]) :: Zipper.t()
         when opt: {:placement, :after | :before} | {:expand_env?, boolean()}
@@ -930,13 +917,8 @@ defmodule Igniter.Code.Common do
   def move_to_cursor_match_in_scope(zipper, pattern) do
     pattern =
       case pattern do
-        pattern when is_binary(pattern) ->
-          pattern
-          |> Sourceror.parse_string!()
-          |> Zipper.zip()
-
-        %Zipper{} = pattern ->
-          pattern
+        pattern when is_binary(pattern) -> parse_to_zipper!(pattern)
+        %Zipper{} = pattern -> pattern
       end
 
     case move_to_cursor(zipper, pattern) do
@@ -1270,6 +1252,12 @@ defmodule Igniter.Code.Common do
   rescue
     _ ->
       zipper
+  end
+
+  def parse_to_zipper!(string) do
+    string
+    |> Sourceror.parse_string!()
+    |> Zipper.zip()
   end
 
   if Code.ensure_loaded?(Macro.Env) && function_exported?(Macro.Env, :expand_alias, 3) do
