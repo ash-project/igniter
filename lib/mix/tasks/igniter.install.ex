@@ -1,3 +1,7 @@
+ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+Code.put_compiler_option(:ignore_module_conflict, true)
+
 defmodule Mix.Tasks.Igniter.Install do
   @moduledoc """
   Install a package or packages, and run any associated installers.
@@ -94,3 +98,5 @@ defmodule Mix.Tasks.Igniter.Install do
     end
   end
 end
+
+Code.put_compiler_option(:ignore_module_conflict, ignore_module_conflict)

@@ -196,6 +196,29 @@ defmodule Igniter.Test do
     end
   end
 
+  defmacro assert_has_task(igniter, task, argv) do
+    quote bind_quoted: [igniter: igniter, task: task, argv: argv] do
+      if {task, argv} not in igniter.tasks do
+        if Enum.empty?(igniter.tasks) do
+          flunk("""
+          Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks,
+          but no tasks were found on the igniter.
+          """)
+        else
+          flunk("""
+          Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks.
+
+          Found tasks: 
+
+          #{Enum.map_join(igniter.tasks, "\n", fn {task, argv} -> "- mix #{task} #{Enum.join(argv)}" end)}
+          """)
+        end
+      end
+
+      igniter
+    end
+  end
+
   defmacro assert_has_patch(igniter, path, patch) do
     quote bind_quoted: [igniter: igniter, path: path, patch: patch] do
       diff =
