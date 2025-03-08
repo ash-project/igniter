@@ -257,14 +257,14 @@ defmodule Igniter.Code.Common do
 
   ## Example:
 
-      iex> existing_zipper = Igniter.Code.Common.parse_to_zipper!("""
+      iex> existing_zipper = Igniter.Code.Common.parse_to_zipper!(\"""
       ...> IO.inspect("abc")
-      ...> """)
+      ...> \""")
       ...>
       ...> existing_zipper
-      ...> |> Igniter.Code.Common.add_code("""
+      ...> |> Igniter.Code.Common.add_code(\"""
       ...> IO.inspect("Goodbye, world!")
-      ...> """, after: true)
+      ...> \""", after: true)
       ...> |> Sourceror.Zipper.root()
       ...> |> Sourceror.to_string()
       "IO.inspect(\\"abc\\")
