@@ -11,20 +11,20 @@ Igniter is a code generation and project patching framework.
 
 ## For library authors and platform teams
 
-This is a tool kit for writing smarter generators that can semantically create and modify existing files.
+Igniter is a toolkit for writing smarter generators that can semantically create _and modify_ existing files.
 
 ## For end-users
 
 ### Installers
 
-You can install new dependencies `mix igniter.install`, which will _add it to your mix.exs automatically_ and then run
-that library's installer if it has one. Even when libraries don't have an installer, or use igniter, this behavior
+Igniter provides `mix igniter.install`, which will automatically _add the dependency to your mix.exs_ and then run
+that library's installer if it has one. Even when libraries don't have an installer, or use Igniter, this behavior
 makes it useful to keep around.
 
 ### Upgraders
 
-You can upgrade dependencies with `mix igniter.upgrade`, as a drop on replacement for `mix deps.update`. This
-will update your dependencies and run any upgrade patchers defined in the target package (if there are any).
+The `mix igniter.upgrade` mix task is a drop-in replacement for `mix deps.update` but it will additionally
+run any upgrade patchers defined in the target package (if there are any).
 
 See [upgrades guide](/documentation/upgrades.md) guide for more.
 
@@ -32,24 +32,26 @@ See [upgrades guide](/documentation/upgrades.md) guide for more.
 
 In addition to providing tools for library authors to patch your code, common operations are available to use as needed.
 
-- `mix igniter.refactor.rename_function` - Use this to rename a function in your application, along with all references to it.
+- `mix igniter.refactor.rename_function` - Rename a function in your application, along with all references to it. Optionally it can also mark the previous function as deprecated.
 
 ### Others
 
-- `mix igniter.update_gettext` - Use this to update gettext if your version is lower than 0.26.1 and you are seeing a compile warning
+- `mix igniter.update_gettext` - Use this to update [gettext](https://github.com/elixir-gettext/gettext) if your version of gettext is lower than 0.26.1 and you are seeing a compile warning
   about gettext backends.
 
 ## Installation
 
-### Standard Installation
+### Standard Installation for end-users
 
-Igniter can be added to an existing elixir project by adding it to your dependencies:
+Add Igniter to an existing elixir project by adding it to your dependencies in `mix.exs`:
 
 ```elixir
 {:igniter, "~> 0.5", only: [:dev, :test]}
 ```
 
-You can also generate new projects with igniter preinstalled, and run installers in the same command.
+Note: If you only want to use `mix igniter.install` to add dependencies to your project then you can install the archive instead of adding Igniter to your project.
+
+### Installing globally via an archive
 
 First, install the archive:
 
@@ -57,20 +59,29 @@ First, install the archive:
 mix archive.install hex igniter_new
 ```
 
-Then you can run `mix igniter.new`
+Then you can run `mix igniter.new` to generate a new elixir project
 
 ```
 mix igniter.new app_name --install ash
 ```
 
-Or if you want to use a different project creator, specify the mix task name with the `--with` flag. Any arguments will be passed through to that task, with the exception of `--install` and `--example`.
+## Creating a new mix project using Igniter
+
+If you want to create a new mix project that uses ash and ecto you can run a command like:
 
 ```
-mix igniter.new app_name --install ash --with phx.new --with-args="--no-ecto"
+mix igniter.new app_name --install ash,ecto
+```
+
+You can also combine an Igniter install command with existing project generators (e.g. `mix phx.new`) by specifying the mix task name with the `--with` flag. If you want to pass arguments to the existing project generator/task you can pass them with `--with-args`:
+
+```
+mix igniter.new app_name --install ash --with phx.new --with-args="--no-ecto --no-html"
 ```
 
 ### Library Authors
-For library authors, add igniter like so:
+
+For library authors, add Igniter to your `mix.exs` with `optional: true`:
 
 ```elixir
 {:igniter, "~> 0.5", optional: true}
@@ -80,7 +91,7 @@ This ensures that end users can install as outlined above, and `:igniter` will n
 
 ## Patterns
 
-Mix tasks built with igniter are both individually callable, _and_ composable. This means that tasks can call each other, and also end users can create and customize their own generators composing existing tasks.
+Mix tasks built with Igniter are both individually callable, _and_ composable. This means that tasks can call each other, and also end-users can create and customize their own generators composing existing tasks.
 
 ### Installers
 
@@ -90,7 +101,7 @@ To create your installer, use `mix igniter.gen.task <your_package>.install`
 
 ### Generators/Patchers
 
-These can be run like any other mix task, or composed together. For example, lets say that you wanted to have your own `Ash.Resource` generator, that starts with the default `mix ash.gen.resource` task, but then adds or modifies files:
+Generators created with Igniter can be run like any other mix task, or composed together. For example, lets say that you wanted to have your own `Ash.Resource` generator, that starts with the default `mix ash.gen.resource` task, but then adds or modifies additional files:
 
 To create your generator, use `mix igniter.gen.task <your_package>.task.name`
 
@@ -119,11 +130,11 @@ end
 ## Upgrading to 0.4.x
 
 You may notice an issue running `mix igniter.upgrade` if you are using `0.3.x` versions.
-you must manually upgrade igniter (by editing your `mix.exs` file or running `mix deps.update`)
+you must manually upgrade Igniter (by editing your `mix.exs` file or running `mix deps.update`)
 to a version greater than or equal to `0.3.78` before running `mix igniter.upgrade`. A problem
-was discovered with the process of igniter upgrading itself or one of its dependencies.
+was discovered with the process of Igniter upgrading itself or one of its dependencies.
 
-In any case where igniter must both download and compile a new version of itself, it will exit
+In any case where Igniter must both download and compile a new version of itself, it will exit
 and print instructions with a command you can run to complete the upgrade. For example:
 
 `mix igniter.apply_upgrades igniter:0.4.0:0.5.0 package:0.1.3:0.1.4`
