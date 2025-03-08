@@ -11,3 +11,6 @@ updates:
         dependency-type: production
       dev-dependencies:
         dependency-type: development
+    ignore:
+      - dependency-name: "git_ops"
+
