@@ -57,6 +57,7 @@ defmodule Mix.Tasks.Igniter.Install do
       positional
       |> Enum.join(",")
       |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
 
     if Enum.empty?(packages) do
       raise ArgumentError, "must provide at least one package to install"

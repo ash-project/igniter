@@ -257,6 +257,10 @@ defmodule Mix.Tasks.Igniter.New do
     acc
   end
 
+  defp with_args(["--with-args=" <> args | rest], acc) do
+    with_args(rest, acc ++ OptionParser.split(args))
+  end
+
   defp with_args(["--with-args", next | rest], acc) do
     with_args(rest, acc ++ OptionParser.split(next))
   end
