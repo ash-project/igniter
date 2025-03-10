@@ -135,9 +135,7 @@ defmodule Igniter.Libs.Phoenix do
 
   - `:router` - The router module to append to. Will be looked up if not provided.
   - `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
-  - `:placement` - `:before` | `:after`. Determines where the `contents` will be placed. Note that it first tries
-    to find a matching scope and place the contents into that scope, otherwise `:placement` is used to determine
-    where to place the contents:
+  - `:placement` - `:before` | `:after`. Determines where the `contents` will be placed:
     - `:before` - place before the first scope in the module if one is found, otherwise tries to place
        after the last pipeline or after the `use MyAppWeb, :router` call.
     - `:after` - place at the end (bottom) of the module, after all scopes and pipelines.
