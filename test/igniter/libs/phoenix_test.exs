@@ -145,7 +145,6 @@ defmodule Igniter.Libs.PhoenixTest do
     end
   end
 
-
   describe "append_to_scope/4" do
     setup do
       router = """
