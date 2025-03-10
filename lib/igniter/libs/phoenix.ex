@@ -133,8 +133,14 @@ defmodule Igniter.Libs.Phoenix do
 
   ## Options
 
-  * `:router` - The router module to append to. Will be looked up if not provided.
-  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  - `:router` - The router module to append to. Will be looked up if not provided.
+  - `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  - `:placement` - `:before` | `:after`. Determines where the `contents` will be placed. Note that it first tries
+    to find a matching scope and place the contents into that scope, otherwise `:placement` is used to determine
+    where to place the contents:
+    - `:before` - place before the first scope in the module if one is found, otherwise tries to place
+       after the last pipeline or after the `use MyAppWeb, :router` call.
+    - `:after` - place at the end (bottom) of the module, after all scopes and pipelines.
   """
   @spec add_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def add_scope(igniter, route, contents, opts \\ []) do
@@ -166,7 +172,7 @@ defmodule Igniter.Libs.Phoenix do
 
     if router do
       Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
-        case move_to_scope_location(igniter, zipper) do
+        case move_to_scope_location(igniter, zipper, placement: opts[:placement] || :before) do
           {:ok, zipper, append_or_prepend} ->
             {:ok, Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
 
@@ -199,8 +205,12 @@ defmodule Igniter.Libs.Phoenix do
   * `:router` - The router module to append to. Will be looked up if not provided.
   * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
   * `:with_pipelines` - A list of pipelines that the pipeline must be using to be considered a match.
-  # TODO: improve docs
-  * `:placement` - :before_first_scope | :bottom_of_module - defaults to :before_first_scope (current behavior)
+  - `:placement` - `:before` | `:after`. Determines where the `contents` will be placed. Note that it first tries
+    to find a matching scope and place the contents into that scope, otherwise `:placement` is used to determine
+    where to place the contents:
+    * `:before` - place before the first scope in the module if one is found, otherwise tries to place
+       after the last pipeline or after the `use MyAppWeb, :router` call.
+    * `:after` - place at the end (bottom) of the module, after all scopes and pipelines.
   """
   @spec append_to_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def append_to_scope(igniter, route, contents, opts \\ []) do
@@ -255,9 +265,7 @@ defmodule Igniter.Libs.Phoenix do
             {:ok, Igniter.Code.Common.add_code(zipper, contents)}
 
           :error ->
-            placement = Keyword.get(opts, :placement) || :before_first_scope
-
-            case move_to_scope_location(igniter, zipper, placement: placement) do
+            case move_to_scope_location(igniter, zipper, placement: opts[:placement] || :before) do
               {:ok, zipper, append_or_prepend} ->
                 {:ok,
                  Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
@@ -605,16 +613,9 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  # TODO: improve code... just a poc
-  defp move_to_scope_location(igniter, zipper, opts \\ []) do
-    case Keyword.get(opts, :placement) || :before_first_scope do
-      :before_first_scope -> move_to_before_first_scope(igniter, zipper)
-      :bottom_of_module -> move_to_bottom_of_module(igniter, zipper)
-    end
-  end
-
-  defp move_to_before_first_scope(igniter, zipper) do
-    with :error <-
+  defp move_to_scope_location(igniter, zipper, opts) do
+    with {:placement, :before} <- {:placement, opts[:placement]},
+         :error <-
            Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4]),
          {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} do
       case move_to_router_use(igniter, zipper) do
@@ -625,15 +626,12 @@ defmodule Igniter.Libs.Phoenix do
       {:ok, zipper} ->
         {:ok, zipper, :before}
 
+      {:placement, :after} ->
+        {:ok, zipper, :after}
+
       {:pipeline, {:ok, zipper}} ->
         {:ok, zipper, :after}
     end
-  end
-
-  defp move_to_bottom_of_module(_igniter, zipper) do
-    # we're already at the root so just place it after, ie: at the bottom
-    # otherwise fallback... (TODO)
-    {:ok, zipper, :after}
   end
 
   defp last_pipeline(zipper) do
