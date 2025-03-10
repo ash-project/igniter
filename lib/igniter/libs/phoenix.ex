@@ -199,6 +199,8 @@ defmodule Igniter.Libs.Phoenix do
   * `:router` - The router module to append to. Will be looked up if not provided.
   * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
   * `:with_pipelines` - A list of pipelines that the pipeline must be using to be considered a match.
+  # TODO: improve docs
+  * `:placement` - :before_first_scope | :bottom_of_module - defaults to :before_first_scope (current behavior)
   """
   @spec append_to_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def append_to_scope(igniter, route, contents, opts \\ []) do
@@ -253,7 +255,9 @@ defmodule Igniter.Libs.Phoenix do
             {:ok, Igniter.Code.Common.add_code(zipper, contents)}
 
           :error ->
-            case move_to_scope_location(igniter, zipper) do
+            placement = Keyword.get(opts, :placement) || :before_first_scope
+
+            case move_to_scope_location(igniter, zipper, placement: placement) do
               {:ok, zipper, append_or_prepend} ->
                 {:ok,
                  Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
@@ -601,7 +605,15 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  defp move_to_scope_location(igniter, zipper) do
+  # TODO: improve code... just a poc
+  defp move_to_scope_location(igniter, zipper, opts \\ []) do
+    case Keyword.get(opts, :placement) || :before_first_scope do
+      :before_first_scope -> move_to_before_first_scope(igniter, zipper)
+      :bottom_of_module -> move_to_bottom_of_module(igniter, zipper)
+    end
+  end
+
+  defp move_to_before_first_scope(igniter, zipper) do
     with :error <-
            Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4]),
          {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} do
@@ -616,6 +628,12 @@ defmodule Igniter.Libs.Phoenix do
       {:pipeline, {:ok, zipper}} ->
         {:ok, zipper, :after}
     end
+  end
+
+  defp move_to_bottom_of_module(_igniter, zipper) do
+    # we're already at the root so just place it after, ie: at the bottom
+    # otherwise fallback... (TODO)
+    {:ok, zipper, :after}
   end
 
   defp last_pipeline(zipper) do
