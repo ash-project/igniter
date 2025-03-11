@@ -15,8 +15,10 @@ jobs:
         include:
           - elixir-version: "1.16.0-otp-26"
             erlang-version: "26.0"
+            primary: false
           - elixir-version: "default"
             erlang-version: "default"
+            primary: true
     uses: ash-project/ash/.github/workflows/ash-ci.yml@main
     with:
       spark-formatter: false
@@ -25,5 +27,7 @@ jobs:
       elixir-version: ${{ matrix.elixir-version }}
       erlang-version: ${{ matrix.erlang-version }}
       igniter-upgrade: false
+      publish-docs: ${{ matrix.primary }}
+      release: ${{ matrix.primary }}
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
