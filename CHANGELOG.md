@@ -5,6 +5,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.33](https://github.com/ash-project/igniter/compare/v0.5.32...v0.5.33) (2025-03-11)
+
+
+
+
+### Bug Fixes:
+
+* add backwards compatibility function for relative_to_cwd
+
+* trim package install list to handle edge case
+
+* installer: handle `--with-args="string"` syntax
+
+### Improvements:
+
+* Add `:placement` option to `Phoenix.add_scope/4` and `Phoenix.append_to_scope/4` (#251)
+
+* add `mix igniter.remove dep1 dep2` task
+
+* add `assert_has_task` test helper
+
 ## [v0.5.32](https://github.com/ash-project/igniter/compare/v0.5.31...v0.5.32) (2025-03-08)
 
 
