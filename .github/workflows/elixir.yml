@@ -12,13 +12,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        elixir-version: ["1.15.0-otp-27", "default"]
+        include:
+          - elixir-version: "1.15.0"
+            erlang-version: "27.0.0"
+          - elixir-version: "default"
+            erlang-version: "default"
     uses: ash-project/ash/.github/workflows/ash-ci.yml@main
     with:
       spark-formatter: false
       spark-cheat-sheets: false
       sobelow: false
       elixir-version: ${{ matrix.elixir-version }}
+      erlang-version: ${{ matrix.erlang-version }}
       igniter-upgrade: false
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
