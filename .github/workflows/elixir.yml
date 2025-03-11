@@ -9,11 +9,16 @@ on:
   workflow_call:
 jobs:
   ash-ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        elixir-version: ["1.15.0-otp-27", "default"]
     uses: ash-project/ash/.github/workflows/ash-ci.yml@main
     with:
       spark-formatter: false
       spark-cheat-sheets: false
       sobelow: false
+      elixir-version: ${{ matrix.elixir-version }}
       igniter-upgrade: false
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
