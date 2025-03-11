@@ -291,7 +291,8 @@ defmodule Igniter.Project.Module do
     check_first =
       with true <- Code.ensure_loaded?(module_name),
            source when not is_nil(source) <- module_name.module_info()[:compile][:source],
-           path = Path.relative_to_cwd(List.to_string(source), force: true),
+           path =
+             Igniter.Util.BackwardsCompat.relative_to_cwd(List.to_string(source), force: true),
            false <- String.starts_with?(path, "..") do
         path
       else
@@ -392,7 +393,7 @@ defmodule Igniter.Project.Module do
 
     split_path =
       source.path
-      |> Path.relative_to_cwd(force: true)
+      |> Igniter.Util.BackwardsCompat.relative_to_cwd(force: true)
       |> Path.split()
 
     igniter

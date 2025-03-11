@@ -149,7 +149,7 @@ defmodule Mix.Tasks.Igniter.New do
 
     version_requirement =
       if options[:local] do
-        local = Path.join(["..", Path.relative_to_cwd(options[:local], force: true)])
+        local = Path.join(["..", options[:local]])
         "path: #{inspect(local)}, override: true"
       else
         inspect(@igniter_version)

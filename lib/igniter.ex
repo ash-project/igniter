@@ -29,10 +29,11 @@ defmodule Igniter do
           args: Igniter.Mix.Task.Args.t()
         }
 
-  @type zipper_updater :: (Zipper.t() ->
-                             {:ok, Zipper.t()}
-                             | {:error, String.t() | [String.t()]}
-                             | {:warning, String.t() | [String.t()]})
+  @type zipper_updater ::
+          (Zipper.t() ->
+             {:ok, Zipper.t()}
+             | {:error, String.t() | [String.t()]}
+             | {:warning, String.t() | [String.t()]})
 
   defimpl Inspect do
     import Inspect.Algebra
@@ -186,7 +187,9 @@ defmodule Igniter do
       case glob do
         %{__struct__: GlobEx} = glob ->
           if Path.type(glob.source) == :absolute do
-            GlobEx.compile!(Path.relative_to_cwd(glob.source, force: true))
+            GlobEx.compile!(
+              Igniter.Util.BackwardsCompat.relative_to_cwd(glob.source, force: true)
+            )
           else
             glob
           end
@@ -202,13 +205,13 @@ defmodule Igniter do
         expanded = Path.expand(key)
         glob.source == expanded || GlobEx.match?(glob, expanded)
       end)
-      |> Enum.map(&Path.relative_to_cwd(&1, force: true))
+      |> Enum.map(&Igniter.Util.BackwardsCompat.relative_to_cwd(&1, force: true))
       |> Enum.reject(fn path ->
         Rewrite.has_source?(igniter.rewrite, path)
       end)
       |> Enum.map(fn path ->
         source_handler = source_handler(path)
-        path = Path.relative_to_cwd(path, force: true)
+        path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
         read_source!(igniter, path, source_handler)
       end)
@@ -503,7 +506,7 @@ defmodule Igniter do
   """
   @spec update_file(t(), Path.t(), (Rewrite.Source.t() -> Rewrite.Source.t())) :: t()
   def update_file(igniter, path, updater, opts \\ []) do
-    path = Path.relative_to_cwd(path, force: true)
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
     source_handler = source_handler(path, opts)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
@@ -563,7 +566,7 @@ defmodule Igniter do
   @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
   @spec include_or_create_file(t(), Path.t(), contents :: String.t()) :: t()
   def include_or_create_file(igniter, path, contents \\ "") do
-    path = Path.relative_to_cwd(path, force: true)
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
@@ -588,7 +591,7 @@ defmodule Igniter do
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function of type `zipper_updater()` if it already exists."
   @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
   def create_or_update_elixir_file(igniter, path, contents, updater) do
-    path = Path.relative_to_cwd(path, force: true)
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
@@ -619,7 +622,7 @@ defmodule Igniter do
 
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function as in `update_file/3` (or with `zipper_updater()` for elixir files) if it already exists."
   def create_or_update_file(igniter, path, contents, updater) do
-    path = Path.relative_to_cwd(path, force: true)
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
@@ -707,7 +710,7 @@ defmodule Igniter do
   """
   @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_file(igniter, path, contents \\ "", opts \\ []) do
-    path = Path.relative_to_cwd(path, force: true)
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
     source_handler = source_handler(path, opts)
 
     {igniter, source} =
@@ -971,7 +974,7 @@ defmodule Igniter do
   def has_changes?(igniter, paths \\ nil) do
     paths =
       if paths do
-        Enum.map(paths, &Path.relative_to_cwd(&1, force: true))
+        Enum.map(paths, &Igniter.Util.BackwardsCompat.relative_to_cwd(&1, force: true))
       end
 
     igniter.rewrite
