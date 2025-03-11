@@ -13,8 +13,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir-version: "1.15.0-otp-25"
-            erlang-version: "25.0"
+          - elixir-version: "1.16.0-otp-26"
+            erlang-version: "26.0"
           - elixir-version: "default"
             erlang-version: "default"
     uses: ash-project/ash/.github/workflows/ash-ci.yml@main
