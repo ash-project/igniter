@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.35](https://github.com/ash-project/igniter/compare/v0.5.34...v0.5.35) (2025-03-12)
+
+
+
+
+### Bug Fixes:
+
+* don't use `Application.app_dir` as the app may not be running yet
+
 ## [v0.5.34](https://github.com/ash-project/igniter/compare/v0.5.33...v0.5.34) (2025-03-12)
 
 
