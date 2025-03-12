@@ -72,7 +72,7 @@ defmodule Igniter.Util.Info do
           },
           task_name,
           Keyword.delete(opts, :only),
-          acc ++ install_names
+          install_names ++ acc
         )
     end
   end
