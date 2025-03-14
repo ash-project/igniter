@@ -258,17 +258,17 @@ defmodule Igniter.Code.Common do
   ## Example:
 
       iex> existing_zipper = Igniter.Code.Common.parse_to_zipper!(\"""
-      ...> IO.inspect("abc")
+      ...> IO.puts("abc")
       ...> \""")
       ...>
       ...> existing_zipper
       ...> |> Igniter.Code.Common.add_code(\"""
-      ...> IO.inspect("Goodbye, world!")
+      ...> IO.puts("Goodbye, world!")
       ...> \""", after: true)
       ...> |> Sourceror.Zipper.root()
       ...> |> Sourceror.to_string()
-      "IO.inspect(\\"abc\\")
-      IO.inspect(\\"Goodbye, world!\\")"
+      "IO.puts(\\"abc\\")
+      IO.puts(\\"Goodbye, world!\\")"
   """
   @spec add_code(Zipper.t(), String.t() | Macro.t(), [opt]) :: Zipper.t()
         when opt: {:placement, :after | :before} | {:expand_env?, boolean()}

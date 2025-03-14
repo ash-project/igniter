@@ -1,6 +1,22 @@
 defmodule Igniter.Util.Info do
   @moduledoc false
 
+  # This is an *extremely* unfortunate hack.
+  # For dependencies that depend on other common dev dependencies (like `sourceror`)
+  # our installation process has an issue. Specifically, we first install the dep
+  # into all environments, and then set it to the right env.
+  # This causes our conflict resolution logic to set the dependents (like `sourceror`)
+  # to be for all envs, but then never set back to only specific envs.
+  # I don't have time to fix this right now, nor can I think of a good way to actually
+  # do it. So for now, this ridiculous hack will have to do :)
+  @known_only_options [
+    smokestack: [:test],
+    mishka_chelekom: [:dev],
+    mneme: [:dev, :test]
+  ]
+
+  @known_only_keys Keyword.keys(@known_only_options)
+
   require Logger
   alias Igniter.Mix.Task.Info
 
@@ -52,6 +68,21 @@ defmodule Igniter.Util.Info do
               ", "
             )
           end
+
+        installs =
+          Enum.map(installs, fn
+            {dep, val} when is_binary(val) and dep in @known_only_keys ->
+              {dep, val, only: @known_only_options[dep]}
+
+            {dep, opts} when is_list(opts) and dep in @known_only_keys ->
+              {dep, Keyword.put_new(opts, :only, @known_only_options[dep])}
+
+            {dep, val, opts} when dep in @known_only_keys ->
+              {dep, val, Keyword.put_new(opts, :only, @known_only_options[dep])}
+
+            other ->
+              other
+          end)
 
         igniter
         |> add_deps(
@@ -165,6 +196,13 @@ defmodule Igniter.Util.Info do
           igniter
         else
           Enum.reduce(options, igniter, fn {key, val}, igniter ->
+            val =
+              if key == :only do
+                List.wrap(val)
+              else
+                val
+              end
+
             Igniter.Project.Deps.set_dep_option(igniter, install, key, val)
           end)
         end
