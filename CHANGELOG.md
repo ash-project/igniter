@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.36](https://github.com/ash-project/igniter/compare/v0.5.35...v0.5.36) (2025-03-14)
+
+
+
+
+### Bug Fixes:
+
+* add in an ugly hack for handling common packages `only` option
+
 ## [v0.5.35](https://github.com/ash-project/igniter/compare/v0.5.34...v0.5.35) (2025-03-12)
 
 
