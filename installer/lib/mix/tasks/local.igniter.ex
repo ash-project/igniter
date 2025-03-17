@@ -13,6 +13,12 @@ defmodule Mix.Tasks.Local.Igniter do
 
   @impl true
   def run(args) do
+    ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+    Code.put_compiler_option(:ignore_module_conflict, true)
+
     Mix.Task.run("archive.install", ["hex", "igniter_new" | args])
+
+    Code.put_compiler_option(:ignore_module_conflict, ignore_module_conflict)
   end
 end
