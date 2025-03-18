@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.37](https://github.com/ash-project/igniter/compare/v0.5.36...v0.5.37) (2025-03-18)
+
+
+
+
+### Improvements:
+
+* avoid duplicate module warning on local.igniter
+
 ## [v0.5.36](https://github.com/ash-project/igniter/compare/v0.5.35...v0.5.36) (2025-03-14)
 
 
