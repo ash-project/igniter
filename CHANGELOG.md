@@ -348,7 +348,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ### Bug Fixes:
 
-* propertly iterate over tasks list
+* properly iterate over tasks list
 
 ## [v0.5.6](https://github.com/ash-project/igniter/compare/v0.5.5...v0.5.6) (2025-01-05)
 
@@ -1425,7 +1425,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 - use warnings instead of errors for better UX
 
-- move proejct related things to `Project` namespace
+- move project related things to `Project` namespace
 
 ## [v0.1.8](https://github.com/ash-project/igniter/compare/v0.1.7...v0.1.8) (2024-06-19)
 

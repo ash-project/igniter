@@ -284,7 +284,7 @@ defmodule Igniter.Mix.TaskTest do
   end
 
   describe "parse_argv/1" do
-    defmodule ExampleTaskWithOverridenParseArgv do
+    defmodule ExampleTaskWithOverriddenParseArgv do
       use Igniter.Mix.Task
 
       def parse_argv(_argv) do
@@ -299,8 +299,8 @@ defmodule Igniter.Mix.TaskTest do
       end
     end
 
-    test "can be overriden" do
-      ExampleTaskWithOverridenParseArgv.run([])
+    test "can be overridden" do
+      ExampleTaskWithOverriddenParseArgv.run([])
 
       assert_received {:args, %Igniter.Mix.Task.Args{argv: :overridden}}
     end

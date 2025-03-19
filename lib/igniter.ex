@@ -351,7 +351,7 @@ defmodule Igniter do
     end
   end
 
-  @doc "Adds a task to the tasks list. Tasks will be run after all changes have been commited"
+  @doc "Adds a task to the tasks list. Tasks will be run after all changes have been committed"
   def add_task(igniter, task, argv \\ []) when is_binary(task) do
     %{igniter | tasks: igniter.tasks ++ [{task, argv}]}
   end

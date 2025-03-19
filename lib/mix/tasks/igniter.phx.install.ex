@@ -111,7 +111,7 @@ defmodule Mix.Tasks.Igniter.Phx.Install do
 
     if !Code.ensure_loaded?(Phx.New.Generator) do
       Mix.raise("""
-      Phoenix installer is not available. Please install it before proceding:
+      Phoenix installer is not available. Please install it before proceeding:
 
         mix archive.install hex phx_new
 

@@ -28,7 +28,7 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
 
-    test "doesnt add a module if its already supervised" do
+    test "doesn't add a module if its already supervised" do
       test_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> apply_igniter!()
@@ -36,7 +36,7 @@ defmodule Igniter.Project.ApplicationTest do
       |> assert_unchanged()
     end
 
-    test "doesnt add a module if its already supervised as a tuple" do
+    test "doesn't add a module if its already supervised as a tuple" do
       test_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: 1})
       |> apply_igniter!()
@@ -44,7 +44,7 @@ defmodule Igniter.Project.ApplicationTest do
       |> assert_unchanged()
     end
 
-    test "doesnt add a module if its already supervised as an atom and we're adding a tuple" do
+    test "doesn't add a module if its already supervised as an atom and we're adding a tuple" do
       test_project()
       |> Igniter.Project.Application.add_new_child(Foo)
       |> apply_igniter!()
