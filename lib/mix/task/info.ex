@@ -53,7 +53,7 @@ defmodule Igniter.Mix.Task.Info do
   ## Options
 
   The schema is an option parser schema, and `OptionParser` is used to parse the options, with
-  a few noteable differences.
+  a few notable differences.
 
   - The defaults from the `defaults` option in your task info are applied.
   - The `:keep` type is automatically aggregated into a list.

@@ -23,7 +23,7 @@ defmodule Igniter.Project.IgniterConfigTest do
       """)
     end
 
-    test "doesnt add a duplicate pattern to the list" do
+    test "doesn't add a duplicate pattern to the list" do
       test_project()
       |> Igniter.Project.IgniterConfig.dont_move_file_pattern(~r"lib/mix")
       |> assert_unchanged(".igniter.exs")

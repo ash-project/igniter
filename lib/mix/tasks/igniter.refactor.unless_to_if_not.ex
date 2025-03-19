@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Igniter.Refactor.UnlessToIfNot do
 
   @example "mix igniter.refactor.unless_to_if_not"
 
-  @shortdoc "Rewrites occurences of `unless x` to `if !x` across the project."
+  @shortdoc "Rewrites occurrences of `unless x` to `if !x` across the project."
   @moduledoc """
   #{@shortdoc}
 
