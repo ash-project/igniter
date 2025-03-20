@@ -482,6 +482,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
           _ ->
             nil
         end
+        |> List.wrap()
 
       allowed_envs =
         if allowed_envs == [] do
