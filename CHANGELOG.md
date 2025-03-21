@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.38](https://github.com/ash-project/igniter/compare/v0.5.37...v0.5.38) (2025-03-21)
+
+
+
+
+### Bug Fixes:
+
+* handler erlang style modules in function detection
+
 ## [v0.5.37](https://github.com/ash-project/igniter/compare/v0.5.36...v0.5.37) (2025-03-18)
 
 
