@@ -14,6 +14,23 @@ defmodule Igniter.Code.FunctionTest do
       assert Igniter.Util.Debug.code_at_node(zipper) == "x = 5"
     end
 
+    test "works on erlang modules calls" do
+      assert {:ok, zipper} =
+               """
+               hello
+               :logger.add_handler(1, 2, 3)
+               world
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 {:logger, :add_handler},
+                 3
+               )
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == ":logger.add_handler(1, 2, 3)"
+    end
+
     test "works when composed inside of a block" do
       assert {:ok, zipper} =
                """
