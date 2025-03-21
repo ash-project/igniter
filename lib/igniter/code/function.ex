@@ -81,7 +81,7 @@ defmodule Igniter.Code.Function do
   @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current scope"
   @spec move_to_function_call_in_current_scope(
           Zipper.t(),
-          atom,
+          atom | {atom, atom},
           non_neg_integer() | list(non_neg_integer()) | :any
         ) ::
           {:ok, Zipper.t()} | :error
@@ -212,6 +212,54 @@ defmodule Igniter.Code.Function do
          ]}
         when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
           Common.nodes_equal?(Zipper.replace(zipper, alias), module)
+
+        {{:., _, [^module, ^name]}, _, args}
+        when arity == :any or length(args) == arity ->
+          true
+
+        {{:., _, [^module, {^name, _, context}]}, _, args}
+        when is_atom(context) and (arity == :any or length(args) == arity) ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [^module, ^name]}, _, args}
+         ]}
+        when arity == :any or length(args) == arity - 1 ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [^module, {^name, _, context}]}, _, args}
+         ]}
+        when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+          true
+
+        {{:., _, [{:__block__, _, [^module]}, ^name]}, _, args}
+        when arity == :any or length(args) == arity ->
+          true
+
+        {{:., _, [{:__block__, _, [^module]}, {^name, _, context}]}, _, args}
+        when is_atom(context) and (arity == :any or length(args) == arity) ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [{:__block__, _, [^module]}, ^name]}, _, args}
+         ]}
+        when arity == :any or length(args) == arity - 1 ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [{:__block__, _, [^module]}, {^name, _, context}]}, _, args}
+         ]}
+        when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+          true
 
         {^name, _, args} when is_list(args) and (arity == :any or length(args) == arity) ->
           imported?(zipper, module, name, length(args))
