@@ -104,7 +104,7 @@ defmodule Igniter.MixProject do
       {:rewrite, "~> 1.1 and >= 1.1.1"},
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
-      {:sourceror, path: "../../oss/sourceror", override: true},
+      {:sourceror, "~> 1.4"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
       {:phx_new, "~> 1.7", optional: true},
