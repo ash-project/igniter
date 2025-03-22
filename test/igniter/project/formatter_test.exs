@@ -40,7 +40,8 @@ defmodule Igniter.Project.FormatterTest do
         |  end
       + |
       + |  test "2" do
-      + |    expect Foo.subtract(x, y), do: x - y
+      + |    expect Foo.subtract(x, y), 
+      + |      do: x - y
       + |  end
         |end
       """)

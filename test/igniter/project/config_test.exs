@@ -673,4 +673,51 @@ defmodule Igniter.Project.ConfigTest do
       assert String.contains?(config, "config :fake, foo: [bar: true]")
     end
   end
+
+  describe "configure_group" do
+    test "adds configuration with a comment above it" do
+      test_project()
+      |> Igniter.Project.Config.configure_group(
+        "config.exs",
+        :foo,
+        [:bar],
+        [
+          {:baz, :buz}
+        ],
+        comment: """
+          Configures the foobar to
+          accomplish the barbaz
+        """
+      )
+      |> assert_creates("config/config.exs", """
+      import Config
+      #  Configures the foobar to
+      #  accomplish the barbaz
+      config :foo, bar: [baz: :buz]
+      import_config "\#{config_env()}.exs"
+      """)
+    end
+
+    test "alters configuration without adding a comment if the group is already configured" do
+      test_project()
+      |> Igniter.Project.Config.configure("config.exs", :foo, [:bar], [])
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure_group(
+        "config.exs",
+        :foo,
+        [:bar],
+        [
+          {:baz, :buz}
+        ],
+        comment: """
+          Configures the foobar to
+          accomplish the barbaz
+        """
+      )
+      |> assert_has_patch("config/config.exs", """
+       - |config :foo, bar: []
+       + |config :foo, bar: [baz: :buz]
+      """)
+    end
+  end
 end

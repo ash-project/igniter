@@ -38,7 +38,11 @@ defmodule Igniter.Project.TestTest do
       assert String.contains?(
                contents,
                """
-               defp elixirc_paths(:test), do: elixirc_paths(:dev) ++ [\"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]
+                 defp elixirc_paths(:test),
+                   do: elixirc_paths(:dev) ++ ["test/support"]
+
+                 defp elixirc_paths(_),
+                   do: ["lib"]
                """
                |> String.trim()
              )

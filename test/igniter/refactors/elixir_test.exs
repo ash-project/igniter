@@ -42,7 +42,11 @@ defmodule Igniter.Refactors.ElixirTest do
     assert_format(bad, good)
 
     bad = "unless x |> foo(), do: y"
-    good = "if !(x |> foo()), do: y"
+
+    good = """
+    if !(x |> foo()),
+      do: y
+    """
 
     assert_format(bad, good)
   end
@@ -61,7 +65,14 @@ defmodule Igniter.Refactors.ElixirTest do
 
   test "rewrites boolean or is_* conditions with not" do
     assert_format("unless x > 0, do: 1", "if not (x > 0), do: 1")
-    assert_format("unless is_atom(x), do: 1", "if not is_atom(x), do: 1")
+
+    assert_format(
+      "unless is_atom(x), do: 1",
+      """
+      if not is_atom(x),
+        do: 1
+      """
+    )
   end
 
   test "removes ! or not in condition" do

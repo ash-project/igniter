@@ -247,6 +247,51 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  def add_comment(zipper, comment, opts \\ []) do
+    zipper = maybe_move_to_single_child_block(zipper)
+
+    comments =
+      comment
+      |> String.trim_leading("\n")
+      |> String.trim_trailing("\n")
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn
+        "" ->
+          "#"
+
+        string ->
+          if String.starts_with?(String.trim_leading(string), "#") do
+            string
+          else
+            if String.starts_with?(string, " ") do
+              "#" <> string
+            else
+              "# " <> string
+            end
+          end
+      end)
+      |> Enum.map(fn comment ->
+        %{
+          line: 0,
+          text: comment,
+          column: 0,
+          next_eol_count: 1,
+          previous_eol_count: 1
+        }
+      end)
+
+    node =
+      case opts[:placement] || :before do
+        :before ->
+          Sourceror.prepend_comments(zipper.node, comments)
+
+        :after ->
+          Sourceror.append_comments(zipper.node, comments)
+      end
+
+    Zipper.replace(zipper, node)
+  end
+
   @doc """
   Adds the provided code to the zipper.
 
@@ -304,6 +349,8 @@ defmodule Igniter.Code.Common do
     expand_env? = Keyword.get(opts, :expand_env?, true)
     placement = Keyword.get(opts, :placement, :after)
 
+    new_code = clean_lines(new_code)
+
     new_code =
       if expand_env? do
         use_aliases(new_code, zipper)
@@ -323,12 +370,12 @@ defmodule Igniter.Code.Common do
         {:__block__, upwards_meta, upwards_code} = upwards.node
         index = Enum.count(zipper.path.left || [])
 
-        {to_insert, new_meta} =
-          if extendable_block?(new_code) do
-            {:__block__, new_meta, new_code} = new_code
-            {new_code, new_meta}
+        to_insert =
+          if extendable_block?(new_code) and !has_comments?(new_code) do
+            {:__block__, _new_meta, new_code} = new_code
+            new_code
           else
-            {[new_code], []}
+            [new_code]
           end
 
         {head, tail} =
@@ -340,8 +387,7 @@ defmodule Igniter.Code.Common do
 
         Zipper.replace(
           upwards,
-          {:__block__, combine_comments(upwards_meta, new_meta, placement),
-           head ++ to_insert ++ tail}
+          {:__block__, upwards_meta, head ++ to_insert ++ tail}
         )
 
       super_upwards && extendable_block?(super_upwards.node) ->
@@ -349,7 +395,7 @@ defmodule Igniter.Code.Common do
         index = Enum.count(zipper.supertree.path.left || [])
 
         {to_insert, new_meta} =
-          if extendable_block?(new_code) do
+          if extendable_block?(new_code) and !has_comments?(new_code) do
             {:__block__, new_meta, new_code} = new_code
             {new_code, new_meta}
           else
@@ -427,7 +473,7 @@ defmodule Igniter.Code.Common do
             Zipper.replace(zipper, {:__block__, meta, new_stuff})
           else
             {code, meta} =
-              if extendable_block?(new_code) do
+              if extendable_block?(new_code) and !has_comments?(new_code) do
                 {:__block__, meta, new_stuff} = new_code
 
                 if placement == :after do
@@ -448,6 +494,22 @@ defmodule Igniter.Code.Common do
         end
     end
   end
+
+  defp clean_lines(ast) do
+    Macro.prewalk(ast, fn
+      {call, meta, args} ->
+        {call, Keyword.put(meta, :line, 0), args}
+
+      other ->
+        other
+    end)
+  end
+
+  defp has_comments?({_, meta, _}) do
+    List.wrap(meta[:leading_comments]) != [] || List.wrap(meta[:trailing_comments]) != []
+  end
+
+  defp has_comments?(_), do: false
 
   @doc """
   Updates all nodes matching the given predicate with the given function.
@@ -566,7 +628,10 @@ defmodule Igniter.Code.Common do
   end
 
   def replace_code(%Zipper{} = zipper, new_code) do
-    new_code = use_aliases(new_code, zipper)
+    new_code =
+      new_code
+      |> clean_lines()
+      |> use_aliases(zipper)
 
     if extendable_block?(new_code) and in_extendable_block?(zipper) do
       at_supertree_root? = Zipper.up(zipper) == nil and !!zipper.supertree
@@ -629,7 +694,6 @@ defmodule Igniter.Code.Common do
         new_meta[:trailing_comments] || [],
         &((new_meta[:trailing_comments] || []) ++ &1)
       )
-      |> ensure_unique_comments()
     else
       meta
       |> Keyword.update(
@@ -642,14 +706,7 @@ defmodule Igniter.Code.Common do
         new_meta[:trailing_comments] || [],
         &(&1 ++ (new_meta[:trailing_comments] || []))
       )
-      |> ensure_unique_comments()
     end
-  end
-
-  defp ensure_unique_comments(meta) do
-    meta
-    |> Keyword.update!(:leading_comments, &Enum.uniq/1)
-    |> Keyword.update!(:trailing_comments, &Enum.uniq/1)
   end
 
   defp multi_element_pipe?(%{node: {:|>, _, _}} = zipper) do

@@ -19,7 +19,7 @@ defmodule Igniter.Util.Debug do
     :error
   end
 
-  def puts_code_at_node(zipper) do
+  def puts_code_at_node(%Zipper{} = zipper) do
     zipper
     |> Zipper.node()
     |> Sourceror.to_string()
@@ -27,6 +27,15 @@ defmodule Igniter.Util.Debug do
     |> IO.puts()
 
     zipper
+  end
+
+  def puts_code_at_node(node) do
+    node
+    |> Sourceror.to_string()
+    |> then(&"==code==\n#{&1}\n==!code==\n")
+    |> IO.puts()
+
+    node
   end
 
   @doc "Returns the formatted code at the node of the zipper to the console"
@@ -37,7 +46,7 @@ defmodule Igniter.Util.Debug do
   end
 
   @doc "Puts the ast at the node of the zipper to the console"
-  def puts_ast_at_node(zipper) do
+  def puts_ast_at_node(%Zipper{} = zipper) do
     zipper
     |> Zipper.node()
     |> then(&"==ast==\n#{inspect(&1, pretty: true)}\n==!ast==\n")

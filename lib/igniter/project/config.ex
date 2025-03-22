@@ -8,6 +8,9 @@ defmodule Igniter.Project.Config do
   @type updater :: (Sourceror.Zipper.t() -> {:ok, Sourceror.Zipper.t()}) | :error | nil
   @type after_predicate :: (Sourceror.Zipper.t() -> boolean())
 
+  @type config_group_item ::
+          {list(term) | term(), term()} | {list(term) | term(), term(), Keyword.t()}
+
   @doc """
   Sets a config value in the given configuration file, if it is not already set.
 
@@ -29,6 +32,93 @@ defmodule Igniter.Project.Config do
       value,
       Keyword.put(opts, :updater, &{:ok, &1})
     )
+  end
+
+  @doc """
+  Configures a "group" of configurations, which is multiple configurations set at one time.
+  If the app + the shared prefix is already configured, then each configuration is added individually,
+  and the `comment` for the group is ignored. The sub configurations use `configure`, so if you want to
+  not change the value if its already set, use `updater: &{:ok, &1}` in the item opts.
+
+  ## Options
+
+  - `comment` - A comment string to add above the group when its added.
+  """
+  @spec configure_group(
+          Igniter.t(),
+          Path.t(),
+          atom(),
+          shared_prefix :: list(atom),
+          list(config_group_item()),
+          opts :: Keyword.t()
+        ) :: Igniter.t()
+  def configure_group(igniter, file_path, app_name, shared_prefix, items, opts \\ []) do
+    if Enum.empty?(items) do
+      raise ArgumentError, "Must provide at least one item in configure_group/6"
+    end
+
+    items =
+      Enum.map(items, fn
+        {sub_path, value} ->
+          {List.wrap(sub_path), value, opts}
+
+        {sub_path, value, opts} ->
+          {List.wrap(sub_path), value, opts}
+      end)
+
+    if configures_key?(igniter, file_path, app_name, shared_prefix) do
+      Enum.reduce(items, igniter, fn {path, value, opts}, igniter ->
+        configure(igniter, file_path, app_name, shared_prefix ++ path, value, opts)
+      end)
+    else
+      zipper =
+        {:__block__, [], []}
+        |> Zipper.zip()
+
+      code_with_configuration_added =
+        Enum.reduce(items, zipper, fn {path, value, opts}, zipper ->
+          modify_configuration_code(zipper, shared_prefix ++ path, app_name, value, opts)
+        end)
+        |> Zipper.topmost()
+        |> then(fn zipper ->
+          if opts[:comment] do
+            Igniter.Code.Common.add_comment(zipper, opts[:comment])
+          else
+            zipper
+          end
+        end)
+        |> Zipper.topmost_root()
+
+      config_file_path = config_file_path(igniter, file_path)
+
+      igniter
+      |> ensure_default_configs_exist()
+      |> Igniter.update_elixir_file(config_file_path, fn zipper ->
+        case Zipper.find(zipper, fn
+               {:import, _, [Config]} ->
+                 true
+
+               {:import, _, [{:__aliases__, _, [:Config]}]} ->
+                 true
+
+               _ ->
+                 false
+             end) do
+          nil ->
+            {:warning,
+             bad_config_message(
+               app_name,
+               file_path,
+               shared_prefix,
+               Sourceror.to_string(zipper),
+               opts
+             )}
+
+          zipper ->
+            Igniter.Code.Common.add_code(zipper, code_with_configuration_added)
+        end
+      end)
+    end
   end
 
   @spec configure_runtime_env(
