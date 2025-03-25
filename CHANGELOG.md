@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.39](https://github.com/ash-project/igniter/compare/v0.5.38...v0.5.39) (2025-03-25)
+
+
+
+
+### Bug Fixes:
+
+* handler erlang style modules in function detection
+
+* igniter.upgrade crash on dependency declaration when only option is an atom (#257)
+
+### Improvements:
+
+* add `Igniter.Code.Common.add_comment/2`
+
+* add `Igniter.Project.Config.configure_group/6`
+
 ## [v0.5.38](https://github.com/ash-project/igniter/compare/v0.5.37...v0.5.38) (2025-03-21)
 
 
