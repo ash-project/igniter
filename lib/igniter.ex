@@ -510,16 +510,48 @@ defmodule Igniter do
     source_handler = source_handler(path, opts)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
-      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
+      source = Rewrite.source!(igniter.rewrite, path)
+
+      {igniter, source} =
+        case updater.(source) do
+          {:error, error} ->
+            {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
+
+          {:warn, warning} ->
+            {Igniter.add_warning(igniter, warning), source}
+
+          {:notice, notice} ->
+            {Igniter.add_notice(igniter, notice), source}
+
+          source ->
+            {igniter, source}
+        end
+
+      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, source)}
     else
       if exists?(igniter, path) do
         source = read_source!(igniter, path, source_handler)
+
+        {igniter, source} =
+          case updater.(source) do
+            {:error, error} ->
+              {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
+
+            {:warn, warning} ->
+              {Igniter.add_warning(igniter, warning), source}
+
+            {:notice, notice} ->
+              {Igniter.add_notice(igniter, notice), source}
+
+            source ->
+              {igniter, source}
+          end
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> maybe_format(path, true, Keyword.put(opts, :source_handler, source_handler))
         |> Map.update!(:rewrite, fn rewrite ->
           source = Rewrite.source!(rewrite, path)
-          Rewrite.update!(rewrite, path, updater.(source))
+          Rewrite.update!(rewrite, source)
         end)
       else
         add_issue(igniter, "Required #{path} but it did not exist")
