@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.40](https://github.com/ash-project/igniter/compare/v0.5.39...v0.5.40) (2025-03-26)
+
+
+
+
+### Bug Fixes:
+
+* only display changing sources in `puts_diff` in test
+
+### Improvements:
+
+* more testing helpers
+
+* support error/warning/notice returns on updating files
+
 ## [v0.5.39](https://github.com/ash-project/igniter/compare/v0.5.38...v0.5.39) (2025-03-25)
 
 
