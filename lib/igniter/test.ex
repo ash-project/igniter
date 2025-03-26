@@ -119,7 +119,7 @@ defmodule Igniter.Test do
     |> Map.values()
     |> Enum.sort_by(& &1.path)
     |> Enum.filter(fn source ->
-      !only || source.path in List.wrap(only)
+      (!only || source.path in List.wrap(only)) && Igniter.changed?(source)
     end)
     |> Igniter.diff(color?: color?)
   end
