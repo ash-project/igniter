@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Igniter.AddTest do
     |> apply_igniter!()
     |> Igniter.compose_task("igniter.add", ["req"])
     |> assert_has_patch("mix.exs", """
-     + |  {:req, ">= 0.0.0"}
+     + |  {:req,
     """)
     |> assert_has_task("deps.get", [])
   end

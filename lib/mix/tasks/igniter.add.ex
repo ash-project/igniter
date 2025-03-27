@@ -30,9 +30,14 @@ defmodule Mix.Tasks.Igniter.Add do
     igniter.args.positional.deps
     |> Enum.join(",")
     |> String.split(",")
-    |> Enum.map(&String.to_atom/1)
-    |> Enum.reduce(igniter, fn name, igniter ->
-      Igniter.Project.Deps.add_dep(igniter, {name, ">= 0.0.0"})
+    |> Enum.reduce(igniter, fn dep, igniter ->
+      case Igniter.Project.Deps.determine_dep_type_and_version(dep) do
+        {name, version} ->
+          Igniter.Project.Deps.add_dep(igniter, {name, version})
+
+        :error ->
+          raise "Could not determine source for requested package #{dep}"
+      end
     end)
     |> Igniter.add_task("deps.get")
   end
