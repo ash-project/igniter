@@ -155,7 +155,19 @@ defmodule Mix.Tasks.Igniter.New do
         inspect(@igniter_version)
       end
 
-    File.cd!(name)
+    if "--umbrella" in with_args or "--umbrella" in argv do
+      Mix.shell().exit("""
+      igniter.new is not currently compatible with umbrella applications
+
+      Additionally, many package installers do not support umbrella applications.
+
+      If you are sure that you want to use umbrella applications (there are plenty 
+      of good reasons), please generate the application using `mix #{install_with}`,
+      and then run installers from individual applicatoins.
+      """)
+
+      exit({:shutdown, 1})
+    end
 
     contents =
       "mix.exs"
