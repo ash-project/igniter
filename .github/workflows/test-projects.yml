@@ -52,6 +52,7 @@ jobs:
         run: mix compile --force --warnings-as-errors
         working-directory: ./${{matrix.project.name}}
       - run: mix archive.install hex igniter_new --force
+      - run: mix archive.install hex phx_new --force
       - run: mix igniter.new my_phoenix_app --with ${{matrix.project.with}}
       - run: mix igniter.add igniter@path:../igniter --yes
         working-directory: my_phoenix_app
