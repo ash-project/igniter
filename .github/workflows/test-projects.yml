@@ -1,30 +1,30 @@
-name: Test Subprojects
+name: Test Projects
 on:
   push:
     tags:
       - "v*"
     branches: [main, "3.0"]
 jobs:
-  test-subprojects:
+  test-projects:
     runs-on: ubuntu-latest
     name: Subproject ${{matrix.project.org}}/${{matrix.project.name}} - OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     strategy:
       fail-fast: false
       matrix:
         project: [
-            { org: "ash-project", name: "ash", without_phoenix?: true, phoenix?: true, install: "ash ash_postgres ash_money ash_graphql ash_json_api ash_authentication ash_authentication_phoenix ash_oban ash_paper_trail ash_admin ash_double_entry ash_state_machine ash_appsignal", flags: "--auth-strategy password,magic_link"},
-            { org: "oban-bg", name: "oban", phoenix?: true, install: "oban"},
-            { org: "BeaconCMS", name: "beacon", phoenix?: true, install: "beacon beacon_live_admin", flags: "--beacon.site cms"}
+            # { org: "ash-project", name: "ash", without_phoenix: true, phoenix: true, install: "ash ash_postgres ash_money ash_graphql ash_json_api ash_authentication ash_authentication_phoenix ash_oban ash_paper_trail ash_admin ash_double_entry ash_state_machine ash_appsignal", flags: "--auth-strategy password,magic_link"},
+            { org: "oban-bg", name: "oban", phoenix: true, install: "oban"},
+            # { org: "BeaconCMS", name: "beacon", phoenix: true, install: "beacon beacon_live_admin", flags: "--beacon.site cms"}
           ]
         otp: ["27.2"]
         elixir: ["1.18.1"]
     steps:
-      - run: sudo apt-get install --yes erlang-dev
       - uses: actions/checkout@v2
         with:
           repository: ${{matrix.project.org}}/${{matrix.project.name}}
           path: ${{matrix.project.name}}
           ref: ${{matrix.project.ref}}
+      - run: sudo apt-get install --yes libssl-dev
       - uses: actions/checkout@v2
         with:
           repository: ash-project/igniter
@@ -52,35 +52,34 @@ jobs:
         run: mix compile --force --warnings-as-errors
         working-directory: ./${{matrix.project.name}}
       - name: mix archive.install hex igniter_new
-      - run: mix archive.install hex igniter_new
+        run: mix archive.install hex igniter_new
       - name: mix igniter.new --with phx.new
         run: mix igniter.new my_phoenix_app --with phx.new
-        if: ${{matrix.project.with_phoenix?}}
+        if: ${{matrix.project.with_phoenix}}
       - name: phx.new | use igniter main
         run: mix igniter.add igniter@path:../igniter --yes
-        if: ${{matrix.project.with_phoenix?}}
+        if: ${{matrix.project.with_phoenix}}
         working-directory: my_phoenix_app
       - name: phx.new | mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
         run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
-        if: ${{matrix.project.with_phoenix?}}
+        if: ${{matrix.project.with_phoenix}}
         working-directory: my_phoenix_app
       - name: phx.new | mix compile --warnings-as-errors 
         run: mix compile --warnings-as-errors
-        if: ${{matrix.project.with_phoenix?}}
+        if: ${{matrix.project.with_phoenix}}
         working-directory: my_phoenix_app
-
       - name: mix igniter.new 
         run: mix igniter.new my_app
-        if: ${{matrix.project.without_phoenix?}}
+        if: ${{matrix.project.without_phoenix}}
       - name: new | use igniter main
         run: mix igniter.add igniter@path:../igniter --yes
-        if: ${{matrix.project.without_phoenix?}}
+        if: ${{matrix.project.without_phoenix}}
         working-directory: my_app
       - name: new | mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
         run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
-        if: ${{matrix.project.without_phoenix?}}
+        if: ${{matrix.project.without_phoenix}}
         working-directory: my_app
       - name: phx.new | mix compile --warnings-as-errors 
         run: mix compile --warnings-as-errors
-        if: ${{matrix.project.without_phoenix?}}
+        if: ${{matrix.project.without_phoenix}}
         working-directory: my_app
