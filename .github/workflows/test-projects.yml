@@ -54,7 +54,7 @@ jobs:
       - run: mix deps.update igniter
         working-directory: ./${{matrix.project.name}}
       - run: mix igniter.add igniter@path:../igniter --yes
-        working-directory: my_app
+        working-directory: ./${{matrix.project.name}}
       - run: ${{matrix.project.test-cmd}}
         if: ${{matrix.project.test-cmd}}
         working-directory: ./${{matrix.project.name}}
