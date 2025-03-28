@@ -45,6 +45,15 @@ jobs:
           ]
         otp: ["27.2"]
         elixir: ["1.18.1"]
+    services:
+      pg:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
     steps:
       - uses: actions/checkout@v2
         with:
