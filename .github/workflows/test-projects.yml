@@ -14,7 +14,7 @@ jobs:
         project: [
             { org: "ash-project", name: "ash", without_phoenix?: true, phoenix?: true, install: "ash ash_postgres ash_money ash_graphql ash_json_api ash_authentication ash_authentication_phoenix ash_oban ash_paper_trail ash_admin ash_double_entry ash_state_machine ash_appsignal", flags: "--auth-strategy password,magic_link"},
             { org: "oban-bg", name: "oban", phoenix?: true, install: "oban"},
-            { org: "BeaconCMS", name: "beacon", phoenix?: true, install: "beacon beacon_live_admin", "flags", "--beacon.site cms"}
+            { org: "BeaconCMS", name: "beacon", phoenix?: true, install: "beacon beacon_live_admin", flags: "--beacon.site cms"}
           ]
         otp: ["27.2"]
         elixir: ["1.18.1"]
