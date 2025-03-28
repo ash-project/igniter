@@ -20,7 +20,8 @@ jobs:
             { 
               org: "team-alembic", 
               name: "ash_authentication", 
-              test-cmd: "mix test --only igniter"
+              test-cmd: "mix test --only igniter",
+              postgres: true
             },
             { 
               org: "team-alembic", 
@@ -30,12 +31,14 @@ jobs:
             { 
               org: "BeaconCMS", 
               name: "beacon", 
-              test-cmd: "mix test --only igniter"
+              test-cmd: "mix test --only igniter",
+              postgres: true
             },
             { 
               org: "BeaconCMS", 
               name: "beacon_live_admin", 
-              test-cmd: "mix test --only igniter"
+              test-cmd: "mix test --only igniter",
+              postgres: true
             },
             { 
               org: "oban-bg", 
@@ -47,6 +50,7 @@ jobs:
         elixir: ["1.18.1"]
     services:
       pg:
+        if: ${{matrix.project.postgres}}
         image: postgres:16
         env:
           POSTGRES_USER: postgres
