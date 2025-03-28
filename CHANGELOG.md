@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.41](https://github.com/ash-project/igniter/compare/v0.5.40...v0.6.0) (2025-03-28)
+
+
+
+
+### Features:
+
+* add igniter.add task (#258)
+
+### Improvements:
+
+* show warning about generating new umbrella projects
+
 ## [v0.5.40](https://github.com/ash-project/igniter/compare/v0.5.39...v0.5.40) (2025-03-26)
 
 
