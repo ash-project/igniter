@@ -55,7 +55,7 @@ jobs:
       - run: mix archive.install hex phx_new --force
       - run: mix igniter.new my_app --with ${{matrix.project.with}}
       - run: mix deps.update igniter
-      - working-directory: my_app
+        working-directory: my_app
       - run: mix igniter.add igniter@path:../igniter --yes
         working-directory: my_app
       - run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
