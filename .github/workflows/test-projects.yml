@@ -16,6 +16,21 @@ jobs:
               org: "ash-project", 
               name: "ash", 
               test-cmd: "mix test --only igniter"
+            },
+            { 
+              org: "BeaconCMS", 
+              name: "beacon", 
+              test-cmd: "mix test --only igniter"
+            },
+            { 
+              org: "BeaconCMS", 
+              name: "beacon_live_admin", 
+              test-cmd: "mix test --only igniter"
+            },
+            { 
+              org: "oban-bg", 
+              name: "oban", 
+              test-cmd: "mix test --only igniter"
             }
           ]
         otp: ["27.2"]
