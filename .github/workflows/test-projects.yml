@@ -50,8 +50,7 @@ jobs:
         elixir: ["1.18.1"]
     services:
       pg:
-        if: ${{matrix.project.postgres}}
-        image: postgres:16
+        image: ${{ (matrix.project.postgres) && 'postgres:16' || '' }}
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
