@@ -21,7 +21,13 @@ defmodule Mix.Tasks.Igniter.Add do
   @impl Igniter.Mix.Task
   def info(_argv, _composing_task) do
     %Igniter.Mix.Task.Info{
-      positional: [deps: [rest: true]]
+      positional: [deps: [rest: true]],
+      schema: [
+        yes: :boolean
+      ],
+      defaults: [
+        yes: false
+      ]
     }
   end
 
@@ -33,7 +39,7 @@ defmodule Mix.Tasks.Igniter.Add do
     |> Enum.reduce(igniter, fn dep, igniter ->
       case Igniter.Project.Deps.determine_dep_type_and_version(dep) do
         {name, version} ->
-          Igniter.Project.Deps.add_dep(igniter, {name, version})
+          Igniter.Project.Deps.add_dep(igniter, {name, version}, yes?: igniter.args.options[:yes])
 
         :error ->
           raise "Could not determine source for requested package #{dep}"
