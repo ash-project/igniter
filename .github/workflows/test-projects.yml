@@ -15,7 +15,7 @@ jobs:
             { 
               org: "ash-project", 
               name: "ash", 
-              test-cmd: "test --only igniter"
+              test-cmd: "mix test --only igniter"
             }
           ]
         otp: ["27.2"]
