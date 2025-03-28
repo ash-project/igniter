@@ -51,8 +51,7 @@ jobs:
       - name: mix compile --force --warnings-as-errors inside ./${{matrix.project.name}}
         run: mix compile --force --warnings-as-errors
         working-directory: ./${{matrix.project.name}}
-      - name: mix archive.install hex igniter_new
-        run: mix archive.install hex igniter_new
+      - run: mix archive.install hex igniter_new --force
       - name: mix igniter.new --with phx.new
         run: mix igniter.new my_phoenix_app --with phx.new
         if: ${{matrix.project.with_phoenix}}
