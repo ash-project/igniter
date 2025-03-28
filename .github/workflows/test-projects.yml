@@ -12,9 +12,9 @@ jobs:
       fail-fast: false
       matrix:
         project: [
-            # { org: "ash-project", name: "ash", without_phoenix: true, phoenix: true, install: "ash ash_postgres ash_money ash_graphql ash_json_api ash_authentication ash_authentication_phoenix ash_oban ash_paper_trail ash_admin ash_double_entry ash_state_machine ash_appsignal", flags: "--auth-strategy password,magic_link"},
-            { org: "oban-bg", name: "oban", phoenix: true, install: "oban"},
-            # { org: "BeaconCMS", name: "beacon", phoenix: true, install: "beacon beacon_live_admin", flags: "--beacon.site cms"}
+            { org: "ash-project", name: "ash", with: "phx.new", true, install: "ash ash_postgres ash_money ash_graphql ash_json_api ash_authentication ash_authentication_phoenix ash_oban ash_paper_trail ash_admin ash_double_entry ash_state_machine ash_appsignal", flags: "--auth-strategy password,magic_link"},
+            { org: "oban-bg", name: "oban", with: "phx.new", install: "oban"},
+            # { org: "BeaconCMS", name: "beacon", phx_new: true, install: "beacon beacon_live_admin", flags: "--beacon.site cms"}
           ]
         otp: ["27.2"]
         elixir: ["1.18.1"]
@@ -52,33 +52,17 @@ jobs:
         run: mix compile --force --warnings-as-errors
         working-directory: ./${{matrix.project.name}}
       - run: mix archive.install hex igniter_new --force
-      - name: mix igniter.new --with phx.new
-        run: mix igniter.new my_phoenix_app --with phx.new
-        if: ${{matrix.project.with_phoenix}}
+      - run: mix igniter.new my_phoenix_app --with ${{matrix.project.with}}
+        if: ${{matrix.project.phoenix}}
       - name: phx.new | use igniter main
         run: mix igniter.add igniter@path:../igniter --yes
-        if: ${{matrix.project.with_phoenix}}
+        if: ${{matrix.project.phoenix}}
         working-directory: my_phoenix_app
       - name: phx.new | mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
         run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
-        if: ${{matrix.project.with_phoenix}}
+        if: ${{matrix.project.phoenix}}
         working-directory: my_phoenix_app
       - name: phx.new | mix compile --warnings-as-errors 
         run: mix compile --warnings-as-errors
-        if: ${{matrix.project.with_phoenix}}
+        if: ${{matrix.project.phoenix}}
         working-directory: my_phoenix_app
-      - name: mix igniter.new 
-        run: mix igniter.new my_app
-        if: ${{matrix.project.without_phoenix}}
-      - name: new | use igniter main
-        run: mix igniter.add igniter@path:../igniter --yes
-        if: ${{matrix.project.without_phoenix}}
-        working-directory: my_app
-      - name: new | mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
-        run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
-        if: ${{matrix.project.without_phoenix}}
-        working-directory: my_app
-      - name: phx.new | mix compile --warnings-as-errors 
-        run: mix compile --warnings-as-errors
-        if: ${{matrix.project.without_phoenix}}
-        working-directory: my_app
