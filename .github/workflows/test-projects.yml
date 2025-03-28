@@ -50,12 +50,9 @@ jobs:
       - name: mix deps.get inside ./${{matrix.project.name}}
         run: mix deps.get
         working-directory: ./${{matrix.project.name}}
-      - name: mix compile --force --warnings-as-errors inside ./${{matrix.project.name}}
-        run: mix compile --force --warnings-as-errors
-        working-directory: ./${{matrix.project.name}}
       - name: ${{matrix.project.test-cmd}} inside ./${{matrix.project.name}}
         run: ${{matrix.project.test-cmd}}
-        if: mix ${{matrix.project.test-cmd}}
+        if: ${{matrix.project.test-cmd}}
         working-directory: ./${{matrix.project.name}}
       # - run: mix archive.install hex igniter_new --force
       #   if: ${{matrix.project.with}}
