@@ -18,6 +18,16 @@ jobs:
               test-cmd: "mix test --only igniter"
             },
             { 
+              org: "team-alembic", 
+              name: "ash_authentication", 
+              test-cmd: "mix test --only igniter"
+            },
+            { 
+              org: "team-alembic", 
+              name: "ash_authentication_phoenix", 
+              test-cmd: "mix test --only igniter"
+            },
+            { 
               org: "BeaconCMS", 
               name: "beacon", 
               test-cmd: "mix test --only igniter"
