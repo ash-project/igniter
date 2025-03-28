@@ -58,17 +58,3 @@ jobs:
       - run: ${{matrix.project.test-cmd}}
         if: ${{matrix.project.test-cmd}}
         working-directory: ./${{matrix.project.name}}
-      # - run: mix igniter.new my_app --with ${{matrix.project.with}}
-      #   if: ${{matrix.project.with}}
-      # - run: mix deps.update igniter
-      #   if: ${{matrix.project.with}}
-      #   working-directory: my_app
-      # - run: mix igniter.add igniter@path:../igniter --yes
-      #   if: ${{matrix.project.with}}
-      #   working-directory: my_app
-      # - run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}} --yes
-      #   if: ${{matrix.project.with}}
-      #   working-directory: my_app
-      # - run: mix compile --warnings-as-errors
-      #   if: ${{matrix.project.with}}
-      #   working-directory: my_app
