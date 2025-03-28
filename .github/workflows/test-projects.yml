@@ -3,11 +3,11 @@ on:
   push:
     tags:
       - "v*"
-    branches: [main, "3.0"]
+    branches: [main]
 jobs:
   test-projects:
     runs-on: ubuntu-latest
-    name: Subproject ${{matrix.project.org}}/${{matrix.project.name}} - OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    name: ${{matrix.project.org}}/${{matrix.project.name}} - OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
     strategy:
       fail-fast: false
       matrix:
