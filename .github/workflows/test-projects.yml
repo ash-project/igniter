@@ -31,14 +31,7 @@ jobs:
             { 
               org: "BeaconCMS", 
               name: "beacon", 
-              test-cmd: "mix test --only igniter",
-              postgres: true
-            },
-            { 
-              org: "BeaconCMS", 
-              name: "beacon_live_admin", 
-              test-cmd: "mix test --only igniter",
-              postgres: true
+              test-cmd: "mix test --only igniter"
             },
             { 
               org: "oban-bg", 
