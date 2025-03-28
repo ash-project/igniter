@@ -58,7 +58,7 @@ jobs:
         working-directory: my_app
       - run: mix igniter.add igniter@path:../igniter --yes
         working-directory: my_app
-      - run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}}
+      - run: mix igniter.install ${{matrix.project.install}} ${{matrix.project.flags}} --yes
         working-directory: my_app
       - run: mix compile --warnings-as-errors
         working-directory: my_app
