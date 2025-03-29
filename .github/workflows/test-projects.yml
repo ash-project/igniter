@@ -88,6 +88,4 @@ jobs:
       - run: ${{matrix.project.test-cmd}}
         if: ${{matrix.project.test-cmd}}
         working-directory: ./${{matrix.project.name}}
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:${{job.services.postgres.ports[5432]}}/postgres
 
