@@ -163,7 +163,7 @@ defmodule Mix.Tasks.Igniter.New do
 
       If you are sure that you want to use umbrella applications (there are plenty 
       of good reasons), please generate the application using `mix #{install_with}`,
-      and then run installers from individual applicatoins.
+      and then run installers from individual applications.
       """)
 
       exit({:shutdown, 1})
