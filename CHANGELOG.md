@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.42](https://github.com/ash-project/igniter/compare/v0.5.41...v0.5.42) (2025-03-31)
+
+
+
+
+### Improvements:
+
+* add live_debugger to our known only env config
+
 ## [v0.5.41](https://github.com/ash-project/igniter/compare/v0.5.40...v0.6.0) (2025-03-28)
 
 
