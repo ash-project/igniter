@@ -12,7 +12,8 @@ defmodule Igniter.Util.Info do
   @known_only_options [
     smokestack: [:test],
     mishka_chelekom: [:dev],
-    mneme: [:dev, :test]
+    mneme: [:dev, :test],
+    live_debugger: [:dev]
   ]
 
   @known_only_keys Keyword.keys(@known_only_options)
