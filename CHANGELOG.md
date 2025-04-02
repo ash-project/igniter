@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.43](https://github.com/ash-project/igniter/compare/v0.5.42...v0.5.43) (2025-04-02)
+
+
+
+
+### Bug Fixes:
+
+* properly use `dep_opts` when comparing new deps
+
 ## [v0.5.42](https://github.com/ash-project/igniter/compare/v0.5.41...v0.5.42) (2025-03-31)
 
 
