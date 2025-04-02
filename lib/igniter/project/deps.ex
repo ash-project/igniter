@@ -63,8 +63,24 @@ defmodule Igniter.Project.Deps do
         end
 
       {:ok, current} ->
-        desired = Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
+        desired = if opts[:dep_opts] do
+          Code.eval_string("{#{inspect(name)}, #{inspect(version)}, #{inspect(opts[:dep_opts])}}") |> elem(0)
+        else
+          Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
+        end
+
         current = Code.eval_string(current) |> elem(0)
+
+        {desired, current} =
+          case {desired, current} do
+            {{da, db}, {ca, cb, []}} ->
+              {{da, db}, {ca, cb}}
+            {{da, db, []}, {ca, cb}} ->
+              {{da, db}, {ca, cb}}
+
+            {desired, current} ->
+              {desired, current}
+          end
 
         if desired == current do
           if opts[:notify_on_present?] do
