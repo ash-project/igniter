@@ -63,11 +63,15 @@ defmodule Igniter.Project.Deps do
         end
 
       {:ok, current} ->
-        desired = if opts[:dep_opts] do
-          Code.eval_string("{#{inspect(name)}, #{inspect(version)}, #{inspect(opts[:dep_opts])}}") |> elem(0)
-        else
-          Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
-        end
+        desired =
+          if opts[:dep_opts] do
+            Code.eval_string(
+              "{#{inspect(name)}, #{inspect(version)}, #{inspect(opts[:dep_opts])}}"
+            )
+            |> elem(0)
+          else
+            Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
+          end
 
         current = Code.eval_string(current) |> elem(0)
 
@@ -75,6 +79,7 @@ defmodule Igniter.Project.Deps do
           case {desired, current} do
             {{da, db}, {ca, cb, []}} ->
               {{da, db}, {ca, cb}}
+
             {{da, db, []}, {ca, cb}} ->
               {{da, db}, {ca, cb}}
 
