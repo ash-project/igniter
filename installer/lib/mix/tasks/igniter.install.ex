@@ -43,7 +43,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
         Run your command again with `--verbose` to see more detail.
         """)
-        
+
         exit({:shutdown, 1})
       end
 
@@ -186,8 +186,10 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
               "compiling igniter",
               fn ->
                 case System.cmd("mix", ["deps.get"]) do
-                  {_, 0} -> :ok
-                  {output, status} -> 
+                  {_, 0} ->
+                    :ok
+
+                  {output, status} ->
                     raise("""
                     mix deps.get failed with exit code #{status}.
 
@@ -195,7 +197,6 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
                     #{output}
                     """)
-
                 end
 
                 Mix.Task.reenable("deps.compile")
