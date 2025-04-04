@@ -37,6 +37,16 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     @impl true
     @shortdoc "Install a package or packages, and run any associated installers."
     def run(argv) do
+      if Enum.count(argv, &(&1 == "--igniter-repeat")) > 1 do
+        Mix.shell().error("""
+        There was a problem installing or setting up igniter.
+
+        Run your command again with `--verbose` to see more detail.
+        """)
+        
+        exit({:shutdown, 1})
+      end
+
       archives_path = Mix.path_for(:archives)
 
       archive_apps =
@@ -175,7 +185,19 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             Igniter.Installer.Loading.with_spinner(
               "compiling igniter",
               fn ->
-                System.cmd("mix", ["deps.get"])
+                case System.cmd("mix", ["deps.get"]) do
+                  {_, 0} -> :ok
+                  {output, status} -> 
+                    raise("""
+                    mix deps.get failed with exit code #{status}.
+
+                    Output:
+
+                    #{output}
+                    """)
+
+                end
+
                 Mix.Task.reenable("deps.compile")
                 Mix.Task.reenable("deps.loadpaths")
                 Mix.Task.run("deps.compile", [])
