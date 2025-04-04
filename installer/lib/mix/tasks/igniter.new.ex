@@ -169,6 +169,8 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
+    File.cd!(name)
+
     contents =
       "mix.exs"
       |> File.read!()
