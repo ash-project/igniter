@@ -1195,8 +1195,10 @@ defmodule Igniter.Code.Common do
   Runs the function `fun` on the subtree of the currently focused `node` and
   returns the updated `zipper`.
 
-  `fun` must return {:ok, zipper} or `:error`, which may be positioned at the top of the subtree.
+  `fun` must return `{:ok, zipper}` or `:error`, which may be positioned at the top of the subtree.
   """
+  @spec within(Zipper.t(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
+          {:ok, Zipper.t()} | :error
   def within(%Zipper{} = top_zipper, fun) when is_function(fun, 1) do
     top_zipper
     |> Zipper.subtree()
