@@ -58,6 +58,7 @@ defmodule Igniter.Util.Info do
       installs ->
         schema = %{schema | installs: []}
         install_names = Enum.map(installs, &elem(&1, 0))
+
         count = Enum.count(install_names)
 
         names_message =

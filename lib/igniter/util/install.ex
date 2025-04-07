@@ -27,11 +27,11 @@ defmodule Igniter.Util.Install do
     deps =
       Enum.map(deps, fn dep ->
         case Igniter.Project.Deps.determine_dep_type_and_version(dep) do
-          {install, requirement} ->
-            {install, requirement}
-
           :error ->
             raise "Could not determine source for requested package #{dep}"
+
+          dep_specification ->
+            dep_specification
         end
       end)
 
