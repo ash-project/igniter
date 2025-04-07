@@ -611,11 +611,11 @@ defmodule Igniter.Project.Deps do
     end
   end
 
-  @dialyzer {:nowarn_function, {:fetch_hex_repos!, 0}}
-  defp fetch_hex_repos! do
-    # This is a private API, but unlikely to change.
-    Hex.State.fetch!(:repos)
-  end
+  # @dialyzer {:nowarn_function, {:fetch_hex_repos!, 0}}
+  # defp fetch_hex_repos! do
+  #   # This is a private API, but unlikely to change.
+  #   Hex.State.fetch!(:repos)
+  # end
 
   defp first_non_rc_version_or_first_version(releases, body) do
     releases = Enum.reject(releases, &body["retirements"][&1["version"]])
