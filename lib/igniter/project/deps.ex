@@ -563,8 +563,6 @@ defmodule Igniter.Project.Deps do
     if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
       {:ok, _} = Application.ensure_all_started(:req)
 
- case do
-            
       with {:ok, url, headers} <- fetch_hex_api_url_and_headers(package, opts),
            {:ok, %{body: %{"releases" => releases} = body}} <- Req.get(url,
               headers: headers
