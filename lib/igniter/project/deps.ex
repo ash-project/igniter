@@ -585,16 +585,29 @@ defmodule Igniter.Project.Deps do
         {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
 
       org ->
-        url = "https://hex.pm/api/repos/#{org}/packages/#{package}"
-        repo_name = "hexpm:#{org}"
+        # Pending: https://github.com/hexpm/hexpm/issues/1302
 
-        case fetch_hex_repos!() do
-          %{^repo_name => repo} ->
-            {:ok, url, [{"authorization", repo.auth_key}] ++ default_headers}
+        raise """
+        Cannot currently determine the version for private packages automatically.
+        
+        Instead of `mix igniter.install #{org}/#{package}`, please include a version, i.e
 
-          _ ->
-            :error
-        end
+            mix igniter.install #{org}/#{package}@2.4
+
+        Replacing the version with the latest major/minor version.
+        """
+
+
+        # url = "https://hex.pm/api/repos/#{org}/packages/#{package}"
+        # repo_name = "hexpm:#{org}"
+        #
+        # case fetch_hex_repos!() do
+        #   %{^repo_name => repo} ->
+        #     {:ok, url, [{"authorization", repo.auth_key}] ++ default_headers}
+        #
+        #   _ ->
+        #     :error
+        # end
     end
   end
 
