@@ -564,9 +564,10 @@ defmodule Igniter.Project.Deps do
       {:ok, _} = Application.ensure_all_started(:req)
 
       with {:ok, url, headers} <- fetch_hex_api_url_and_headers(package, opts),
-           {:ok, %{body: %{"releases" => releases} = body}} <- Req.get(url,
-              headers: headers
-           ),
+           {:ok, %{body: %{"releases" => releases} = body}} <-
+             Req.get(url,
+               headers: headers
+             ),
            %{"version" => version} <- first_non_rc_version_or_first_version(releases, body) do
         {:ok, Igniter.Util.Version.version_string_to_general_requirement!(version)}
       else
@@ -589,14 +590,13 @@ defmodule Igniter.Project.Deps do
 
         raise """
         Cannot currently determine the version for private packages automatically.
-        
+
         Instead of `mix igniter.install #{org}/#{package}`, please include a version, i.e
 
             mix igniter.install #{org}/#{package}@2.4
 
         Replacing the version with the latest major/minor version.
         """
-
 
         # url = "https://hex.pm/api/repos/#{org}/packages/#{package}"
         # repo_name = "hexpm:#{org}"
