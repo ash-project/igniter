@@ -1,7 +1,7 @@
 defmodule Igniter.New.MixProject do
   use Mix.Project
 
-  @version "0.4.11"
+  @version "0.5.24"
   @scm_url "https://github.com/ash-project/igniter"
 
   def project do
@@ -24,6 +24,12 @@ defmodule Igniter.New.MixProject do
       description: """
       Create a new mix project with igniter, and run igniter installers in one command!
       """
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:eex, :crypto, :public_key]
     ]
   end
 

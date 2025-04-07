@@ -289,10 +289,14 @@ defmodule Igniter.Project.Module do
           {:ok, {Igniter.t(), Rewrite.Source.t(), Zipper.t()}} | {:error, Igniter.t()}
   def find_module(igniter, module_name) do
     check_first =
-      if Code.ensure_loaded?(module_name) do
-        if source = module_name.module_info()[:compile][:source] do
-          Path.relative_to_cwd(List.to_string(source))
-        end
+      with true <- Code.ensure_loaded?(module_name),
+           source when not is_nil(source) <- module_name.module_info()[:compile][:source],
+           path =
+             Igniter.Util.BackwardsCompat.relative_to_cwd(List.to_string(source), force: true),
+           false <- String.starts_with?(path, "..") do
+        path
+      else
+        _ -> nil
       end
 
     with check_first when not is_nil(check_first) <- check_first,
@@ -389,7 +393,7 @@ defmodule Igniter.Project.Module do
 
     split_path =
       source.path
-      |> Path.relative_to_cwd()
+      |> Igniter.Util.BackwardsCompat.relative_to_cwd(force: true)
       |> Path.split()
 
     igniter

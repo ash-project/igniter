@@ -29,7 +29,7 @@ defmodule Igniter.Project.Application do
          zipper <- Igniter.Code.Common.rightmost(zipper),
          true <- Igniter.Code.List.list?(zipper),
          {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :app),
-         {:ok, app_name} when is_atom(app_name) <- expand_app_name(zipper) do
+         {:ok, app_name} when is_atom(app_name) <- expand_key_value(zipper) do
       app_name
     else
       _ ->
@@ -42,7 +42,31 @@ defmodule Igniter.Project.Application do
     end
   end
 
-  defp expand_app_name(zipper) do
+  @doc "Returns the config_path of the application."
+  @spec config_path(Igniter.t()) :: binary()
+  def config_path(igniter) do
+    zipper =
+      igniter
+      |> Igniter.include_existing_file("mix.exs")
+      |> Map.get(:rewrite)
+      |> Rewrite.source!("mix.exs")
+      |> Rewrite.Source.get(:quoted)
+      |> Sourceror.Zipper.zip()
+
+    with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :project, 0),
+         zipper <- Igniter.Code.Common.rightmost(zipper),
+         true <- Igniter.Code.List.list?(zipper),
+         {:ok, zipper} <- Igniter.Code.Keyword.get_key(zipper, :config_path),
+         {:ok, config_path} when is_binary(config_path) <- expand_key_value(zipper) do
+      config_path
+    else
+      _ ->
+        # https://github.com/elixir-lang/elixir/blob/0bc8a60c9befd057be83d378d76c35850ef0d111/lib/mix/lib/mix/project.ex#L992
+        "config/config.exs"
+    end
+  end
+
+  defp expand_key_value(zipper) do
     case Common.expand_literal(zipper) do
       :error ->
         expand_attribute(zipper)
@@ -54,7 +78,7 @@ defmodule Igniter.Project.Application do
 
   defp expand_attribute(zipper) do
     with {:@, _, [{attr, _, nil}]} <- zipper.node,
-         {:ok, zipper} <- find_prev(zipper, &match?({:@, _, [{^attr, _, [_]}]}, &1.node)) do
+         {:ok, zipper} <- Common.find_prev(zipper, &match?({:@, _, [{^attr, _, [_]}]}, &1.node)) do
       zipper
       |> Zipper.down()
       |> Zipper.down()
@@ -65,25 +89,10 @@ defmodule Igniter.Project.Application do
     end
   end
 
-  defp find_prev(zipper, pred) do
-    case Common.move_left(zipper, pred) do
-      {:ok, zipper} ->
-        {:ok, zipper}
-
-      :error ->
-        case Common.move_upwards(zipper, 1) do
-          {:ok, zipper} -> find_prev(zipper, pred)
-          :error -> :error
-        end
-    end
-  end
-
   @doc "Returns the path of the application's priv directory."
   @spec priv_dir(Igniter.t(), [String.t()]) :: String.t()
   def priv_dir(igniter, subpath \\ []) do
-    igniter
-    |> app_name()
-    |> Application.app_dir(["priv"] ++ subpath)
+    Path.join(["_build/#{Mix.env()}/lib/", to_string(app_name(igniter)), "priv"] ++ subpath)
   end
 
   @doc "Returns the name of the application module."
@@ -264,8 +273,6 @@ defmodule Igniter.Project.Application do
   end
 
   defp do_add_child(igniter, application, to_supervise, opts) do
-    path = Igniter.Project.Module.proper_location(igniter, application, :source_folder)
-
     to_supervise =
       case to_supervise do
         module when is_atom(module) -> module
@@ -279,9 +286,8 @@ defmodule Igniter.Project.Application do
         module -> module
       end
 
-    Igniter.update_elixir_file(igniter, path, fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Application),
-           {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
+    Igniter.Project.Module.find_and_update_module!(igniter, application, fn zipper ->
+      with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
            {:ok, zipper} <-
              Igniter.Code.Function.move_to_function_call_in_current_scope(
                zipper,
@@ -343,17 +349,17 @@ defmodule Igniter.Project.Application do
     |> then(fn zipper ->
       case Zipper.down(zipper) do
         nil ->
-          Zipper.insert_child(zipper, child)
+          {:ok, Zipper.insert_child(zipper, child)}
 
         zipper ->
           zipper
           |> skip_after(opts)
           |> case do
             {:after, zipper} ->
-              Zipper.insert_right(zipper, child)
+              {:ok, Zipper.insert_right(zipper, child)}
 
             {:before, zipper} ->
-              Zipper.insert_left(zipper, child)
+              {:ok, Zipper.insert_left(zipper, child)}
           end
       end
     end)

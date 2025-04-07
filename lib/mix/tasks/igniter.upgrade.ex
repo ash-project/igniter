@@ -28,12 +28,13 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
   ## Options
 
-  * `--yes` or `-y` - Accept all changes automatically
-  * `--all` or `-a` - Upgrades all dependencies
-  * `--only` or `-o` - only fetches dependencies for given environment
-  * `--target` or `-t` - only fetches dependencies for given target
-  * `--no-archives-check` or `-n` - does not check archives before fetching deps
-  * `--git-ci` or `-g` - Uses git history (HEAD~1) to check the previous versions in the lock file.
+  * `--yes` - Accept all changes automatically
+  * `--all` - Upgrades all dependencies
+  * `--only` - only fetches dependencies for given environment
+  * `--verbose` - display additional output from various operations
+  * `--target` - only fetches dependencies for given target
+  * `--no-archives-check` - does not check archives before fetching deps
+  * `--git-ci` - Uses git history (HEAD~1) to check the previous versions in the lock file.
     See the upgrade guides for more. Sets --yes automatically.
   """
 
@@ -46,14 +47,16 @@ defmodule Mix.Tasks.Igniter.Upgrade do
       ],
       schema: [
         yes: :boolean,
+        yes_to_deps: :boolean,
         all: :boolean,
         only: :string,
         target: :string,
+        verbose: :boolean,
         no_archives_check: :boolean,
         git_ci: :boolean
       ],
-      aliases: [y: :yes, a: :all, o: :only, t: :target, n: :no_archives_check, g: :git_ci],
-      defaults: [yes: false]
+      aliases: [],
+      defaults: [yes: false, yes_to_deps: false]
     }
   end
 
@@ -120,7 +123,13 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         |> Enum.filter(&match?({:ok, v} when is_binary(v), &1.status))
       end
 
-    Mix.Task.run("compile")
+    Igniter.Util.Loading.with_spinner(
+      "compile",
+      fn ->
+        Mix.Task.run("compile", [])
+      end,
+      verbose?: options[:verbose]
+    )
 
     igniter =
       igniter
@@ -148,6 +157,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         |> Igniter.apply_and_fetch_dependencies(
           error_on_abort?: true,
           yes: options[:yes],
+          yes_to_deps: options[:yes_to_deps],
           update_deps: Enum.map(package_names, &to_string/1),
           update_deps_args: update_deps_args,
           force?: true
@@ -167,7 +177,25 @@ defmodule Mix.Tasks.Igniter.Upgrade do
                 Mix.Dep.in_dependency(dep, fn _ ->
                   if File.exists?("mix.exs") do
                     Mix.Project.pop()
-                    Installer.Lib.Private.SharedUtils.reevaluate_mix_exs()
+                    old_undefined = Code.get_compiler_option(:no_warn_undefined)
+                    old_relative_paths = Code.get_compiler_option(:relative_paths)
+                    old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+                    try do
+                      Code.compiler_options(
+                        relative_paths: false,
+                        no_warn_undefined: :all,
+                        ignore_module_conflict: true
+                      )
+
+                      _ = Code.compile_file("mix.exs")
+                    after
+                      Code.compiler_options(
+                        relative_paths: old_relative_paths,
+                        no_warn_undefined: old_undefined,
+                        ignore_module_conflict: old_ignore_module_conflict
+                      )
+                    end
 
                     {:ok, Mix.Project.get!().project()[:version]}
                   else
@@ -181,10 +209,17 @@ defmodule Mix.Tasks.Igniter.Upgrade do
         end)
         |> Enum.filter(&match?({:ok, v} when is_binary(v), &1.status))
 
-      Mix.Task.reenable("compile")
-      Mix.Task.reenable("loadpaths")
-      Mix.Task.run("compile")
-      Mix.Task.reenable("compile")
+      Igniter.Util.Loading.with_spinner(
+        "compile",
+        fn ->
+          Mix.Task.reenable("compile")
+          Mix.Task.reenable("loadpaths")
+
+          Mix.Task.run("compile", [])
+          Mix.Task.reenable("compile")
+        end,
+        verbose?: options[:verbose]
+      )
 
       dep_changes =
         dep_changes_in_order(original_deps_info, new_deps_info)
@@ -225,10 +260,22 @@ defmodule Mix.Tasks.Igniter.Upgrade do
           igniter
 
         {igniter, missing} ->
-          Igniter.add_notice(
-            igniter,
-            "The packages `#{Enum.join(missing, ", ")}` did not have upgrade tasks."
-          )
+          missing =
+            missing
+            |> Enum.sort()
+            |> Enum.join(", ")
+
+          upgrades =
+            dep_changes
+            |> Enum.sort()
+            |> Enum.map_join("\n", fn {app, from, to} ->
+              "#{app} #{from} => #{to}"
+            end)
+            |> String.trim_trailing("\n")
+
+          igniter
+          |> Igniter.add_notice("The packages `#{missing}` did not have upgrade tasks.")
+          |> Igniter.add_notice("Upgraded packages:\n#{upgrades}")
       end
     rescue
       e ->
@@ -435,6 +482,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
           _ ->
             nil
         end
+        |> List.wrap()
 
       allowed_envs =
         if allowed_envs == [] do

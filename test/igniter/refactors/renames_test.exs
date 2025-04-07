@@ -25,6 +25,105 @@ defmodule Igniter.Refactors.RenameTest do
     """)
   end
 
+  test "copies & deprecates the function, bringing docs and specs along for the ride" do
+    test_project()
+    |> Igniter.create_new_file("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_function() :: :hello
+      def some_function() do
+        :hello
+      end
+    end
+    """)
+    |> apply_igniter!()
+    |> Igniter.Refactors.Rename.rename_function(
+      {Example, :some_function},
+      {Example, :some_other_function},
+      arity: 0,
+      deprecate: :hard
+    )
+    |> assert_content_equals("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_other_function() :: :hello
+      def some_other_function() do
+        :hello
+      end
+
+      @doc "what"
+      @spec some_function() :: :hello
+      @deprecated "Use `some_other_function/0` instead."
+      def some_function() do
+        :hello
+      end
+    end
+    """)
+  end
+
+  test "copies & soft deprecates the function, bringing docs and specs along for the ride" do
+    test_project()
+    |> Igniter.create_new_file("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_function() :: :hello
+      def some_function() do
+        :hello
+      end
+    end
+    """)
+    |> apply_igniter!()
+    |> Igniter.Refactors.Rename.rename_function(
+      {Example, :some_function},
+      {Example, :some_other_function},
+      arity: 0,
+      deprecate: :soft
+    )
+    |> assert_content_equals("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_other_function() :: :hello
+      def some_other_function() do
+        :hello
+      end
+
+      @doc "what"
+      @spec some_function() :: :hello
+      @doc deprecated: "Use `some_other_function/0` instead."
+      def some_function() do
+        :hello
+      end
+    end
+    """)
+  end
+
+  test "replaces the function if its not being deprecated" do
+    test_project()
+    |> Igniter.create_new_file("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_function() :: :hello
+      def some_function() do
+        :hello
+      end
+    end
+    """)
+    |> apply_igniter!()
+    |> Igniter.Refactors.Rename.rename_function(
+      {Example, :some_function},
+      {Example, :some_other_function}
+    )
+    |> assert_content_equals("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_other_function() :: :hello
+      def some_other_function() do
+        :hello
+      end
+    end
+    """)
+  end
+
   test "performs a simple rename on two arity functions" do
     test_project()
     |> Igniter.create_new_file("lib/example.ex", """

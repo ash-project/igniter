@@ -38,13 +38,17 @@ defmodule Igniter.Project.TestTest do
       assert String.contains?(
                contents,
                """
-               defp elixirc_paths(:test), do: elixirc_paths(:dev) ++ [\"test/support\"]\n  defp elixirc_paths(_), do: [\"lib\"]
+                 defp elixirc_paths(:test),
+                   do: elixirc_paths(:dev) ++ ["test/support"]
+
+                 defp elixirc_paths(_),
+                   do: ["lib"]
                """
                |> String.trim()
              )
     end
 
-    test "it doesnt change anything if the setting is already configured" do
+    test "it doesn't change anything if the setting is already configured" do
       assert %{rewrite: rewrite} =
                Igniter.new()
                |> Igniter.include_existing_file("mix.exs")

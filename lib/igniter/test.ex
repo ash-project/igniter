@@ -47,6 +47,35 @@ defmodule Igniter.Test do
   end
 
   @doc """
+  Sets up a test igniter that mimics a new phoenix project
+  """
+  @spec test_project(opts :: Keyword.t()) :: Igniter.t()
+  def phx_test_project(opts \\ []) do
+    app_name = opts[:app_name] || :test
+
+    Igniter.new()
+    |> Igniter.assign(:test_mode?, true)
+    |> Igniter.assign(
+      :test_files,
+      add_mix_new(opts)
+    )
+    # need them all back in the igniter
+    |> Igniter.include_glob("**/.formatter.exs")
+    |> Igniter.include_glob(".formatter.exs")
+    |> Igniter.include_glob("**/*.*")
+    |> Igniter.Project.IgniterConfig.setup()
+    |> Igniter.compose_task("igniter.phx.install", [
+      ".",
+      "--module",
+      Macro.camelize(Atom.to_string(app_name)),
+      "--app",
+      Atom.to_string(app_name),
+      "--yes"
+    ])
+    |> apply_igniter!()
+  end
+
+  @doc """
   Print the current `igniter` diff, returning the `igniter`.
 
   This is primarily used for debugging purposes.
@@ -90,7 +119,7 @@ defmodule Igniter.Test do
     |> Map.values()
     |> Enum.sort_by(& &1.path)
     |> Enum.filter(fn source ->
-      !only || source.path in List.wrap(only)
+      (!only || source.path in List.wrap(only)) && Igniter.changed?(source)
     end)
     |> Igniter.diff(color?: color?)
   end
@@ -137,6 +166,173 @@ defmodule Igniter.Test do
 
       %{issues: issues} ->
         {:error, issues}
+    end
+  end
+
+  defmacro assert_content_equals(igniter, path, text) do
+    quote bind_quoted: [igniter: igniter, path: path, text: text] do
+      content =
+        igniter.rewrite
+        |> Rewrite.source!(path)
+        |> Rewrite.Source.get(:content)
+
+      if content != text do
+        flunk("""
+        Expected content of `#{path}` to equal:
+
+        #{text}
+
+        Actual Content
+
+        #{content}
+
+        Diff of actual content against expected content
+
+        #{TextDiff.format(text, content, color: false)}
+        """)
+      end
+
+      igniter
+    end
+  end
+
+  defmacro assert_has_task(igniter, task, argv) do
+    quote bind_quoted: [igniter: igniter, task: task, argv: argv] do
+      if {task, argv} not in igniter.tasks do
+        if Enum.empty?(igniter.tasks) do
+          flunk("""
+          Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks,
+          but no tasks were found on the igniter.
+          """)
+        else
+          flunk("""
+          Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks.
+
+          Found tasks: 
+
+          #{Enum.map_join(igniter.tasks, "\n", fn {task, argv} -> "- mix #{task} #{Enum.join(argv)}" end)}
+          """)
+        end
+      end
+
+      igniter
+    end
+  end
+
+  defmacro assert_has_notice(igniter, notice) do
+    quote bind_quoted: [igniter: igniter, notice: notice] do
+      if notice not in igniter.notices do
+        if Enum.empty?(igniter.notices) do
+          flunk("""
+          Expected to find the following notice:
+
+          #{notice}
+
+          but no notices were found on the igniter.
+          """)
+        else
+          flunk("""
+          Expected to find the following notice:
+
+          #{notice}
+
+          Found notices: 
+
+          #{Enum.join(igniter.notices, "\n\b")}
+          """)
+        end
+      end
+
+      igniter
+    end
+  end
+
+  defmacro assert_has_warning(igniter, warning) do
+    quote bind_quoted: [igniter: igniter, warning: warning] do
+      if warning not in igniter.warnings do
+        if Enum.empty?(igniter.warnings) do
+          flunk("""
+          Expected to find the following warning:
+
+          #{warning}
+
+          but no warnings were found on the igniter.
+          """)
+        else
+          flunk("""
+          Expected to find the following warning:
+
+          #{warning}
+
+          Found warnings: 
+
+          #{Enum.join(igniter.warnings, "\n\b")}
+          """)
+        end
+      end
+
+      igniter
+    end
+  end
+
+  defmacro assert_has_issue(igniter, path \\ nil, issue) do
+    quote bind_quoted: [igniter: igniter, path: path, issue: issue] do
+      if path do
+        source = Rewrite.source(igniter, path)
+
+        issues =
+          if source do
+            source.issues
+          else
+            []
+          end
+
+        if issue not in issues do
+          if Enum.empty?(issues) do
+            flunk("""
+            Expected to find the following issue at path: #{inspect(path)}}
+
+            #{issue}
+
+            but no issues were found on the igniter.
+            """)
+          else
+            flunk("""
+            Expected to find the following issue at path: #{inspect(path)}:
+
+            #{issue}
+
+            Found issue: 
+
+            #{Enum.join(issues, "\n\b")}
+            """)
+          end
+        end
+      else
+        if issue not in igniter.issues do
+          if Enum.empty?(igniter.issues) do
+            flunk("""
+            Expected to find the following issue:
+
+            #{issue}
+
+            but no issues were found on the igniter.
+            """)
+          else
+            flunk("""
+            Expected to find the following issue:
+
+            #{issue}
+
+            Found issues: 
+
+            #{Enum.join(igniter.issues, "\n\b")}
+            """)
+          end
+        end
+      end
+
+      igniter
     end
   end
 

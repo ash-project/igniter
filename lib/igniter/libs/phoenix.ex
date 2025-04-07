@@ -7,7 +7,7 @@ defmodule Igniter.Libs.Phoenix do
   @spec web_module_name() :: module()
   @deprecated "Use `web_module/0` instead."
   def web_module_name do
-    Module.concat([inspect(Igniter.Project.Module.module_name_prefix(Igniter.new())) <> "Web"])
+    web_module(Igniter.new())
   end
 
   @doc """
@@ -15,7 +15,16 @@ defmodule Igniter.Libs.Phoenix do
   """
   @spec web_module(Igniter.t()) :: module()
   def web_module(igniter) do
-    Module.concat([inspect(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web"])
+    prefix =
+      igniter
+      |> Igniter.Project.Module.module_name_prefix()
+      |> inspect()
+
+    if String.ends_with?(prefix, "Web") do
+      Module.concat([prefix])
+    else
+      Module.concat([prefix <> "Web"])
+    end
   end
 
   @doc "Returns `true` if the module is a Phoenix HTML module"
@@ -66,10 +75,7 @@ defmodule Igniter.Libs.Phoenix do
   @spec web_module_name(String.t()) :: module()
   @deprecated "Use `web_module_name/2` instead."
   def web_module_name(suffix) do
-    Module.concat(
-      inspect(Igniter.Project.Module.module_name_prefix(Igniter.new())) <> "Web",
-      suffix
-    )
+    Module.concat(web_module(Igniter.new()), suffix)
   end
 
   @doc """
@@ -77,7 +83,7 @@ defmodule Igniter.Libs.Phoenix do
   """
   @spec web_module_name(Igniter.t(), String.t()) :: module()
   def web_module_name(igniter, suffix) do
-    Module.concat(inspect(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web", suffix)
+    Module.concat(web_module(igniter), suffix)
   end
 
   @doc "Gets the list of endpoints that use a given router"
@@ -102,12 +108,37 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   @doc """
+  Selects an endpoint to be used in a later step. If only one endpoint is found, it will be selected automatically.
+
+  If no endpoints exist, `{igniter, nil}` is returned.
+
+  If multiple endpoints are found, the user is prompted to select one of them.
+  """
+  @spec select_endpoint(Igniter.t(), module(), String.t()) :: {Igniter.t(), module() | nil}
+  def select_endpoint(igniter, router, label \\ "Which endpoint should be user") do
+    case endpoints_for_router(igniter, router) do
+      {igniter, []} ->
+        {igniter, nil}
+
+      {igniter, [endpoint]} ->
+        {igniter, endpoint}
+
+      {igniter, endpoints} ->
+        {igniter, Igniter.Util.IO.select(label, endpoints, display: &inspect/1)}
+    end
+  end
+
+  @doc """
   Adds a scope to a Phoenix router.
 
   ## Options
 
-  * `:router` - The router module to append to. Will be looked up if not provided.
-  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  - `:router` - The router module to append to. Will be looked up if not provided.
+  - `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  - `:placement` - `:before` | `:after`. Determines where the `contents` will be placed:
+    - `:before` - place before the first scope in the module if one is found, otherwise tries to place
+       after the last pipeline or after the `use MyAppWeb, :router` call.
+    - `:after` - place at the end (bottom) of the module, after all scopes and pipelines.
   """
   @spec add_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def add_scope(igniter, route, contents, opts \\ []) do
@@ -139,7 +170,7 @@ defmodule Igniter.Libs.Phoenix do
 
     if router do
       Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
-        case move_to_scope_location(igniter, zipper) do
+        case move_to_scope_location(igniter, zipper, placement: opts[:placement] || :before) do
           {:ok, zipper, append_or_prepend} ->
             {:ok, Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
 
@@ -172,6 +203,12 @@ defmodule Igniter.Libs.Phoenix do
   * `:router` - The router module to append to. Will be looked up if not provided.
   * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
   * `:with_pipelines` - A list of pipelines that the pipeline must be using to be considered a match.
+  - `:placement` - `:before` | `:after`. Determines where the `contents` will be placed. Note that it first tries
+    to find a matching scope and place the contents into that scope, otherwise `:placement` is used to determine
+    where to place the contents:
+    * `:before` - place before the first scope in the module if one is found, otherwise tries to place
+       after the last pipeline or after the `use MyAppWeb, :router` call.
+    * `:after` - place at the end (bottom) of the module, after all scopes and pipelines.
   """
   @spec append_to_scope(Igniter.t(), String.t(), String.t(), Keyword.t()) :: Igniter.t()
   def append_to_scope(igniter, route, contents, opts \\ []) do
@@ -226,7 +263,7 @@ defmodule Igniter.Libs.Phoenix do
             {:ok, Igniter.Code.Common.add_code(zipper, contents)}
 
           :error ->
-            case move_to_scope_location(igniter, zipper) do
+            case move_to_scope_location(igniter, zipper, placement: opts[:placement] || :before) do
               {:ok, zipper, append_or_prepend} ->
                 {:ok,
                  Igniter.Code.Common.add_code(zipper, scope_code, placement: append_or_prepend)}
@@ -330,6 +367,84 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   @doc """
+  Prepends code to a Phoenix router pipeline.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  """
+  @spec prepend_to_pipeline(Igniter.t(), atom, String.t(), Keyword.t()) :: Igniter.t()
+  def prepend_to_pipeline(igniter, name, contents, opts \\ []) do
+    {igniter, router} =
+      case Keyword.fetch(opts, :router) do
+        {:ok, router} ->
+          {igniter, router}
+
+        :error ->
+          select_router(igniter)
+      end
+
+    pipeline_code = """
+    pipeline #{inspect(name)} do
+      #{contents}
+    end
+    """
+
+    if router do
+      Igniter.Project.Module.find_and_update_module!(igniter, router, fn zipper ->
+        Igniter.Code.Function.move_to_function_call_in_current_scope(
+          zipper,
+          :pipeline,
+          2,
+          fn zipper ->
+            Igniter.Code.Function.argument_equals?(
+              zipper,
+              0,
+              name
+            )
+          end
+        )
+        |> case do
+          {:ok, zipper} ->
+            case Igniter.Code.Common.move_to_do_block(zipper) do
+              {:ok, zipper} ->
+                {:ok, Igniter.Code.Common.add_code(zipper, contents, placement: :before)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
+                   pipeline_code
+                 )}
+            end
+
+          _ ->
+            case move_to_pipeline_location(igniter, zipper) do
+              {:ok, zipper, append_or_prepend} ->
+                {:ok,
+                 Igniter.Code.Common.add_code(zipper, pipeline_code, placement: append_or_prepend)}
+
+              :error ->
+                {:warning,
+                 Igniter.Util.Warning.formatted_warning(
+                   "Could not add the #{name} pipeline to your router. Please add it manually.",
+                   pipeline_code
+                 )}
+            end
+        end
+      end)
+    else
+      Igniter.add_warning(
+        igniter,
+        Igniter.Util.Warning.formatted_warning(
+          "Could not append the following contents to the #{name} pipeline to your router. Please add it manually.",
+          contents
+        )
+      )
+    end
+  end
+
+  @doc """
   Adds a pipeline to a Phoenix router.
 
   ## Options
@@ -368,7 +483,7 @@ defmodule Igniter.Libs.Phoenix do
             if Keyword.get(opts, :warn_on_present?, true) do
               {:warning,
                Igniter.Util.Warning.formatted_warning(
-                 "The #{name} pipeline already exists in the router. Attempting to add scope: ",
+                 "The #{name} pipeline already exists in the router. Attempting to add pipeline: ",
                  pipeline_code
                )}
             else
@@ -402,6 +517,32 @@ defmodule Igniter.Libs.Phoenix do
   end
 
   @doc """
+  Returns `{igniter, true}` if a pipeline exists in a Phoenix router, and `{igniter, false}` otherwise.
+
+  ## Options
+
+  * `:router` - The router module to append to. Will be looked up if not provided.
+  * `:arg2` - The second argument to the scope macro. Must be a value (typically a module).
+  """
+  @spec has_pipeline(Igniter.t(), router :: module(), name :: atom()) ::
+          {Igniter.t(), boolean()}
+  def has_pipeline(igniter, router, name) do
+    {_igniter, _source, zipper} = Igniter.Project.Module.find_module!(igniter, router)
+
+    Igniter.Code.Function.move_to_function_call(zipper, :pipeline, 2, fn zipper ->
+      Igniter.Code.Function.argument_equals?(
+        zipper,
+        0,
+        name
+      )
+    end)
+    |> case do
+      {:ok, _} -> {igniter, true}
+      _ -> {igniter, false}
+    end
+  end
+
+  @doc """
   Selects a router to be used in a later step. If only one router is found, it will be selected automatically.
 
   If no routers exist, `{igniter, nil}` is returned.
@@ -430,7 +571,7 @@ defmodule Igniter.Libs.Phoenix do
     end)
   end
 
-  @doc "Moves to the use statement in a module that matches `use TheirWebModule, :router`"
+  @doc "Moves to the use statement in a module that matches `use TheirAppWeb, :router`"
   @spec move_to_router_use(Igniter.t(), Sourceror.Zipper.t()) ::
           :error | {:ok, Sourceror.Zipper.t()}
   def move_to_router_use(igniter, zipper) do
@@ -439,7 +580,7 @@ defmodule Igniter.Libs.Phoenix do
              Igniter.Code.Function.argument_equals?(
                zipper,
                0,
-               router_using(igniter)
+               web_module(igniter)
              ) &&
                Igniter.Code.Function.argument_equals?(
                  zipper,
@@ -470,8 +611,9 @@ defmodule Igniter.Libs.Phoenix do
     end
   end
 
-  defp move_to_scope_location(igniter, zipper) do
-    with :error <-
+  defp move_to_scope_location(igniter, zipper, opts) do
+    with {:placement, :before} <- {:placement, opts[:placement]},
+         :error <-
            Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :scope, [2, 3, 4]),
          {:pipeline, :error} <- {:pipeline, last_pipeline(zipper)} do
       case move_to_router_use(igniter, zipper) do
@@ -481,6 +623,9 @@ defmodule Igniter.Libs.Phoenix do
     else
       {:ok, zipper} ->
         {:ok, zipper, :before}
+
+      {:placement, :after} ->
+        {:ok, zipper, :after}
 
       {:pipeline, {:ok, zipper}} ->
         {:ok, zipper, :after}
@@ -501,10 +646,6 @@ defmodule Igniter.Libs.Phoenix do
       :error ->
         :error
     end
-  end
-
-  defp router_using(igniter) do
-    Module.concat([to_string(Igniter.Project.Module.module_name_prefix(igniter)) <> "Web"])
   end
 
   defp using_a_webbish_module?(zipper) do

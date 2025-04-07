@@ -3,7 +3,11 @@ defmodule Igniter.Util.IO do
 
   @doc "Prompts the user for yes or no, repeating the prompt until a satisfactory answer is given"
   def yes?(prompt) do
-    case String.trim(Mix.shell().prompt(prompt <> " [y/n]")) do
+    case String.trim(Mix.shell().prompt(prompt <> " [Y/n]")) do
+      # default answer Y
+      "" ->
+        true
+
       yes when yes in ["y", "Y", "yes", "YES"] ->
         true
 
@@ -35,12 +39,22 @@ defmodule Igniter.Util.IO do
       items
       |> Enum.with_index()
       |> Enum.map_join("\n", fn {item, index} ->
-        "#{index}. #{display.(item)}"
+        if Keyword.has_key?(opts, :default) && item == opts[:default] do
+          "#{IO.ANSI.green()}#{index}.#{IO.ANSI.reset()} #{display.(item)} (Default)"
+        else
+          "#{index}. #{display.(item)}"
+        end
       end)
 
     case String.trim(Mix.shell().prompt(prompt <> "\n" <> item_numbers <> "\nInput number ❯ ")) do
       "" ->
-        select(prompt, items, opts)
+        case Keyword.fetch(opts, :default) do
+          {:ok, value} ->
+            value
+
+          :error ->
+            select(prompt, items, opts)
+        end
 
       item ->
         case Integer.parse(item) do

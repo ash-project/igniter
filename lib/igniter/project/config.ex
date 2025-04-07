@@ -5,14 +5,21 @@ defmodule Igniter.Project.Config do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
+  @type updater :: (Sourceror.Zipper.t() -> {:ok, Sourceror.Zipper.t()}) | :error | nil
+  @type after_predicate :: (Sourceror.Zipper.t() -> boolean())
+
+  @type config_group_item ::
+          {list(term) | term(), term()} | {list(term) | term(), term(), Keyword.t()}
+
   @doc """
   Sets a config value in the given configuration file, if it is not already set.
 
   See `configure/6` for more.
 
-  ## Opts
+  ## Options
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
   """
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -25,6 +32,93 @@ defmodule Igniter.Project.Config do
       value,
       Keyword.put(opts, :updater, &{:ok, &1})
     )
+  end
+
+  @doc """
+  Configures a "group" of configurations, which is multiple configurations set at one time.
+  If the app + the shared prefix is already configured, then each configuration is added individually,
+  and the `comment` for the group is ignored. The sub configurations use `configure`, so if you want to
+  not change the value if its already set, use `updater: &{:ok, &1}` in the item opts.
+
+  ## Options
+
+  - `comment` - A comment string to add above the group when its added.
+  """
+  @spec configure_group(
+          Igniter.t(),
+          Path.t(),
+          atom(),
+          shared_prefix :: list(atom),
+          list(config_group_item()),
+          opts :: Keyword.t()
+        ) :: Igniter.t()
+  def configure_group(igniter, file_path, app_name, shared_prefix, items, opts \\ []) do
+    if Enum.empty?(items) do
+      raise ArgumentError, "Must provide at least one item in configure_group/6"
+    end
+
+    items =
+      Enum.map(items, fn
+        {sub_path, value} ->
+          {List.wrap(sub_path), value, opts}
+
+        {sub_path, value, opts} ->
+          {List.wrap(sub_path), value, opts}
+      end)
+
+    if configures_key?(igniter, file_path, app_name, shared_prefix) do
+      Enum.reduce(items, igniter, fn {path, value, opts}, igniter ->
+        configure(igniter, file_path, app_name, shared_prefix ++ path, value, opts)
+      end)
+    else
+      zipper =
+        {:__block__, [], []}
+        |> Zipper.zip()
+
+      code_with_configuration_added =
+        Enum.reduce(items, zipper, fn {path, value, opts}, zipper ->
+          modify_configuration_code(zipper, shared_prefix ++ path, app_name, value, opts)
+        end)
+        |> Zipper.topmost()
+        |> then(fn zipper ->
+          if opts[:comment] do
+            Igniter.Code.Common.add_comment(zipper, opts[:comment])
+          else
+            zipper
+          end
+        end)
+        |> Zipper.topmost_root()
+
+      config_file_path = config_file_path(igniter, file_path)
+
+      igniter
+      |> ensure_default_configs_exist()
+      |> Igniter.update_elixir_file(config_file_path, fn zipper ->
+        case Zipper.find(zipper, fn
+               {:import, _, [Config]} ->
+                 true
+
+               {:import, _, [{:__aliases__, _, [:Config]}]} ->
+                 true
+
+               _ ->
+                 false
+             end) do
+          nil ->
+            {:warning,
+             bad_config_message(
+               app_name,
+               file_path,
+               shared_prefix,
+               Sourceror.to_string(zipper),
+               opts
+             )}
+
+          zipper ->
+            Igniter.Code.Common.add_code(zipper, code_with_configuration_added)
+        end
+      end)
+    end
   end
 
   @spec configure_runtime_env(
@@ -45,9 +139,11 @@ defmodule Igniter.Project.Config do
       end
       """
 
+    config_file_path = config_file_path(igniter, "runtime.exs")
+
     igniter
-    |> Igniter.create_or_update_elixir_file("config/runtime.exs", default_runtime, &{:ok, &1})
-    |> Igniter.update_elixir_file("config/runtime.exs", fn zipper ->
+    |> Igniter.create_or_update_elixir_file(config_file_path, default_runtime, &{:ok, &1})
+    |> Igniter.update_elixir_file(config_file_path, fn zipper ->
       patterns = [
         """
         if config_env() == #{inspect(env)} do
@@ -76,7 +172,8 @@ defmodule Igniter.Project.Config do
             config_path,
             app_name,
             modify_to,
-            opts[:updater] || (&{:ok, &1})
+            updater:
+              opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, modify_to)} end
           )
 
         :error ->
@@ -93,7 +190,8 @@ defmodule Igniter.Project.Config do
                 config_path,
                 app_name,
                 modify_to,
-                opts[:updater] || (&{:ok, &1})
+                updater:
+                  opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, modify_to)} end
               )
 
             _ ->
@@ -105,7 +203,7 @@ defmodule Igniter.Project.Config do
 
               {:warning,
                """
-               Could not set #{inspect([app_name | config_path])} in `#{inspect(env)}` of `config/runtime.exs`.
+               Could not set #{inspect([app_name | config_path])} in `#{inspect(env)}` of `#{config_file_path}`.
 
                ```elixir
                # in `runtime.exs`
@@ -139,10 +237,11 @@ defmodule Igniter.Project.Config do
   )
   ```
 
-  ## Opts
+  ## Options
 
-  * `:updater` - A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate. Useful to guarantee a `config` is placed after a specific node.
   """
   @spec configure(
           Igniter.t(),
@@ -155,7 +254,7 @@ defmodule Igniter.Project.Config do
   def configure(igniter, file_name, app_name, config_path, value, opts \\ []) do
     file_contents = "import Config\n"
 
-    file_path = Path.join("config", file_name)
+    file_path = config_file_path(igniter, file_name)
     config_path = List.wrap(config_path)
 
     value =
@@ -167,7 +266,7 @@ defmodule Igniter.Project.Config do
     updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     igniter
-    |> ensure_default_configs_exist(file_path)
+    |> ensure_default_configs_exist()
     |> Igniter.include_or_create_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
       case Zipper.find(zipper, fn
@@ -184,33 +283,42 @@ defmodule Igniter.Project.Config do
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
         _ ->
-          modify_configuration_code(zipper, config_path, app_name, value, updater)
+          modify_configuration_code(zipper, config_path, app_name, value,
+            updater: updater,
+            after: opts[:after]
+          )
       end
     end)
   end
 
-  defp ensure_default_configs_exist(igniter, file)
-       when file in ["config/dev.exs", "config/test.exs", "config/prod.exs"] do
+  defp config_file_path(igniter, file_name) do
+    case igniter |> Igniter.Project.Application.config_path() |> Path.split() do
+      [path] -> [path]
+      path -> Enum.drop(path, -1)
+    end
+    |> Path.join()
+    |> Path.join(file_name)
+  end
+
+  defp ensure_default_configs_exist(igniter) do
     igniter
-    |> Igniter.include_or_create_file("config/config.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "config.exs"), """
     import Config
     """)
     |> ensure_config_evaluates_env()
-    |> Igniter.include_or_create_file("config/dev.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "dev.exs"), """
     import Config
     """)
-    |> Igniter.include_or_create_file("config/test.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "test.exs"), """
     import Config
     """)
-    |> Igniter.include_or_create_file("config/prod.exs", """
+    |> Igniter.include_or_create_file(config_file_path(igniter, "prod.exs"), """
     import Config
     """)
   end
 
-  defp ensure_default_configs_exist(igniter, _), do: igniter
-
   defp ensure_config_evaluates_env(igniter) do
-    Igniter.update_elixir_file(igniter, "config/config.exs", fn zipper ->
+    Igniter.update_elixir_file(igniter, config_file_path(igniter, "config.exs"), fn zipper ->
       case Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :import_config, 1) do
         {:ok, _} ->
           {:ok, zipper}
@@ -267,18 +375,33 @@ defmodule Igniter.Project.Config do
 
   If you want to set configuration, use `configure/6` or `configure_new/5` instead. This is a lower-level
   tool for modifying configuration files when you need to adjust some specific part of them.
+
+  ## Options
+
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
   """
   @spec modify_configuration_code(
           Zipper.t(),
           list(atom),
           atom(),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+          opts :: Keyword.t()
         ) :: Zipper.t()
-  def modify_configuration_code(zipper, config_path, app_name, value, updater \\ nil) do
-    updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+  def modify_configuration_code(zipper, config_path, app_name, value, opts \\ [])
+
+  def modify_configuration_code(zipper, config_path, app_name, value, updater)
+      when is_function(updater) do
+    IO.warn("updater argument is deprecated, please use opts updater: fun instead")
+    modify_configuration_code(zipper, config_path, app_name, value, updater: updater)
+  end
+
+  def modify_configuration_code(zipper, config_path, app_name, value, opts) do
+    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     Igniter.Code.Common.within(zipper, fn zipper ->
+      zipper = move_to_after(zipper, opts[:after])
+
       case try_update_three_arg(zipper, config_path, app_name, value, updater) do
         {:ok, zipper} ->
           {:ok, zipper}
@@ -341,6 +464,15 @@ defmodule Igniter.Project.Config do
       :error -> zipper
     end
   end
+
+  defp move_to_after(zipper, pred) when is_function(pred, 1) do
+    case Common.move_to_last(zipper, pred) do
+      {:ok, zipper} -> zipper
+      :error -> zipper
+    end
+  end
+
+  defp move_to_after(zipper, _pred), do: zipper
 
   @doc """
   Checks if either `config :root_key, _` or `config :root_key, _, _` is present
@@ -485,7 +617,7 @@ defmodule Igniter.Project.Config do
   end
 
   defp load_config_zipper(igniter, config_file_name) do
-    config_file_path = Path.join("config", config_file_name)
+    config_file_path = config_file_path(igniter, config_file_name)
 
     igniter =
       Igniter.include_existing_file(igniter, config_file_path, required?: false)
@@ -541,12 +673,27 @@ defmodule Igniter.Project.Config do
           :error
 
         {:ok, zipper} ->
-          with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 2),
-               {:ok, zipper} <- Igniter.Code.Keyword.put_in_keyword(zipper, path, value, updater) do
-            {:ok, zipper}
+          if path == [] do
+            case Igniter.Code.Function.move_to_nth_argument(zipper, 2) do
+              {:ok, zipper} ->
+                if updater do
+                  updater.(zipper)
+                else
+                  {:ok, Igniter.Code.Common.replace_code(zipper, value)}
+                end
+
+              _ ->
+                :error
+            end
           else
-            _ ->
-              :error
+            with {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 2),
+                 {:ok, zipper} <-
+                   Igniter.Code.Keyword.put_in_keyword(zipper, path, value, updater) do
+              {:ok, zipper}
+            else
+              _ ->
+                :error
+            end
           end
       end
     end

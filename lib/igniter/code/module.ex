@@ -109,6 +109,43 @@ defmodule Igniter.Code.Module do
     Igniter.Code.Function.move_to_def(zipper, fun, arity)
   end
 
+  @doc """
+  Move to an attribute definition inside a module.
+
+  ## Example
+
+  Given this module:
+
+      defmodule MyAppWeb.Endpoint do
+        @doc "My App Endpoint"
+
+        @session_options [
+          store: :cookie,
+          ...
+        ]
+      end
+
+  You can move into `@doc` attribute with:
+
+      Igniter.Code.Module.move_to_attribute_definition(zipper, :doc)
+
+  Or you can move into `@session_options` constant with:
+
+      Igniter.Code.Module.move_to_attribute_definition(zipper, :session_options)
+
+  """
+  @spec move_to_attribute_definition(Zipper.t(), atom()) :: {:ok, Zipper.t()} | :error
+  def move_to_attribute_definition(zipper, name) when is_atom(name) do
+    with {:ok, zipper} <- Igniter.Code.Module.move_to_defmodule(zipper),
+         {:ok, zipper} <- Common.move_to_do_block(zipper),
+         {:ok, zipper} <- Common.move_to_pattern(zipper, {:@, _, [{^name, _, _}]}) do
+      {:ok, zipper}
+    else
+      _ ->
+        :error
+    end
+  end
+
   def module?(zipper) do
     Common.node_matches_pattern?(zipper, {:__aliases__, _, [_ | _]})
   end

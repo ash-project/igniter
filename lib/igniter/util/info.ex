@@ -1,6 +1,23 @@
 defmodule Igniter.Util.Info do
   @moduledoc false
 
+  # This is an *extremely* unfortunate hack.
+  # For dependencies that depend on other common dev dependencies (like `sourceror`)
+  # our installation process has an issue. Specifically, we first install the dep
+  # into all environments, and then set it to the right env.
+  # This causes our conflict resolution logic to set the dependents (like `sourceror`)
+  # to be for all envs, but then never set back to only specific envs.
+  # I don't have time to fix this right now, nor can I think of a good way to actually
+  # do it. So for now, this ridiculous hack will have to do :)
+  @known_only_options [
+    smokestack: [:test],
+    mishka_chelekom: [:dev],
+    mneme: [:dev, :test],
+    live_debugger: [:dev]
+  ]
+
+  @known_only_keys Keyword.keys(@known_only_options)
+
   require Logger
   alias Igniter.Mix.Task.Info
 
@@ -22,13 +39,17 @@ defmodule Igniter.Util.Info do
 
     case schema.installs do
       [] ->
+        names = Enum.map_join(List.wrap(schema.adds_deps), ", ", &elem(&1, 0))
+
         igniter =
           igniter
           |> add_deps(
             List.wrap(schema.adds_deps),
             opts
           )
-          |> Igniter.apply_and_fetch_dependencies(opts)
+          |> Igniter.apply_and_fetch_dependencies(
+            Keyword.put(opts, :operation, "compiling #{names}")
+          )
 
         raise_on_conflicts!(schema, argv)
 
@@ -38,13 +59,42 @@ defmodule Igniter.Util.Info do
         schema = %{schema | installs: []}
         install_names = Enum.map(installs, &elem(&1, 0))
 
+        count = Enum.count(install_names)
+
+        names_message =
+          if count >= 4 do
+            "#{count} packages"
+          else
+            Enum.join(
+              Enum.uniq(Enum.map(List.wrap(schema.adds_deps), &elem(&1, 0)) ++ install_names),
+              ", "
+            )
+          end
+
+        installs =
+          Enum.map(installs, fn
+            {dep, val} when is_binary(val) and dep in @known_only_keys ->
+              {dep, val, only: @known_only_options[dep]}
+
+            {dep, opts} when is_list(opts) and dep in @known_only_keys ->
+              {dep, Keyword.put_new(opts, :only, @known_only_options[dep])}
+
+            {dep, val, opts} when dep in @known_only_keys ->
+              {dep, val, Keyword.put_new(opts, :only, @known_only_options[dep])}
+
+            other ->
+              other
+          end)
+
         igniter
         |> add_deps(
           List.wrap(installs),
           opts
         )
-        |> Igniter.apply_and_fetch_dependencies(opts)
-        |> maybe_set_only(install_names, argv, task_name)
+        |> Igniter.apply_and_fetch_dependencies(
+          Keyword.put(opts, :operation, "compiling #{names_message}")
+        )
+        |> maybe_set_dep_options(install_names, argv, task_name)
         |> compose_install_and_validate!(
           argv,
           %{
@@ -55,7 +105,7 @@ defmodule Igniter.Util.Info do
           },
           task_name,
           Keyword.delete(opts, :only),
-          acc ++ install_names
+          install_names ++ acc
         )
     end
   end
@@ -129,16 +179,35 @@ defmodule Igniter.Util.Info do
     end
   end
 
-  defp maybe_set_only(igniter, install_names, argv, parent) do
+  defp maybe_set_dep_options(igniter, install_names, argv, parent) do
     Enum.reduce(install_names, igniter, fn install, igniter ->
       composing_task = "#{install}.install"
 
       with composing_task when not is_nil(composing_task) <- Mix.Task.get(composing_task),
            true <- function_exported?(composing_task, :info, 2),
            composing_schema when not is_nil(composing_schema) <-
-             composing_task.info(argv, parent),
-           only when not is_nil(only) <- composing_schema.only do
-        Igniter.Project.Deps.set_dep_option(igniter, install, :only, only)
+             composing_task.info(argv, parent) do
+        options =
+          if composing_schema.only do
+            Keyword.put(composing_schema.dep_opts, :only, composing_schema.only)
+          else
+            composing_schema.dep_opts
+          end
+
+        if options == [] do
+          igniter
+        else
+          Enum.reduce(options, igniter, fn {key, val}, igniter ->
+            val =
+              if key == :only do
+                List.wrap(val)
+              else
+                val
+              end
+
+            Igniter.Project.Deps.set_dep_option(igniter, install, key, val)
+          end)
+        end
       else
         _ ->
           igniter
@@ -148,10 +217,15 @@ defmodule Igniter.Util.Info do
 
   defp add_deps(igniter, add_deps, opts) do
     Enum.reduce(add_deps, igniter, fn dependency, igniter ->
-      with {_, _, dep_opts} <- dependency,
+      with {name, _, dep_opts} <- dependency,
            only when not is_nil(only) <- dep_opts[:only],
            false <- Mix.env() in only do
-        Igniter.add_warning(igniter, """
+        igniter
+        |> Igniter.assign(
+          :failed_to_add_deps,
+          [name | igniter.assigns[:failed_to_add_deps] || []]
+        )
+        |> Igniter.add_warning("""
         Dependency #{inspect(dependency)} could not be installed,
         because it is configured to be installed with `only: #{inspect(only)}`.
 
@@ -161,11 +235,29 @@ defmodule Igniter.Util.Info do
         """)
       else
         _ ->
-          Igniter.Project.Deps.add_dep(
-            igniter,
-            dependency,
-            Keyword.merge(opts, notify_on_present?: true, yes?: !!opts[:yes])
-          )
+          new_igniter =
+            Igniter.Project.Deps.add_dep(
+              igniter,
+              dependency,
+              Keyword.merge(opts, error?: true, notify_on_present?: true, yes?: !!opts[:yes])
+            )
+
+          name =
+            case dependency do
+              {name, _} -> name
+              {name, _, _} -> name
+            end
+
+          if Enum.count(igniter.issues) != Enum.count(new_igniter.issues) ||
+               Enum.count(igniter.warnings) != Enum.count(new_igniter.warnings) do
+            Igniter.assign(
+              new_igniter,
+              :failed_to_add_deps,
+              [name | igniter.assigns[:failed_to_add_deps] || []]
+            )
+          else
+            new_igniter
+          end
       end
     end)
   end
@@ -350,7 +442,9 @@ defmodule Igniter.Util.Info do
   end
 
   @doc false
-  def group(%{group: group}, _task_name) when not is_nil(group), do: to_string(group)
+  def group(%{group: group}, _task_name) when not is_nil(group),
+    do: String.replace(to_string(group), "_", "-")
+
   def group(_, task_name), do: String.replace(task_name, "_", "-")
 
   defp merge_schemas(schema, composing_schema) do

@@ -29,7 +29,11 @@ defmodule Igniter do
           args: Igniter.Mix.Task.Args.t()
         }
 
-  @type zipper_updater :: (Zipper.t() -> {:ok, Zipper.t()} | {:error, String.t() | [String.t()]})
+  @type zipper_updater ::
+          (Zipper.t() ->
+             {:ok, Zipper.t()}
+             | {:error, String.t() | [String.t()]}
+             | {:warning, String.t() | [String.t()]})
 
   defimpl Inspect do
     import Inspect.Algebra
@@ -182,14 +186,16 @@ defmodule Igniter do
     glob =
       case glob do
         %{__struct__: GlobEx} = glob ->
-          if Path.type(glob.source) == :relative do
-            GlobEx.compile!(Path.expand(glob.source))
+          if Path.type(glob.source) == :absolute do
+            GlobEx.compile!(
+              Igniter.Util.BackwardsCompat.relative_to_cwd(glob.source, force: true)
+            )
           else
             glob
           end
 
         string ->
-          GlobEx.compile!(Path.expand(string))
+          GlobEx.compile!(string)
       end
 
     if igniter.assigns[:test_mode?] do
@@ -199,12 +205,13 @@ defmodule Igniter do
         expanded = Path.expand(key)
         glob.source == expanded || GlobEx.match?(glob, expanded)
       end)
-      |> Enum.map(&Path.relative_to_cwd/1)
+      |> Enum.map(&Igniter.Util.BackwardsCompat.relative_to_cwd(&1, force: true))
       |> Enum.reject(fn path ->
         Rewrite.has_source?(igniter.rewrite, path)
       end)
       |> Enum.map(fn path ->
         source_handler = source_handler(path)
+        path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
         read_source!(igniter, path, source_handler)
       end)
@@ -344,7 +351,7 @@ defmodule Igniter do
     end
   end
 
-  @doc "Adds a task to the tasks list. Tasks will be run after all changes have been commited"
+  @doc "Adds a task to the tasks list. Tasks will be run after all changes have been committed"
   def add_task(igniter, task, argv \\ []) when is_binary(task) do
     %{igniter | tasks: igniter.tasks ++ [{task, argv}]}
   end
@@ -499,19 +506,52 @@ defmodule Igniter do
   """
   @spec update_file(t(), Path.t(), (Rewrite.Source.t() -> Rewrite.Source.t())) :: t()
   def update_file(igniter, path, updater, opts \\ []) do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
     source_handler = source_handler(path, opts)
 
     if Rewrite.has_source?(igniter.rewrite, path) do
-      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, path, updater)}
+      source = Rewrite.source!(igniter.rewrite, path)
+
+      {igniter, source} =
+        case updater.(source) do
+          {:error, error} ->
+            {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
+
+          {:warn, warning} ->
+            {Igniter.add_warning(igniter, warning), source}
+
+          {:notice, notice} ->
+            {Igniter.add_notice(igniter, notice), source}
+
+          source ->
+            {igniter, source}
+        end
+
+      %{igniter | rewrite: Rewrite.update!(igniter.rewrite, source)}
     else
       if exists?(igniter, path) do
         source = read_source!(igniter, path, source_handler)
+
+        {igniter, source} =
+          case updater.(source) do
+            {:error, error} ->
+              {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
+
+            {:warn, warning} ->
+              {Igniter.add_warning(igniter, warning), source}
+
+            {:notice, notice} ->
+              {Igniter.add_notice(igniter, notice), source}
+
+            source ->
+              {igniter, source}
+          end
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> maybe_format(path, true, Keyword.put(opts, :source_handler, source_handler))
         |> Map.update!(:rewrite, fn rewrite ->
           source = Rewrite.source!(rewrite, path)
-          Rewrite.update!(rewrite, path, updater.(source))
+          Rewrite.update!(rewrite, source)
         end)
       else
         add_issue(igniter, "Required #{path} but it did not exist")
@@ -558,6 +598,8 @@ defmodule Igniter do
   @doc "Includes or creates the given file in the project with the provided contents. Does nothing if its already been added."
   @spec include_or_create_file(t(), Path.t(), contents :: String.t()) :: t()
   def include_or_create_file(igniter, path, contents \\ "") do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
     else
@@ -581,6 +623,8 @@ defmodule Igniter do
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function of type `zipper_updater()` if it already exists."
   @spec create_or_update_elixir_file(t(), Path.t(), String.t(), zipper_updater()) :: Igniter.t()
   def create_or_update_elixir_file(igniter, path, contents, updater) do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
       |> update_elixir_file(path, updater)
@@ -610,6 +654,8 @@ defmodule Igniter do
 
   @doc "Creates the given file in the project with the provided string contents, or updates it with a function as in `update_file/3` (or with `zipper_updater()` for elixir files) if it already exists."
   def create_or_update_file(igniter, path, contents, updater) do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
+
     if Rewrite.has_source?(igniter.rewrite, path) do
       igniter
       |> update_file(path, updater)
@@ -696,6 +742,7 @@ defmodule Igniter do
   """
   @spec create_new_file(t(), Path.t(), String.t()) :: Igniter.t()
   def create_new_file(igniter, path, contents \\ "", opts \\ []) do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
     source_handler = source_handler(path, opts)
 
     {igniter, source} =
@@ -787,7 +834,6 @@ defmodule Igniter do
     if opts[:force?] ||
          (!igniter.assigns[:private][:refused_fetch_dependencies?] &&
             has_changes?(igniter, ["mix.exs"])) do
-      igniter = prompt_on_git_changes(igniter, opts)
       source = Rewrite.source!(igniter.rewrite, "mix.exs")
 
       original_quoted = Rewrite.Source.get(source, :quoted, 1)
@@ -800,7 +846,7 @@ defmodule Igniter do
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
         quoted_with_only_deps_change =
           original_zipper
-          |> Igniter.Code.Common.replace_code(zipper.node)
+          |> Igniter.Code.Common.replace_code(clean_comments(zipper.node))
           |> Zipper.topmost()
           |> Zipper.node()
 
@@ -808,8 +854,6 @@ defmodule Igniter do
         rewrite = Rewrite.update!(igniter.rewrite, source)
 
         if opts[:force?] || changed?(source) do
-          display_diff([source], opts)
-
           message =
             opts[:message] ||
               if opts[:error_on_abort?] do
@@ -818,7 +862,8 @@ defmodule Igniter do
                 "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
               end
 
-          if opts[:yes] || !changed?(source) || Igniter.Util.IO.yes?(message) do
+          if opts[:yes] || opts[:yes_to_deps] || !changed?(source) ||
+               diff_and_yes?(igniter, [source], opts, message) do
             rewrite =
               case Rewrite.write(rewrite, "mix.exs", :force) do
                 {:ok, rewrite} -> rewrite
@@ -829,10 +874,15 @@ defmodule Igniter do
             source = update_source(source, igniter, :quoted, quoted)
 
             igniter =
-              %{igniter | rewrite: Rewrite.update!(rewrite, source)}
+              igniter
+              |> Map.update!(:rewrite, &Rewrite.update!(&1, source))
+              |> accepted_once()
 
             if Keyword.get(opts, :fetch?, true) do
-              Igniter.Util.Install.get_deps!(igniter, opts)
+              Igniter.Util.Install.get_deps!(
+                igniter,
+                Keyword.put_new(opts, :operation, "installing new dependencies")
+              )
             else
               igniter
             end
@@ -851,11 +901,7 @@ defmodule Igniter do
           display_diff([source], opts)
 
           message =
-            if opts[:error_on_abort?] do
-              "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            else
-              "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-            end
+            "Dependency changes require updating `mix.exs` before continuing.\nModify `mix.exs` and install?"
 
           if Igniter.Util.IO.yes?(message) do
             rewrite =
@@ -865,7 +911,10 @@ defmodule Igniter do
               end
 
             igniter =
-              Igniter.Util.Install.get_deps!(igniter, opts)
+              Igniter.Util.Install.get_deps!(
+                igniter,
+                Keyword.put_new(opts, :operation, "installing new dependencies")
+              )
 
             %{igniter | rewrite: rewrite}
           else
@@ -879,6 +928,27 @@ defmodule Igniter do
     else
       igniter
     end
+  end
+
+  defp clean_comments(node) do
+    case node do
+      {f, meta, a} ->
+        {f, Keyword.merge(meta, leading_comments: [], trailing_comments: []), a}
+
+      other ->
+        other
+    end
+  end
+
+  defp diff_and_yes?(igniter, sources, opts, message) do
+    display_diff(sources, opts)
+
+    Igniter.Util.IO.yes?(
+      message_with_git_warning(
+        igniter,
+        Keyword.put(opts, :message, message)
+      )
+    )
   end
 
   @doc """
@@ -936,7 +1006,7 @@ defmodule Igniter do
   def has_changes?(igniter, paths \\ nil) do
     paths =
       if paths do
-        Enum.map(paths, &Path.relative_to_cwd/1)
+        Enum.map(paths, &Igniter.Util.BackwardsCompat.relative_to_cwd(&1, force: true))
       end
 
     igniter.rewrite
@@ -971,15 +1041,19 @@ defmodule Igniter do
 
     case igniter do
       %{issues: []} ->
-        result_of_dry_run =
+        result_of_diff_handling =
           if has_changes?(igniter) do
             if opts[:dry_run] || !opts[:yes] do
               Mix.shell().info("\n#{IO.ANSI.green()}#{title}#{IO.ANSI.reset()}:")
 
-              display_diff(Rewrite.sources(igniter.rewrite), opts)
+              if !opts[:yes] && too_long_to_display?(igniter) do
+                handle_long_diff(igniter, opts)
+                :no_confirm_dry_run_with_changes
+              else
+                display_diff(Rewrite.sources(igniter.rewrite), opts)
+                :dry_run_with_changes
+              end
             end
-
-            :dry_run_with_changes
           else
             if !(opts[:quiet_on_no_changes?] || opts[:yes]) do
               Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
@@ -990,20 +1064,30 @@ defmodule Igniter do
             :dry_run_with_no_changes
           end
 
-        display_warnings(igniter, title)
+        result_of_dry_run =
+          case result_of_diff_handling do
+            :no_confirm_dry_run_with_changes ->
+              :dry_run_with_changes
+
+            other ->
+              other
+          end
 
         display_mkdirs(igniter)
 
         display_moves(igniter)
 
+        display_warnings(igniter, title)
+
         display_tasks(igniter, result_of_dry_run, opts)
 
         if opts[:dry_run] ||
-             (result_of_dry_run == :dry_run_with_no_changes && Enum.empty?(igniter.tasks) &&
+             (result_of_diff_handling == :dry_run_with_no_changes &&
+                Enum.empty?(igniter.tasks) &&
                 Enum.empty?(igniter.moves)) do
           result_of_dry_run
         else
-          if opts[:yes] ||
+          if opts[:yes] || result_of_diff_handling == :no_confirm_dry_run_with_changes ||
                Igniter.Util.IO.yes?(message_with_git_warning(igniter, opts)) do
             igniter.rewrite
             |> Enum.any?(fn source ->
@@ -1021,7 +1105,7 @@ defmodule Igniter do
                   end
 
                   igniter.mkdirs
-                  |> Enum.map(&Path.expand(&1, ""))
+                  |> Enum.map(&Path.expand(&1, "."))
                   |> Enum.uniq()
                   |> Enum.each(fn path ->
                     File.mkdir_p!(path)
@@ -1064,6 +1148,14 @@ defmodule Igniter do
     end
   end
 
+  defp accepted_once(igniter) do
+    Igniter.assign(
+      igniter,
+      :private,
+      Map.put(igniter.assigns[:private] || %{}, :accepted_once, true)
+    )
+  end
+
   defp halt_if_fails_check!(igniter, title, opts) do
     cond do
       !opts[:check] ->
@@ -1101,36 +1193,9 @@ defmodule Igniter do
         display_diff(Rewrite.sources(igniter.rewrite), opts)
 
         System.halt(1)
-    end
-  end
 
-  defp prompt_on_git_changes(igniter, opts) do
-    if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
-      igniter
-    else
-      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
-        case check_git_status() do
-          {:dirty, output} ->
-            if Igniter.Util.IO.yes?("""
-               #{IO.ANSI.red()} Uncommitted changes detected in the project. #{IO.ANSI.reset()}
-
-               Output of `git status -s --porcelain`:
-
-               #{output}
-
-               Continue? You will be prompted again to accept the above changes.
-               """) do
-              Igniter.assign(igniter, :prompt_on_git_changes?, false)
-            else
-              exit({:shutdown, 1})
-            end
-
-          _ ->
-            Igniter.assign(igniter, :prompt_on_git_changes?, false)
-        end
-      else
-        igniter
-      end
+      true ->
+        :ok
     end
   end
 
@@ -1140,13 +1205,17 @@ defmodule Igniter do
     if opts[:dry_run] || opts[:yes] || igniter.assigns[:test_mode?] || !has_changes?(igniter) do
       message
     else
-      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) do
+      if Map.get(igniter.assigns, :prompt_on_git_changes?, true) and
+           !igniter.assigns[:private][:accepted_once] do
         case check_git_status() do
           {:dirty, output} ->
             """
             #{IO.ANSI.red()}Warning! Uncommitted git changes detected in the project. #{IO.ANSI.reset()}
 
-            Output of `git status -s --porcelain`:
+            You #{IO.ANSI.yellow()}may#{IO.ANSI.reset()} want to save these changes and rerun this command.
+            This ensures that you can run `#{IO.ANSI.red()}git reset#{IO.ANSI.reset()}` to undo the changes.
+
+            Output of `#{IO.ANSI.green()}git status -s --porcelain#{IO.ANSI.reset()}`:
 
             #{output}
 
@@ -1159,6 +1228,91 @@ defmodule Igniter do
       else
         message
       end
+    end
+  end
+
+  @line_limit 1000
+
+  defp too_long_to_display?(igniter) do
+    if igniter.assigns[:test_mode?] do
+      false
+    else
+      Enum.reduce_while(igniter.rewrite, {0, false}, fn source, {count, res} ->
+        count = count + Enum.count(String.split(source_diff(source, false), "\n"))
+
+        if count > @line_limit do
+          {:halt, {count, true}}
+        else
+          {:cont, {count, res}}
+        end
+      end)
+      |> elem(1)
+    end
+  end
+
+  defp handle_long_diff(igniter, opts) do
+    files_changed =
+      igniter.rewrite
+      |> Enum.filter(&changed?/1)
+      |> Enum.group_by(&Rewrite.Source.from?(&1, :string))
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map_join("\n\n", fn
+        {true, sources} ->
+          "Creating: \n\n" <>
+            Enum.map_join(sources, "\n", &"  * #{Rewrite.Source.get(&1, :path)}")
+
+        {false, sources} ->
+          "Updating: \n\n" <>
+            Enum.map_join(sources, "\n", &"  * #{Rewrite.Source.get(&1, :path)}")
+      end)
+
+    files_changed =
+      if Enum.empty?(igniter.moves) do
+        files_changed
+      else
+        ("Moving: \n\n" <>
+           igniter.moves)
+        |> Enum.sort_by(&elem(&1, 0))
+        |> Enum.map(fn {from, to} ->
+          "#{IO.ANSI.red()} #{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
+        end)
+      end
+
+    options = [
+      write: "Proceed *without* viewing changes. (default)",
+      display: "Display the diff inline anyway.",
+      patch_file:
+        "Write to `.igniter` so you can preview all of the changes, and wait to proceed."
+    ]
+
+    Igniter.Util.IO.select(
+      "Too many changes to automatically display a full diff (>= #{@line_limit} lines changed).\n" <>
+        "The following files will be changed:\n\n" <>
+        files_changed <> "\n\nHow would you like to proceed?",
+      options,
+      display: &elem(&1, 1),
+      default: {:write, nil}
+    )
+    |> elem(0)
+    |> case do
+      :display ->
+        display_diff(Rewrite.sources(igniter.rewrite), opts)
+        :ok
+
+      :patch_file ->
+        File.write!(
+          ".igniter",
+          diff(Rewrite.sources(igniter.rewrite), Keyword.put(opts, :color?, false))
+        )
+
+        Mix.shell().info(
+          "Diff:\n\n#{IO.ANSI.yellow()}View the diff by opening `#{Path.expand(".igniter")}`.#{IO.ANSI.reset()}"
+        )
+
+        :ok
+
+      :write ->
+        :no_confirm
     end
   end
 
@@ -1179,7 +1333,14 @@ defmodule Igniter do
           source -> source
         end
 
-      if Rewrite.Source.from?(source, :string) do
+      source_diff(source, color?)
+    end)
+  end
+
+  defp source_diff(source, color?) do
+    cond do
+      Rewrite.Source.from?(source, :string) &&
+          String.valid?(Rewrite.Source.get(source, :content)) ->
         content_lines =
           source
           |> Rewrite.Source.get(:content)
@@ -1219,7 +1380,8 @@ defmodule Igniter do
         else
           ""
         end
-      else
+
+      String.valid?(Rewrite.Source.get(source, :content)) ->
         diff = Rewrite.Source.diff(source, color: color?) |> IO.iodata_to_binary()
 
         if String.trim(diff) != "" do
@@ -1232,8 +1394,17 @@ defmodule Igniter do
         else
           ""
         end
-      end
-    end)
+
+      !String.valid?(Rewrite.Source.get(source, :content)) ->
+        """
+        Create: #{Rewrite.Source.get(source, :path)}
+
+        (content diff can't be displayed)
+        """
+
+      true ->
+        ""
+    end
   end
 
   @doc false
@@ -1249,11 +1420,24 @@ defmodule Igniter do
       |> reevaluate_igniter_config(adding_paths, reevaluate_igniter_config?)
     else
       igniter =
-        "**/.formatter.exs"
-        |> Path.wildcard()
-        |> Enum.reduce(igniter, fn path, igniter ->
-          Igniter.include_existing_file(igniter, path)
-        end)
+        if igniter.assigns[:test_mode?] do
+          igniter
+        else
+          igniter.rewrite
+          |> Stream.map(& &1.path)
+          |> Stream.map(&Path.split/1)
+          |> Stream.map(&List.first/1)
+          # we don't want to be searching for .formatter.exs
+          # outside the project
+          |> Stream.reject(&String.starts_with?(&1, ".."))
+          |> Stream.uniq()
+          # we should walk the tree up to each file instead of using **
+          |> Stream.flat_map(
+            &[Path.join(&1, "**/.formatter.exs"), Path.join(&1, ".formatter.exs")]
+          )
+          |> Stream.flat_map(&Path.wildcard(&1))
+          |> Enum.reduce(igniter, &Igniter.include_existing_file(&2, &1))
+        end
 
       igniter =
         if exists?(igniter, ".formatter.exs") do
@@ -1337,9 +1521,13 @@ defmodule Igniter do
           {:__block__, [], contents}
           |> Sourceror.Zipper.zip()
           # replace with nil
-          |> Igniter.Code.Common.remove(
-            &Igniter.Code.Function.function_call?(&1, :import_config, 1)
-          )
+          |> Sourceror.Zipper.traverse(fn zipper ->
+            if Igniter.Code.Function.function_call?(zipper, :import_config, 1) do
+              Sourceror.Zipper.replace(zipper, nil)
+            else
+              zipper
+            end
+          end)
           |> Zipper.topmost_root()
           |> Sourceror.to_string()
           |> then(&Config.Reader.eval!("config/config.exs", &1, env: Mix.env()))
@@ -1534,9 +1722,13 @@ defmodule Igniter do
   end
 
   def changed?(%Rewrite.Source{} = source) do
-    diff = Rewrite.Source.diff(source) |> IO.iodata_to_binary()
-
-    String.trim(diff) != ""
+    if Rewrite.Source.from?(source, :string) do
+      true
+    else
+      Rewrite.Source.version(source) > 1 and
+        Rewrite.Source.get(source, :content, 1) !=
+          Rewrite.Source.get(source, :content)
+    end
   end
 
   @doc false
@@ -1560,19 +1752,31 @@ defmodule Igniter do
     igniter.warnings
     |> Enum.reverse()
     |> Enum.map(fn error ->
-      ["* ", :yellow, format_error(error)]
+      ["* ", :yellow, indent(format_error(error), 2)]
     end)
     |> display_list([title, " - ", :yellow, "Warnings:"])
   end
 
   @doc false
   def display_notices(igniter) do
-    igniter.notices
-    |> Enum.reverse()
-    |> Enum.map(fn notice ->
-      [:green, "Notice: ", :reset, notice]
-    end)
-    |> display_list()
+    case igniter.notices do
+      [] ->
+        :ok
+
+      notices ->
+        notices
+        |> Enum.reverse()
+        |> Enum.map(fn notice ->
+          ["* ", :green, indent(notice, 2), :reset]
+        end)
+        |> display_list(["Notices: "])
+
+        Mix.shell().info([
+          :yellow,
+          "Notices were printed above. Please read them all before continuing!",
+          :reset
+        ])
+    end
   end
 
   @doc false
@@ -1590,12 +1794,19 @@ defmodule Igniter do
     |> display_list("These folders will be created:")
   end
 
+  defp indent(string, count) do
+    string
+    |> String.split("\n")
+    |> Enum.map_join("\n", &(String.duplicate(" ", count) <> &1))
+    |> String.trim_leading(" ")
+  end
+
   @doc false
   def display_moves(igniter) do
     igniter.moves
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(fn {from, to} ->
-      [:red, Path.relative_to_cwd(from), :reset, ": ", :green, to]
+      [:red, from, :reset, ": ", :green, to]
     end)
     |> display_list("These files will be moved:")
   end
@@ -1619,12 +1830,10 @@ defmodule Igniter do
   end
 
   @spec display_list(IO.ANSI.ansidata(), IO.ANSI.ansidata()) :: :ok
-  defp display_list(list, title \\ nil)
-
   defp display_list([], _title), do: :ok
 
   defp display_list(list, title) do
-    title = if title, do: [IO.ANSI.format(title), "\n\n"], else: []
+    title = [IO.ANSI.format(title), "\n\n"]
     formatted_list = Enum.map_join(list, "\n", &IO.ANSI.format/1)
 
     Mix.shell().info(["\n", title, formatted_list, "\n"])

@@ -7,10 +7,10 @@ defmodule Igniter.Code.Common do
   alias Sourceror.Zipper
 
   @doc """
-  Moves to the next node that matches the predicate.
+  Moves to the first node that matches the predicate.
   """
   @spec move_to(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
-  def move_to(zipper, pred) do
+  def move_to(zipper, pred) when is_function(pred, 1) do
     if pred.(zipper) do
       {:ok, zipper}
     else
@@ -21,6 +21,44 @@ defmodule Igniter.Code.Common do
         next ->
           move_to(next, pred)
       end
+    end
+  end
+
+  @doc "Returns true if the node represents a variable assignment"
+  @spec variable_assignment?(zipper :: Zipper.t(), name :: atom) :: boolean()
+  def variable_assignment?(%{node: {:=, _, [{name, _, ctx}, _]}}, name) when is_atom(ctx) do
+    true
+  end
+
+  def variable_assignment?(_, _), do: false
+
+  @doc """
+  Moves to the last node that matches the predicate.
+
+  Similar to `move_to/2` but it doesn't stop at the first match,
+  for example a zipper for the following code:
+
+  ```elixir
+  port = 4000
+  port = 4001
+  ```
+
+  With a match for `port = _` as `{:=, _, [{:port, _, _}, _]}`,
+  will return the second `port` variable.
+  """
+  @spec move_to_last(Zipper.t(), (Zipper.t() -> boolean())) :: {:ok, Zipper.t()} | :error
+  def move_to_last(zipper, pred) when is_function(pred, 1) do
+    zipper
+    |> Zipper.traverse(false, fn zipper, acc ->
+      if pred.(zipper) do
+        {zipper, zipper}
+      else
+        {zipper, acc}
+      end
+    end)
+    |> case do
+      {_, false} -> :error
+      {_, zipper} -> {:ok, zipper}
     end
   end
 
@@ -43,6 +81,20 @@ defmodule Igniter.Code.Common do
       zipper |> Zipper.next() |> do_find_all(predicate, [zipper | buffer])
     else
       zipper |> Zipper.next() |> do_find_all(predicate, buffer)
+    end
+  end
+
+  @doc false
+  def find_prev(%Zipper{} = zipper, pred) when is_function(pred, 1) do
+    case move_left(zipper, pred) do
+      {:ok, zipper} ->
+        {:ok, zipper}
+
+      :error ->
+        case move_upwards(zipper, 1) do
+          {:ok, zipper} -> find_prev(zipper, pred)
+          :error -> :error
+        end
     end
   end
 
@@ -195,6 +247,51 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  def add_comment(zipper, comment, opts \\ []) do
+    zipper = maybe_move_to_single_child_block(zipper)
+
+    comments =
+      comment
+      |> String.trim_leading("\n")
+      |> String.trim_trailing("\n")
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn
+        "" ->
+          "#"
+
+        string ->
+          if String.starts_with?(String.trim_leading(string), "#") do
+            string
+          else
+            if String.starts_with?(string, " ") do
+              "#" <> string
+            else
+              "# " <> string
+            end
+          end
+      end)
+      |> Enum.map(fn comment ->
+        %{
+          line: 0,
+          text: comment,
+          column: 0,
+          next_eol_count: 1,
+          previous_eol_count: 1
+        }
+      end)
+
+    node =
+      case opts[:placement] || :before do
+        :before ->
+          Sourceror.prepend_comments(zipper.node, comments)
+
+        :after ->
+          Sourceror.append_comments(zipper.node, comments)
+      end
+
+    Zipper.replace(zipper, node)
+  end
+
   @doc """
   Adds the provided code to the zipper.
 
@@ -205,31 +302,18 @@ defmodule Igniter.Code.Common do
 
   ## Example:
 
-  ```elixir
-  existing_zipper = \"\"\"
-  IO.inspect("Hello, world!")
-  \"\"\"
-  |> Sourceror.parse_string!()
-  |> Sourceror.Zipper.zip()
-
-  new_code = \"\"\"
-  IO.inspect("Goodbye, world!")
-  \"\"\"
-
-  existing_zipper
-  |> Igniter.Common.add_code(new_code)
-  |> Sourceror.Zipper.root()
-  |> Sourceror.to_string()
-  ```
-
-  Which will produce
-
-  ```elixir
-  \"\"\"
-  IO.inspect("Hello, world!")
-  IO.inspect("Goodbye, world!")
-  \"\"\"
-  ```
+      iex> existing_zipper = Igniter.Code.Common.parse_to_zipper!(\"""
+      ...> IO.puts("abc")
+      ...> \""")
+      ...>
+      ...> existing_zipper
+      ...> |> Igniter.Code.Common.add_code(\"""
+      ...> IO.puts("Goodbye, world!")
+      ...> \""", after: true)
+      ...> |> Sourceror.Zipper.root()
+      ...> |> Sourceror.to_string()
+      "IO.puts(\\"abc\\")
+      IO.puts(\\"Goodbye, world!\\")"
   """
   @spec add_code(Zipper.t(), String.t() | Macro.t(), [opt]) :: Zipper.t()
         when opt: {:placement, :after | :before} | {:expand_env?, boolean()}
@@ -265,6 +349,8 @@ defmodule Igniter.Code.Common do
     expand_env? = Keyword.get(opts, :expand_env?, true)
     placement = Keyword.get(opts, :placement, :after)
 
+    new_code = clean_lines(new_code)
+
     new_code =
       if expand_env? do
         use_aliases(new_code, zipper)
@@ -281,12 +367,12 @@ defmodule Igniter.Code.Common do
 
     cond do
       upwards && extendable_block?(upwards.node) ->
-        {:__block__, _, upwards_code} = upwards.node
+        {:__block__, upwards_meta, upwards_code} = upwards.node
         index = Enum.count(zipper.path.left || [])
 
         to_insert =
-          if extendable_block?(new_code) do
-            {:__block__, _, new_code} = new_code
+          if extendable_block?(new_code) and !has_comments?(new_code) do
+            {:__block__, _new_meta, new_code} = new_code
             new_code
           else
             [new_code]
@@ -299,18 +385,21 @@ defmodule Igniter.Code.Common do
             Enum.split(upwards_code, index)
           end
 
-        Zipper.replace(upwards, {:__block__, [], head ++ to_insert ++ tail})
+        Zipper.replace(
+          upwards,
+          {:__block__, upwards_meta, head ++ to_insert ++ tail}
+        )
 
       super_upwards && extendable_block?(super_upwards.node) ->
-        {:__block__, _, upwards_code} = super_upwards.node
+        {:__block__, upwards_meta, upwards_code} = super_upwards.node
         index = Enum.count(zipper.supertree.path.left || [])
 
-        to_insert =
-          if extendable_block?(new_code) do
-            {:__block__, _, new_code} = new_code
-            new_code
+        {to_insert, new_meta} =
+          if extendable_block?(new_code) and !has_comments?(new_code) do
+            {:__block__, new_meta, new_code} = new_code
+            {new_code, new_meta}
           else
-            [new_code]
+            {[new_code], []}
           end
 
         {head, tail} =
@@ -321,7 +410,11 @@ defmodule Igniter.Code.Common do
           end
 
         new_super_upwards =
-          Zipper.replace(super_upwards, {:__block__, [], head ++ to_insert ++ tail})
+          Zipper.replace(
+            super_upwards,
+            {:__block__, combine_comments(upwards_meta, new_meta, placement),
+             head ++ to_insert ++ tail}
+          )
 
         if placement == :after do
           %{
@@ -351,9 +444,9 @@ defmodule Igniter.Code.Common do
 
       true ->
         if extendable_block?(zipper.node) && extendable_block?(new_code) do
-          {:__block__, _, stuff} = zipper.node
+          {:__block__, meta, stuff} = zipper.node
 
-          {:__block__, _, new_stuff} = new_code
+          {:__block__, new_meta, new_stuff} = new_code
 
           new_stuff =
             if placement == :after do
@@ -362,10 +455,13 @@ defmodule Igniter.Code.Common do
               new_stuff ++ stuff
             end
 
-          Zipper.replace(zipper, {:__block__, [], new_stuff})
+          Zipper.replace(
+            zipper,
+            {:__block__, combine_comments(meta, new_meta, placement), new_stuff}
+          )
         else
           if extendable_block?(zipper.node) do
-            {:__block__, _, stuff} = zipper.node
+            {:__block__, meta, stuff} = zipper.node
 
             new_stuff =
               if placement == :after do
@@ -374,30 +470,46 @@ defmodule Igniter.Code.Common do
                 [new_code] ++ stuff
               end
 
-            Zipper.replace(zipper, {:__block__, [], new_stuff})
+            Zipper.replace(zipper, {:__block__, meta, new_stuff})
           else
-            code =
-              if extendable_block?(new_code) do
-                {:__block__, _, new_stuff} = new_code
+            {code, meta} =
+              if extendable_block?(new_code) and !has_comments?(new_code) do
+                {:__block__, meta, new_stuff} = new_code
 
                 if placement == :after do
-                  [zipper.node] ++ new_stuff
+                  {[zipper.node] ++ new_stuff, meta}
                 else
-                  new_stuff ++ [zipper.node]
+                  {new_stuff ++ [zipper.node], meta}
                 end
               else
                 if placement == :after do
-                  [zipper.node, new_code]
+                  {[zipper.node, new_code], []}
                 else
-                  [new_code, zipper.node]
+                  {[new_code, zipper.node], []}
                 end
               end
 
-            Zipper.replace(zipper, {:__block__, [], code})
+            Zipper.replace(zipper, {:__block__, meta, code})
           end
         end
     end
   end
+
+  defp clean_lines(ast) do
+    Macro.prewalk(ast, fn
+      {call, meta, args} ->
+        {call, Keyword.put(meta, :line, 0), args}
+
+      other ->
+        other
+    end)
+  end
+
+  defp has_comments?({_, meta, _}) do
+    List.wrap(meta[:leading_comments]) != [] || List.wrap(meta[:trailing_comments]) != []
+  end
+
+  defp has_comments?(_), do: false
 
   @doc """
   Updates all nodes matching the given predicate with the given function.
@@ -412,41 +524,65 @@ defmodule Igniter.Code.Common do
              | {:warning | :error, term()})
         ) ::
           {:ok, Zipper.t()} | {:warning | :error, term()}
+
   def update_all_matches(zipper, pred, fun) do
+    do_update_all_matches(zipper, pred, fun, false)
+  end
+
+  defp do_update_all_matches(zipper, pred, fun, nested?) do
     # we check for a single match before traversing as an optimization
     case move_to(zipper, pred) do
       :error ->
         {:ok, zipper}
 
       {:ok, _} ->
-        Zipper.traverse(zipper, false, fn zipper, acc ->
-          if pred.(zipper) do
-            case within(zipper, fun) do
-              {:code, new_code} ->
-                {replace_code(zipper, new_code), true}
+        Zipper.traverse(zipper, false, fn
+          zipper, acc ->
+            if pred.(zipper) do
+              case fun.(zipper) do
+                {:code, new_code} ->
+                  {replace_code(zipper, new_code), true}
 
-              {:ok, ^zipper} ->
-                {zipper, acc}
+                {:ok, ^zipper} ->
+                  {zipper, acc}
 
-              {:ok, zipper} ->
-                {zipper, true}
+                {:ok, zipper} ->
+                  {zipper, true}
 
-              {:halt_depth, zipper} ->
-                {zipper, acc}
+                {:halt_depth, zipper} ->
+                  {%{zipper | node: {:__replacement__, [node: zipper.node], []}}, acc}
 
-              other ->
-                throw({:other_res, other})
+                other ->
+                  throw({:other_res, other})
+              end
+            else
+              {zipper, acc}
             end
-          else
-            {zipper, acc}
-          end
         end)
         |> case do
           {zipper, false} ->
             {:ok, zipper}
 
           {zipper, true} ->
-            update_all_matches(zipper, pred, fun)
+            do_update_all_matches(zipper, pred, fun, true)
+        end
+        |> case do
+          {:ok, zipper} ->
+            if nested? do
+              {:ok, zipper}
+            else
+              {:ok,
+               Zipper.traverse(zipper, fn
+                 %{node: {:__replacement__, [node: node], []}} = zipper ->
+                   %{zipper | node: node}
+
+                 other ->
+                   other
+               end)}
+            end
+
+          other ->
+            other
         end
     end
   catch
@@ -484,31 +620,42 @@ defmodule Igniter.Code.Common do
       v
   end
 
+  @doc """
+  Replaces code with new code.
+  """
   def replace_code(%Zipper{} = zipper, code) when is_binary(code) do
     replace_code(zipper, Sourceror.parse_string!(code))
   end
 
   def replace_code(%Zipper{} = zipper, new_code) do
-    new_code = use_aliases(new_code, zipper)
+    new_code =
+      new_code
+      |> clean_lines()
+      |> use_aliases(zipper)
 
     if extendable_block?(new_code) and in_extendable_block?(zipper) do
       at_supertree_root? = Zipper.up(zipper) == nil and !!zipper.supertree
       zipper = if at_supertree_root?, do: supertree(zipper), else: zipper
 
-      {:__block__, _, new_code} = new_code
-      {new_code_last, new_code} = List.pop_at(new_code, -1)
+      {:__block__, meta, new_inner_code} = new_code
 
-      zipper =
-        new_code
-        # We insert to the left and explicitly replace the node with new_code_last
-        # so that the last node retains the metadata of the node we're replacing.
-        # That metadata includes things like the number of trailing newlines.
-        |> Enum.reduce(zipper, &Zipper.insert_left(&2, &1))
-        |> replace_node(new_code_last)
+      if Enum.empty?(meta[:trailing_comments] || []) || Enum.empty?(meta[:leading_comments] || []) do
+        {new_code_last, new_inner_code} = List.pop_at(new_inner_code, -1)
 
-      {:ok, zipper} = move_left(zipper, length(new_code))
+        zipper =
+          new_inner_code
+          # We insert to the left and explicitly replace the node with new_code_last
+          # so that the last node retains the metadata of the node we're replacing.
+          # That metadata includes things like the number of trailing newlines.
+          |> Enum.reduce(zipper, &Zipper.insert_left(&2, &1))
+          |> replace_node(new_code_last)
 
-      if at_supertree_root?, do: Zipper.subtree(zipper), else: zipper
+        {:ok, zipper} = move_left(zipper, length(new_inner_code))
+
+        if at_supertree_root?, do: Zipper.subtree(zipper), else: zipper
+      else
+        replace_node(zipper, new_code)
+      end
     else
       replace_node(zipper, new_code)
     end
@@ -526,11 +673,39 @@ defmodule Igniter.Code.Common do
       end
 
     case {zipper.node, new_code} do
-      {{_, meta, _}, {new_call, _, new_children}} ->
-        Zipper.replace(zipper, {new_call, meta, new_children})
+      {{_, meta, _}, {new_call, new_meta, new_children}} ->
+        Zipper.replace(zipper, {new_call, combine_comments(meta, new_meta), new_children})
 
       {_node, _new_node} ->
         Zipper.replace(zipper, new_code)
+    end
+  end
+
+  defp combine_comments(meta, new_meta, placement \\ :after) do
+    if placement == :after do
+      meta
+      |> Keyword.update(
+        :leading_comments,
+        new_meta[:leading_comments] || [],
+        &(&1 ++ (new_meta[:leading_comments] || []))
+      )
+      |> Keyword.update(
+        :trailing_comments,
+        new_meta[:trailing_comments] || [],
+        &((new_meta[:trailing_comments] || []) ++ &1)
+      )
+    else
+      meta
+      |> Keyword.update(
+        :leading_comments,
+        new_meta[:leading_comments] || [],
+        &((new_meta[:leading_comments] || []) ++ &1)
+      )
+      |> Keyword.update(
+        :trailing_comments,
+        new_meta[:trailing_comments] || [],
+        &(&1 ++ (new_meta[:trailing_comments] || []))
+      )
     end
   end
 
@@ -799,13 +974,8 @@ defmodule Igniter.Code.Common do
   def move_to_cursor_match_in_scope(zipper, pattern) do
     pattern =
       case pattern do
-        pattern when is_binary(pattern) ->
-          pattern
-          |> Sourceror.parse_string!()
-          |> Zipper.zip()
-
-        %Zipper{} = pattern ->
-          pattern
+        pattern when is_binary(pattern) -> parse_to_zipper!(pattern)
+        %Zipper{} = pattern -> pattern
       end
 
     case move_to_cursor(zipper, pattern) do
@@ -1025,18 +1195,17 @@ defmodule Igniter.Code.Common do
   Runs the function `fun` on the subtree of the currently focused `node` and
   returns the updated `zipper`.
 
-  `fun` must return {:ok, zipper} or `:error`, which may be positioned at the top of the subtree.
+  `fun` must return `{:ok, zipper}` or `:error`, which may be positioned at the top of the subtree.
   """
+  @spec within(Zipper.t(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
+          {:ok, Zipper.t()} | :error
   def within(%Zipper{} = top_zipper, fun) when is_function(fun, 1) do
     top_zipper
     |> Zipper.subtree()
     |> fun.()
     |> case do
       {:ok, %Zipper{} = zipper} ->
-        {:ok,
-         zipper
-         |> Zipper.top()
-         |> into(zipper.supertree || top_zipper)}
+        {:ok, Zipper.supertree(zipper)}
 
       other ->
         other
@@ -1142,6 +1311,12 @@ defmodule Igniter.Code.Common do
   rescue
     _ ->
       zipper
+  end
+
+  def parse_to_zipper!(string) do
+    string
+    |> Sourceror.parse_string!()
+    |> Zipper.zip()
   end
 
   if Code.ensure_loaded?(Macro.Env) && function_exported?(Macro.Env, :expand_alias, 3) do

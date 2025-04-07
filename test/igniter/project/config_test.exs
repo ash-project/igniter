@@ -29,6 +29,21 @@ defmodule Igniter.Project.ConfigTest do
     end
 
     @tag :regression
+    test "it handles this final `if` statement while formatting modules" do
+      test_project()
+      |> Igniter.create_new_file("config/test.exs", """
+        import Config
+
+        if __DIR__ |> Path.join("dev.secret.exs") |> File.exists?(), do: import_config("dev.secret.exs")
+
+        import_config "host.exs"
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Module.create_module(Foo.Bar, "def foo, do: 10")
+      |> Igniter.format(nil)
+    end
+
+    @tag :regression
     test "it sets the spark formatter plugins" do
       test_project()
       |> Igniter.Project.Config.configure(
@@ -412,6 +427,96 @@ defmodule Igniter.Project.ConfigTest do
                )
                |> apply_igniter()
     end
+
+    test "places code after last matching node" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+      import Config
+
+      foo = 1
+      foo = 2
+
+      if System.get_env("PHX_SERVER") do
+        config :fake, FakeWeb.Endpoint, server: true
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo],
+        {:code, Sourceror.parse_string!("foo")},
+        after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
+      )
+      |> assert_has_patch("config/fake.exs", """
+      4  4   |foo = 2
+      5  5   |
+         6 + |config :fake, foo: foo
+         7 + |
+      6  8   |if System.get_env("PHX_SERVER") do
+      """)
+    end
+
+    test "places code into next config after matching node" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+      import Config
+
+      foo = "bar"
+      bar = "baz"
+
+      config :fake, bar: [:baz]
+
+      if System.get_env("PHX_SERVER") do
+        config :fake, FakeWeb.Endpoint, server: true
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo],
+        {:code, Sourceror.parse_string!("foo")},
+        after: &match?({:=, _, [{:foo, _, _}, _]}, &1.node)
+      )
+      |> assert_has_patch("config/fake.exs", """
+      4  4   |bar = "baz"
+      5  5   |
+      6    - |config :fake, bar: [:baz]
+         6 + |config :fake, bar: [:baz], foo: foo
+      """)
+    end
+
+    test "respect mix.exs :config_path" do
+      mix_exs = """
+      defmodule Test.MixProject do
+        use Mix.Project
+
+        def project do
+          [
+            app: :test,
+            config_path: "../../config/config.exs"
+          ]
+        end
+      end
+      """
+
+      igniter =
+        assert test_project()
+               |> Igniter.create_or_update_elixir_file(
+                 "mix.exs",
+                 mix_exs,
+                 &{:ok, Igniter.Code.Common.replace_code(&1, mix_exs)}
+               )
+               |> apply_igniter!()
+
+      igniter
+      |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
+      |> assert_creates("../../config/fake.exs", """
+      import Config
+      config :fake, foo: [bar: "baz"]
+      """)
+    end
   end
 
   @tag :regression
@@ -446,6 +551,25 @@ defmodule Igniter.Project.ConfigTest do
     assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", :fooo) == false
     assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", Test) == true
     assert Igniter.Project.Config.configures_root_key?(igniter, "fake.exs", Testt) == false
+  end
+
+  describe "configure_runtime_env/6" do
+    test "present value is overwritten by default" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      if config_env() == :prod do
+        config :fake, :buz, :blat
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure_runtime_env(:prod, :fake, [:buz], "baz")
+      |> assert_has_patch("config/runtime.exs", """
+      4 - |  config :fake, :buz, :blat
+      4 + |  config :fake, :buz, "baz"
+      """)
+    end
   end
 
   describe "configures_key?/3" do
@@ -507,6 +631,93 @@ defmodule Igniter.Project.ConfigTest do
                :key6
              ]) ==
                false
+    end
+  end
+
+  describe "modify_configuration_code/5" do
+    test "replace existing config" do
+      zipper =
+        ~s"""
+        import Config
+        config :fake, foo: [bar: "baz"]
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      config =
+        zipper
+        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true)
+        |> Igniter.Util.Debug.code_at_node()
+
+      assert String.contains?(config, "config :fake, foo: true")
+    end
+
+    test "update existing config" do
+      zipper =
+        ~s"""
+        import Config
+        config :fake, foo: [bar: "baz"]
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      config =
+        zipper
+        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true,
+          updater: fn zipper ->
+            Igniter.Code.Keyword.put_in_keyword(zipper, [:bar], true)
+          end
+        )
+        |> Igniter.Util.Debug.code_at_node()
+
+      assert String.contains?(config, "config :fake, foo: [bar: true]")
+    end
+  end
+
+  describe "configure_group" do
+    test "adds configuration with a comment above it" do
+      test_project()
+      |> Igniter.Project.Config.configure_group(
+        "config.exs",
+        :foo,
+        [:bar],
+        [
+          {:baz, :buz}
+        ],
+        comment: """
+          Configures the foobar to
+          accomplish the barbaz
+        """
+      )
+      |> assert_creates("config/config.exs", """
+      import Config
+      #  Configures the foobar to
+      #  accomplish the barbaz
+      config :foo, bar: [baz: :buz]
+      import_config "\#{config_env()}.exs"
+      """)
+    end
+
+    test "alters configuration without adding a comment if the group is already configured" do
+      test_project()
+      |> Igniter.Project.Config.configure("config.exs", :foo, [:bar], [])
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure_group(
+        "config.exs",
+        :foo,
+        [:bar],
+        [
+          {:baz, :buz}
+        ],
+        comment: """
+          Configures the foobar to
+          accomplish the barbaz
+        """
+      )
+      |> assert_has_patch("config/config.exs", """
+       - |config :foo, bar: []
+       + |config :foo, bar: [baz: :buz]
+      """)
     end
   end
 end

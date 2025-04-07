@@ -14,6 +14,7 @@ defmodule Mix.Tasks.Igniter.New do
   * `--yes` or `-y` - Skips confirmations during installers. The `-y` option cannot be applied
     to the `--with` command, as it may or may not support it. Use `--with-args`
     to provide arguments to that command.
+  * `--no-installer-version-check` - skip the version check for the latest igniter_new version
 
   ## Options for `mix.new`
 
@@ -28,11 +29,12 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version "~> 0.4"
+  @igniter_version "~> 0.5"
+  @installer_version Igniter.New.MixProject.project()[:version]
 
   @impl Mix.Task
   def run(argv) do
-    {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+    {argv, positional} = extract_positional_args(argv)
 
     name =
       case positional do
@@ -66,12 +68,12 @@ defmodule Mix.Tasks.Igniter.New do
           local: :string,
           example: :boolean,
           with: :string,
-          with_args: :string,
           module: :string,
           sup: :boolean,
-          umbrella: :boolean
+          umbrella: :boolean,
+          installer_version_check: :boolean
         ],
-        aliases: [i: :install, l: :local, e: :example, w: :with, wa: :with_args]
+        aliases: [i: :install, l: :local, e: :example, w: :with]
       )
 
     install_with = options[:with] || "new"
@@ -100,8 +102,20 @@ defmodule Mix.Tasks.Igniter.New do
       exit({:shutdown, 1})
     end
 
+    version_task =
+      if Keyword.get(options, :installer_version_check, true) do
+        get_latest_version("igniter_new")
+      end
+
     with_args =
-      [name | OptionParser.split(options[:with_args] || "")]
+      [name | with_args(argv)]
+
+    with_args =
+      if install_with == "phx.new" do
+        with_args ++ ["--install"]
+      else
+        with_args
+      end
 
     with_args =
       if options[:module] do
@@ -111,28 +125,49 @@ defmodule Mix.Tasks.Igniter.New do
       end
 
     with_args =
-      if with_args[:sup] do
+      if options[:sup] do
         with_args ++ ["--sup"]
       else
         with_args
       end
 
     with_args =
-      if with_args[:umbrella] do
+      if options[:umbrella] do
         with_args ++ ["--umbrella"]
       else
         with_args
       end
 
+    yes =
+      if "--yes" in argv or "-y" in argv do
+        "--yes"
+      end
+
+    do_warn_outdated(version_task, yes: yes)
+
     Mix.Task.run(install_with, with_args)
 
     version_requirement =
       if options[:local] do
-        local = Path.join(["..", Path.relative_to_cwd(options[:local])])
+        local = Path.join(["..", options[:local]])
         "path: #{inspect(local)}, override: true"
       else
         inspect(@igniter_version)
       end
+
+    if "--umbrella" in with_args or "--umbrella" in argv do
+      Mix.shell().exit("""
+      igniter.new is not currently compatible with umbrella applications
+
+      Additionally, many package installers do not support umbrella applications.
+
+      If you are sure that you want to use umbrella applications (there are plenty 
+      of good reasons), please generate the application using `mix #{install_with}`,
+      and then run installers from individual applications.
+      """)
+
+      exit({:shutdown, 1})
+    end
 
     File.cd!(name)
 
@@ -155,18 +190,18 @@ defmodule Mix.Tasks.Igniter.New do
       File.write!("mix.exs", new_contents)
     end
 
-    System.cmd("mix", ["deps.get"])
-    System.cmd("mix", ["deps.compile"])
+    Igniter.Installer.Loading.with_spinner(
+      "Fetching and compiling dependencies",
+      fn ->
+        System.cmd("mix", ["deps.get"])
+        System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
+      end
+    )
 
     if !Enum.empty?(install) do
       example =
         if options[:example] do
           "--example"
-        end
-
-      yes =
-        if "--yes" in argv or "-y" in argv do
-          "--yes"
         end
 
       install_args =
@@ -196,16 +231,89 @@ defmodule Mix.Tasks.Igniter.New do
         try do
           rest_args(argv)
         rescue
-          _ -> []
+          _ ->
+            []
         end
 
-      Mix.Task.run("igniter.install", install_args ++ rest_args)
+      Mix.Task.run(
+        "igniter.install",
+        install_args ++
+          rest_args ++ ["--yes-to-deps", "--from-igniter-new", "--new-with", "phx-new"]
+      )
     end
 
     :ok
   end
 
-  @flags ~w(example sup umbrella)
+  defp do_warn_outdated(version_task, opts) do
+    if version_task do
+      try do
+        # if we get anything else than a `Version`, we'll get a MatchError
+        # and fail silently
+        %Version{} = latest_version = Task.await(version_task, 3_000)
+        maybe_warn_outdated(latest_version, opts)
+      rescue
+        _e ->
+          :ok
+      catch
+        :abort ->
+          exit({:shutdown, 1})
+
+        :exit, _e ->
+          :ok
+      end
+    end
+  end
+
+  defp with_args(argv, acc \\ [])
+
+  defp with_args([], acc) do
+    acc
+  end
+
+  defp with_args(["--with-args=" <> args | rest], acc) do
+    with_args(rest, acc ++ OptionParser.split(args))
+  end
+
+  defp with_args(["--with-args", next | rest], acc) do
+    with_args(rest, acc ++ OptionParser.split(next))
+  end
+
+  defp with_args([_next | rest], acc) do
+    with_args(rest, acc)
+  end
+
+  defp extract_positional_args(argv) do
+    do_extract_positional_args(argv, [], [])
+  end
+
+  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+  defp do_extract_positional_args(argv, got_argv, positional) do
+    case OptionParser.next(argv, switches: []) do
+      {_, _key, true, rest} ->
+        do_extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0)],
+          positional
+        )
+
+      {_, _key, _value, rest} ->
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
+        do_extract_positional_args(
+          rest,
+          got_argv ++ Enum.take(argv, count_consumed),
+          positional
+        )
+
+      {:error, rest} ->
+        [first | rest] = rest
+        do_extract_positional_args(rest, got_argv, positional ++ [first])
+    end
+  end
+
+  @flags ~w(example sup umbrella installer-version-check no-installer-version-check)
   @flags_with_values ~w(install local with with-args module)
   @switches ~w(e)
   @switches_with_values ~w(i l)
@@ -256,19 +364,156 @@ defmodule Mix.Tasks.Igniter.New do
 
   defp do_rest_args([other]), do: [other]
 
-  defp add_igniter_dep(contents, version_requirement) do
-    String.replace(
-      contents,
-      "defp deps do\n    [\n",
-      "defp deps do\n    [\n      {:igniter, #{version_requirement}},\n"
-    )
+  @doc false
+  def add_igniter_dep(contents, version_requirement) do
+    if String.contains?(contents, "defp deps do\n    []") do
+      String.replace(
+        contents,
+        "defp deps do\n    []",
+        "defp deps do\n    [{:igniter, #{version_requirement}, only: [:dev, :test]}]"
+      )
+    else
+      String.replace(
+        contents,
+        "defp deps do\n    [\n",
+        "defp deps do\n    [\n      {:igniter, #{version_requirement}, only: [:dev, :test]},\n"
+      )
+    end
   end
 
-  defp dont_consolidate_protocols_in_dev(contents) do
-    String.replace(
-      contents,
-      "start_permanent: Mix.env() == :prod,\n",
-      "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
-    )
+  @doc false
+  def dont_consolidate_protocols_in_dev(contents) do
+    if String.contains?(contents, "consolidate_protocols") do
+      contents
+    else
+      String.replace(
+        contents,
+        "start_permanent: Mix.env() == :prod,\n",
+        "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
+      )
+    end
+  end
+
+  @doc false
+  def igniter_version, do: @igniter_version
+
+  defp maybe_warn_outdated(latest_version, opts) do
+    if Version.compare(@installer_version, latest_version) == :lt do
+      if opts[:yes] do
+        Mix.shell().info([
+          :yellow,
+          "A new version of igniter.new is available:",
+          :green,
+          " v#{latest_version}",
+          :reset,
+          ".",
+          "\n",
+          "You are currently running ",
+          :red,
+          "v#{@installer_version}",
+          :reset,
+          ".\n",
+          "To update, run:\n\n",
+          "    $ mix local.igniter\n"
+        ])
+      else
+        continue? =
+          Mix.shell().yes?(
+            IO.iodata_to_binary(
+              IO.ANSI.format([
+                :yellow,
+                "A new version of igniter.new is available:",
+                :green,
+                " v#{latest_version}",
+                :reset,
+                ".",
+                "\n",
+                "You are currently running ",
+                :red,
+                "v#{@installer_version}",
+                :reset,
+                ".\n",
+                "To update, run:\n\n",
+                "    $ mix local.igniter\n\n",
+                "Would you like to continue with ",
+                :red,
+                "v#{@installer_version} ",
+                :reset,
+                "anyway?"
+              ])
+            )
+          )
+
+        if !continue? do
+          throw(:abort)
+        end
+      end
+    end
+  end
+
+  # we need to parse JSON, so we only check for new versions on Elixir 1.18+
+  if Version.match?(System.version(), "~> 1.18") do
+    defp get_latest_version(package) do
+      Task.async(fn ->
+        # ignore any errors to not prevent the generators from running
+        # due to any issues while checking the version
+        try do
+          with {:ok, package} <- get_package(package) do
+            versions =
+              for release <- package["releases"],
+                  version = Version.parse!(release["version"]),
+                  # ignore pre-releases like release candidates, etc.
+                  version.pre == [] do
+                version
+              end
+
+            Enum.max(versions, Version)
+          end
+        rescue
+          e -> {:error, e}
+        catch
+          :exit, e -> {:error, :exit, e}
+        end
+      end)
+    end
+
+    defp get_package(name) do
+      http_options =
+        [
+          ssl: [
+            verify: :verify_peer,
+            cacerts: :public_key.cacerts_get(),
+            depth: 2,
+            customize_hostname_check: [
+              match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+            ],
+            versions: [:"tlsv1.2", :"tlsv1.3"]
+          ]
+        ]
+
+      options = [body_format: :binary]
+
+      Application.ensure_all_started(:ssl)
+      :inets.start()
+
+      case :httpc.request(
+             :get,
+             {~c"https://hex.pm/api/packages/#{name}",
+              [{~c"user-agent", ~c"Mix.Tasks.Igniter.New/#{@installer_version}"}]},
+             http_options,
+             options
+           ) do
+        {:ok, {{_, 200, _}, _headers, body}} ->
+          {:ok, JSON.decode!(body)}
+
+        {:ok, {{_, status, _}, _, _}} ->
+          {:error, status}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  else
+    defp get_latest_version(_), do: nil
   end
 end

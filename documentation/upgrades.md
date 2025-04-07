@@ -23,7 +23,7 @@ While you are free to implement this logic however you like, we suggest using
 The new version of the package must be "compile compatible" with your existing code. For this reason,
 we encourage library authors to make even _major_ versions compile compatible with previous versions, but
 this is not always possible. For those cases, we encourage library authors to provide a version _prior_
-to their breaking changes that includs an upgrader to code that is compatible with the new version. This way,
+to their breaking changes that includes an upgrader to code that is compatible with the new version. This way,
 you can at least instruct users to `mix igniter.upgrade package@that.version` before upgrading to the latest
 version.
 

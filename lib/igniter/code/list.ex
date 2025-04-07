@@ -88,6 +88,8 @@ defmodule Igniter.Code.List do
   @spec remove_from_list(Zipper.t(), predicate :: (Zipper.t() -> boolean())) ::
           {:ok, Zipper.t()} | :error
   def remove_from_list(zipper, predicate) do
+    zipper = Igniter.Code.Common.maybe_move_to_single_child_block(zipper)
+
     if list?(zipper) do
       Common.within(zipper, fn zipper ->
         zipper

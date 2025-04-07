@@ -3,6 +3,7 @@ import Config
 if Mix.env() == :dev do
   config :git_ops,
     mix_project: Igniter.MixProject,
+    no_igniter?: true,
     changelog_file: "CHANGELOG.md",
     repository_url: "https://github.com/ash-project/igniter",
     # Instructs the tool to manage your mix version in your `mix.exs` file

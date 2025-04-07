@@ -20,6 +20,18 @@ defmodule Igniter.Project.IgniterConfig do
       default: [],
       doc: "A list of extensions to use in the project."
     ],
+    deps_location: [
+      type: {:or, [:last_list_literal, {:tagged_tuple, :variable, :atom}, :mfa]},
+      default: :last_list_literal,
+      doc: """
+      The strategy for finding the `deps` list to add new dependencies to, in your `deps/0` function in `mix.exs`
+
+        - `:last_list_literal` expects your deps function to return a literal list which will be prepended to
+        - `{:variable, :name}` expects to find an assignment from the given variable to a list literal, i.e `deps = [...]`, and prepends to that
+        - `:mfa` will call the given mfa with the igniter and the zipper within the `deps/0` function. It should return `{:ok, zipper}`
+           at the position where the dep should be prepended, or :error if the location could not be found.
+      """
+    ],
     source_folders: [
       type: {:list, :string},
       default: ["lib", "test/support"],
@@ -31,7 +43,11 @@ defmodule Igniter.Project.IgniterConfig do
         "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved.",
       default: [
         ~r"lib/mix"
-      ]
+      ],
+      quoted_default:
+        quote do
+          [~r"lib/mix"]
+        end
     ]
   ]
 
@@ -110,6 +126,33 @@ defmodule Igniter.Project.IgniterConfig do
     end)
   end
 
+  def configure(igniter, key, value) do
+    value =
+      value
+      |> Macro.escape()
+      |> Sourceror.to_string()
+      |> Sourceror.parse_string!()
+
+    igniter
+    |> setup()
+    |> Igniter.update_elixir_file(".igniter.exs", fn zipper ->
+      rightmost = Igniter.Code.Common.rightmost(zipper)
+
+      if Igniter.Code.List.list?(rightmost) do
+        Igniter.Code.Keyword.set_keyword_key(
+          zipper,
+          key,
+          [value],
+          fn zipper ->
+            {:ok, Igniter.Code.Common.replace_code(zipper, value)}
+          end
+        )
+      else
+        {:warning, "Failed to modify `.igniter.exs` when configuring #{inspect(key)}"}
+      end
+    end)
+  end
+
   def dont_move_file_pattern(igniter, pattern) do
     quoted =
       case pattern do
@@ -165,9 +208,10 @@ defmodule Igniter.Project.IgniterConfig do
         if Igniter.Code.List.list?(rightmost) do
           Enum.reduce_while(@configs, {:ok, zipper}, fn {name, config}, {:ok, zipper} ->
             default =
-              quote do
-                unquote(config[:default])
-              end
+              config[:quoted_default] ||
+                quote do
+                  unquote(Macro.escape(config[:default]))
+                end
 
             set_result =
               Igniter.Code.Common.within(zipper, fn zipper ->

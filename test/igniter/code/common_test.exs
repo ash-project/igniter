@@ -4,6 +4,34 @@ defmodule Igniter.Code.CommonTest do
   use ExUnit.Case
   require Igniter.Code.Function
   import ExUnit.CaptureLog
+  doctest Igniter.Code.Common
+
+  describe "move_to_last/2" do
+    test "no matching nodes returns :error" do
+      assert :error =
+               """
+               foo = 1
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Common.move_to_last(&match?({:=, _, [{:bar, _, _}, _]}, &1.node))
+    end
+
+    test "move to the last matching node" do
+      assert {:ok, zipper} =
+               """
+               foo = 1
+               bar = 1
+               foo = 2
+               bar = 2
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Common.move_to_last(&match?({:=, _, [{:foo, _, _}, _]}, &1.node))
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == "foo = 2"
+    end
+  end
 
   describe "topmost/1" do
     test "escapes subtrees using `within`" do
@@ -797,6 +825,36 @@ defmodule Igniter.Code.CommonTest do
 
       assert subtree_replaced.supertree
       assert {:replaced1, _, []} = replaced.node
+      assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+    end
+
+    test "handles comments" do
+      zipper =
+        """
+        block do
+          one()
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Zipper.zip()
+        |> Zipper.search_pattern("one()")
+
+      expected =
+        """
+        block do
+          # commented()
+          nil
+        end
+        """
+        |> String.trim_trailing()
+
+      replaced = Common.replace_code(zipper, "# commented()")
+      refute replaced.supertree
+      assert expected == replaced |> Zipper.topmost_root() |> Sourceror.to_string()
+
+      subtree_replaced = zipper |> Zipper.subtree() |> Common.replace_code("# commented()")
+
+      assert subtree_replaced.supertree
       assert expected == subtree_replaced |> Zipper.topmost_root() |> Sourceror.to_string()
     end
   end

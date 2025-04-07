@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Igniter.MoveFiles do
-  @moduledoc "Moves any relavant files to their 'correct' location."
+  @moduledoc "Moves any relevant files to their 'correct' location."
   @shortdoc @moduledoc
   use Igniter.Mix.Task
 

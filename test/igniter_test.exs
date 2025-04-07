@@ -152,12 +152,7 @@ defmodule IgniterTest do
         |> Igniter.add_notice("notice 2")
 
       assert capture_io(fn -> Igniter.display_notices(igniter) end) ==
-               """
-
-               \e[32mNotice: \e[0mnotice 1\e[0m
-               \e[32mNotice: \e[0mnotice 2\e[0m
-
-               """
+               "\nNotices: \n\n* \e[32mnotice 1\e[0m\e[0m\n* \e[32mnotice 2\e[0m\e[0m\n\n\e[33mNotices were printed above. Please read them all before continuing!\e[0m\e[0m\n"
     end
 
     test "prints nothing if there are no notices" do
@@ -207,7 +202,9 @@ defmodule IgniterTest do
     end
 
     test "prints nothing if there are no tasks" do
-      assert capture_io(fn -> Igniter.display_tasks(test_project(), :dry_run_with_changes, []) end) ==
+      assert capture_io(fn ->
+               Igniter.display_tasks(test_project(), :dry_run_with_changes, [])
+             end) ==
                ""
     end
   end

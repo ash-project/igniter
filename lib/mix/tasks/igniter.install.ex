@@ -1,3 +1,7 @@
+ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+Code.put_compiler_option(:ignore_module_conflict, true)
+
 defmodule Mix.Tasks.Igniter.Install do
   @moduledoc """
   Install a package or packages, running any Igniter installers.
@@ -27,23 +31,35 @@ defmodule Mix.Tasks.Igniter.Install do
 
   * `--dry-run` - Run the task without making any changes.
   * `--yes` - Automatically answer yes to any prompts.
+  * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
+  * `--verbose` - Display additional output from various operations.
   * `--example` - Request that installed packages include initial example code.
   """
-  use Mix.Task
 
-  @requirements "deps.compile"
+  use Mix.Task
 
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
-    Mix.Task.run("compile", ["--no-compile"])
+    Igniter.Util.Loading.with_spinner(
+      "compile",
+      fn ->
+        Mix.Task.run("deps.compile")
+        Mix.Task.run("deps.loadpaths")
+        Mix.Task.run("compile", ["--no-compile"])
+      end,
+      verbose?: "--verbose" in argv
+    )
 
-    {argv, positional} = Installer.Lib.Private.SharedUtils.extract_positional_args(argv)
+    argv = Enum.reject(argv, &(&1 in ["--from-igniter-new", "--igniter-repeat"]))
+
+    {argv, positional} = extract_positional_args(argv)
 
     packages =
       positional
       |> Enum.join(",")
       |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
 
     if Enum.empty?(packages) do
       raise ArgumentError, "must provide at least one package to install"
@@ -53,4 +69,37 @@ defmodule Mix.Tasks.Igniter.Install do
 
     Igniter.Util.Install.install(Enum.join(packages, ","), argv)
   end
+
+  @doc false
+  defp extract_positional_args(argv) do
+    do_extract_positional_args(argv, [], [])
+  end
+
+  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+
+  defp do_extract_positional_args(argv, got_argv, positional) do
+    case OptionParser.next(argv, switches: []) do
+      {_, _key, true, rest} ->
+        do_extract_positional_args(
+          rest,
+          got_argv ++ [Enum.at(argv, 0)],
+          positional
+        )
+
+      {_, _key, _value, rest} ->
+        count_consumed = Enum.count(argv) - Enum.count(rest)
+
+        do_extract_positional_args(
+          rest,
+          got_argv ++ Enum.take(argv, count_consumed),
+          positional
+        )
+
+      {:error, rest} ->
+        [first | rest] = rest
+        do_extract_positional_args(rest, got_argv, positional ++ [first])
+    end
+  end
 end
+
+Code.put_compiler_option(:ignore_module_conflict, ignore_module_conflict)

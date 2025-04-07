@@ -7,8 +7,8 @@ defmodule Igniter.Project.IgniterConfigTest do
       test_project()
       |> Igniter.Project.IgniterConfig.add_extension(Foobar)
       |> assert_has_patch(".igniter.exs", """
-      9 - |  extensions: []
-      9 + |  extensions: [{Foobar, []}]
+      9 - |  extensions: [],
+      9 + |  extensions: [{Foobar, []}],
       """)
     end
   end
@@ -23,7 +23,7 @@ defmodule Igniter.Project.IgniterConfigTest do
       """)
     end
 
-    test "doesnt add a duplicate pattern to the list" do
+    test "doesn't add a duplicate pattern to the list" do
       test_project()
       |> Igniter.Project.IgniterConfig.dont_move_file_pattern(~r"lib/mix")
       |> assert_unchanged(".igniter.exs")

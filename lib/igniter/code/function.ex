@@ -81,7 +81,7 @@ defmodule Igniter.Code.Function do
   @doc "Moves to a function call by the given name and arity, matching the given predicate, in the current scope"
   @spec move_to_function_call_in_current_scope(
           Zipper.t(),
-          atom,
+          atom | {atom, atom},
           non_neg_integer() | list(non_neg_integer()) | :any
         ) ::
           {:ok, Zipper.t()} | :error
@@ -161,17 +161,20 @@ defmodule Igniter.Code.Function do
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
-      {^name, _, args} ->
-        arity == :any || Enum.count(args) == arity
+      {^name, _, args} when arity == :any or length(args) == arity ->
+        true
 
-      {{^name, _, context}, _, args} when is_atom(context) ->
-        arity == :any || Enum.count(args) == arity
+      {{^name, _, context}, _, args}
+      when is_atom(context) and (arity == :any or length(args) == arity) ->
+        true
 
-      {:|>, _, [_, {{^name, _, context}, _, rest}]} when is_atom(context) ->
-        arity == :any || Enum.count(rest) == arity - 1
+      {:|>, _, [_, {{^name, _, context}, _, rest}]}
+      when is_atom(context) and (arity == :any or length(rest) == arity - 1) ->
+        true
 
-      {:|>, _, [_, {^name, _, rest}]} ->
-        arity == :any || Enum.count(rest) == arity - 1
+      {:|>, _, [_, {^name, _, rest}]}
+      when arity == :any or length(rest) == arity - 1 ->
+        true
 
       _ ->
         false
@@ -209,6 +212,54 @@ defmodule Igniter.Code.Function do
          ]}
         when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
           Common.nodes_equal?(Zipper.replace(zipper, alias), module)
+
+        {{:., _, [^module, ^name]}, _, args}
+        when arity == :any or length(args) == arity ->
+          true
+
+        {{:., _, [^module, {^name, _, context}]}, _, args}
+        when is_atom(context) and (arity == :any or length(args) == arity) ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [^module, ^name]}, _, args}
+         ]}
+        when arity == :any or length(args) == arity - 1 ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [^module, {^name, _, context}]}, _, args}
+         ]}
+        when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+          true
+
+        {{:., _, [{:__block__, _, [^module]}, ^name]}, _, args}
+        when arity == :any or length(args) == arity ->
+          true
+
+        {{:., _, [{:__block__, _, [^module]}, {^name, _, context}]}, _, args}
+        when is_atom(context) and (arity == :any or length(args) == arity) ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [{:__block__, _, [^module]}, ^name]}, _, args}
+         ]}
+        when arity == :any or length(args) == arity - 1 ->
+          true
+
+        {:|>, _,
+         [
+           _,
+           {{:., _, [{:__block__, _, [^module]}, {^name, _, context}]}, _, args}
+         ]}
+        when is_atom(context) and (arity == :any or length(args) == arity - 1) ->
+          true
 
         {^name, _, args} when is_list(args) and (arity == :any or length(args) == arity) ->
           imported?(zipper, module, name, length(args))
@@ -524,23 +575,44 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @doc "Gets the name of a local function call, or `:error` if the node is not a function call or it cannot be determined"
+  @doc """
+  Gets the name of a local function call.
+
+  Returns `:error` if the node is not a function call or cannot be determined.
+  """
+  @spec get_local_function_call_name(Zipper.t()) :: {:ok, atom()} | :error
   def get_local_function_call_name(%Zipper{} = zipper) do
+    case get_local_function_call(zipper) do
+      {:ok, {name, _arity}} -> {:ok, name}
+      :error -> :error
+    end
+  end
+
+  @doc """
+  Gets the name and arity of a local function call.
+
+  Returns `:error` if the node is not a function call or cannot be determined.
+  """
+  @spec get_local_function_call(Zipper.t()) :: {:ok, {atom(), non_neg_integer()}} | :error
+  def get_local_function_call(%Zipper{} = zipper) do
     zipper
     |> Common.maybe_move_to_single_child_block()
     |> Zipper.node()
     |> case do
-      {:|>, _, [_, {{name, _, context}, _, _}]} when is_atom(context) and is_atom(name) ->
-        {:ok, name}
+      {:__block__, _, _} ->
+        :error
 
-      {:|>, _, [_, {name, _, _}]} when is_atom(name) ->
-        {:ok, name}
+      {:|>, _, [_, {{name, _, context}, _, args}]} when is_atom(context) and is_atom(name) ->
+        {:ok, {name, length(args) + 1}}
 
-      {name, _, _args} when is_atom(name) ->
-        {:ok, name}
+      {:|>, _, [_, {name, _, args}]} when is_atom(name) ->
+        {:ok, {name, length(args) + 1}}
 
-      {{name, _, context}, _, _args} when is_atom(context) and is_atom(name) ->
-        {:ok, name}
+      {name, _, args} when is_atom(name) ->
+        {:ok, {name, length(args)}}
+
+      {{name, _, context}, _, args} when is_atom(context) and is_atom(name) and is_list(args) ->
+        {:ok, {name, length(args)}}
 
       _ ->
         :error

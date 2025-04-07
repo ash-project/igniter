@@ -1,7 +1,8 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.4.8"
+  @version "0.5.43"
+  @install_version "~> 0.5"
 
   @description """
   A code generation and project patching framework
@@ -18,7 +19,10 @@ defmodule Igniter.MixProject do
       aliases: aliases(),
       package: package(),
       docs: docs(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        plt_add_apps: [:mix]
+      ]
     ]
   end
 
@@ -27,13 +31,15 @@ defmodule Igniter.MixProject do
   end
 
   defp elixirc_paths(_env) do
-    ["lib", "installer/lib/private"]
+    ["lib"]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :public_key, :ssl, :inets, :eex]
+      # if you change this, change it in the installer archive too.
+      extra_applications: [:logger, :public_key, :ssl, :inets, :eex],
+      plt_add_apps: [:mix]
     ]
   end
 
@@ -81,7 +87,7 @@ defmodule Igniter.MixProject do
     [
       name: :igniter,
       licenses: ["MIT"],
-      files: ~w(lib installer/lib/private .formatter.exs mix.exs README* LICENSE*
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE*
       CHANGELOG*),
       links: %{
         GitHub: "https://github.com/ash-project/igniter",
@@ -100,6 +106,10 @@ defmodule Igniter.MixProject do
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
       {:jason, "~> 1.4"},
+      {:req, "~> 0.5"},
+      {:phx_new, "~> 1.7", optional: true},
+      {:inflex, "~> 2.0"},
+      {:owl, "~> 0.11"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.32", only: [:dev, :test], runtime: false},
@@ -107,7 +117,7 @@ defmodule Igniter.MixProject do
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mimic, "~> 1.7", only: [:test]},
-      {:git_ops, "~> 2.5", only: [:dev, :test]},
+      {:git_ops, "~> 2.6.3", only: :dev},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
@@ -117,7 +127,18 @@ defmodule Igniter.MixProject do
 
   defp aliases do
     [
-      credo: "credo --strict"
+      credo: "credo --strict",
+      "archive.build": &raise_on_archive_build/1
     ]
+  end
+
+  @doc false
+  def install_version, do: @install_version
+
+  defp raise_on_archive_build(_) do
+    Mix.raise("""
+    You are trying to install "igniter" as an archive, which is not supported. \
+    You probably meant to install "igniter_new" instead.
+    """)
   end
 end

@@ -16,12 +16,12 @@ to make it a bit clearer.
 
 You *typically* won't need to do this, but if CI fails for some reason, or you are in a hurry,
 you can run `mix hex.publish` to publish the hex package. CI will fail if you publish it
-before CI gets to tha step. This is fine.
+before CI gets to that step. This is fine.
 
 ## publishing the installer `igniter_new`
 
-The process for this is less rigorous. You manually bump the verison in `installer/mix.exs`,
-cd into `/installer` and then run `mix hex.publish`, and thats it :)
+The process for this is less rigorous. You manually bump the version in `installer/mix.exs`,
+cd into `/installer` and then run `mix hex.publish`, and that's it :)
 If you've published a new version of `igniter` that should affect what version the
 installer uses, edit `@igniter_version` module attribute in `installer/lib/mix/tasks/igniter.new.ex`
 to match the new requirement.
