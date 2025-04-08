@@ -156,6 +156,10 @@ defmodule Igniter.Code.Function do
           boolean()
   def function_call?(zipper, name, arity \\ :any)
 
+  def function_call?(%Zipper{} = zipper, name, arity) when is_list(arity) do
+    Enum.any?(arity, &function_call?(zipper, name, &1))
+  end
+
   def function_call?(%Zipper{} = zipper, name, arity) when is_atom(name) do
     zipper
     |> Common.maybe_move_to_single_child_block()

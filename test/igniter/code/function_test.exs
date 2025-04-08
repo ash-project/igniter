@@ -69,6 +69,20 @@ defmodule Igniter.Code.FunctionTest do
     end
   end
 
+  describe "function_call?/3" do
+    test "works on calls with do blocks" do
+      zipper =
+        """
+        fun 1 do
+        end
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      assert Igniter.Code.Function.function_call?(zipper, :fun, [1, 2])
+    end
+  end
+
   test "argument_equals?/3" do
     zipper =
       "config :key, Test"
