@@ -683,30 +683,38 @@ defmodule Igniter.Code.Common do
 
   defp combine_comments(meta, new_meta, placement \\ :after) do
     if placement == :after do
-      meta
+      new_meta
       |> Keyword.update(
         :leading_comments,
-        new_meta[:leading_comments] || [],
-        &(&1 ++ (new_meta[:leading_comments] || []))
+        meta[:leading_comments] || [],
+        &((meta[:leading_comments] || []) ++ &1)
       )
       |> Keyword.update(
         :trailing_comments,
-        new_meta[:trailing_comments] || [],
-        &((new_meta[:trailing_comments] || []) ++ &1)
+        meta[:trailing_comments] || [],
+        &(&1 ++ (meta[:trailing_comments] || []))
       )
     else
-      meta
+      new_meta
       |> Keyword.update(
         :leading_comments,
-        new_meta[:leading_comments] || [],
-        &((new_meta[:leading_comments] || []) ++ &1)
+        meta[:leading_comments] || [],
+        &(&1 ++ (meta[:leading_comments] || []))
       )
       |> Keyword.update(
         :trailing_comments,
-        new_meta[:trailing_comments] || [],
-        &(&1 ++ (new_meta[:trailing_comments] || []))
+        meta[:trailing_comments] || [],
+        &((meta[:trailing_comments] || []) ++ &1)
       )
     end
+    # This manipulation really isn't great, but has produced better
+    # results when using it. I believe it has to do with the fact
+    # that the `__sourceror__.trailing_block` doesn't really make sense when its pushed
+    # into new code
+    |> Keyword.delete(:__sourceror__)
+    # and that the original location of the place where the code is inserted
+    # is more likely to be accurate
+    |> Keyword.merge(Keyword.take(meta, [:line, :closing, :end_of_expression]))
   end
 
   defp multi_element_pipe?(%{node: {:|>, _, _}} = zipper) do
@@ -1195,10 +1203,8 @@ defmodule Igniter.Code.Common do
   Runs the function `fun` on the subtree of the currently focused `node` and
   returns the updated `zipper`.
 
-  `fun` must return `{:ok, zipper}` or `:error`, which may be positioned at the top of the subtree.
+  `fun` must return {:ok, zipper} or `:error`, which may be positioned at the top of the subtree.
   """
-  @spec within(Zipper.t(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
-          {:ok, Zipper.t()} | :error
   def within(%Zipper{} = top_zipper, fun) when is_function(fun, 1) do
     top_zipper
     |> Zipper.subtree()

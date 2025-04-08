@@ -277,6 +277,29 @@ defmodule Igniter.Code.CommonTest do
   end
 
   describe "add_code" do
+    test "adding a new do block uses block syntax" do
+      zipper =
+        """
+        foo()
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      result =
+        Igniter.Code.Common.replace_code(zipper, """
+        foo do
+          hello
+        end
+        """)
+        |> Igniter.Util.Debug.code_at_node()
+
+      assert String.trim_trailing("""
+             foo do
+               hello
+             end
+             """) == result
+    end
+
     test "adding multiple blocks" do
       zipper =
         """
