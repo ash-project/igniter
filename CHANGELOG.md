@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.44](https://github.com/ash-project/igniter/compare/v0.5.43...v0.5.44) (2025-04-09)
+
+
+
+
+### Bug Fixes:
+
+* handle list of arities in `Igniter.Code.Function.function_call?/3`
+
+### Improvements:
+
+* install private packages from hexpm (#157)
+
+* prevent infinitely looping install task
+
 ## [v0.5.43](https://github.com/ash-project/igniter/compare/v0.5.42...v0.5.43) (2025-04-02)
 
 
