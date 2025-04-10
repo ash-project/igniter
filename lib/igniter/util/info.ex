@@ -27,6 +27,8 @@ defmodule Igniter.Util.Info do
         schema,
         task_name,
         opts,
+        return \\ :options,
+        insert_before \\ nil,
         acc \\ []
       ) do
     schema = %{
@@ -51,9 +53,13 @@ defmodule Igniter.Util.Info do
             Keyword.put(opts, :operation, "compiling #{names}")
           )
 
-        raise_on_conflicts!(schema, argv)
+        if return == :options do
+          raise_on_conflicts!(schema, argv)
 
-        {igniter, Enum.uniq(acc), validate!(argv, schema, task_name)}
+          {igniter, Enum.uniq(acc), validate!(argv, schema, task_name)}
+        else
+          {igniter, acc, schema}
+        end
 
       installs ->
         schema = %{schema | installs: []}
@@ -86,27 +92,74 @@ defmodule Igniter.Util.Info do
               other
           end)
 
-        igniter
-        |> add_deps(
-          List.wrap(installs),
-          opts
-        )
-        |> Igniter.apply_and_fetch_dependencies(
-          Keyword.put(opts, :operation, "compiling #{names_message}")
-        )
-        |> maybe_set_dep_options(install_names, argv, task_name)
-        |> compose_install_and_validate!(
+        igniter =
+          igniter
+          |> add_deps(
+            List.wrap(installs),
+            opts
+          )
+          |> Igniter.apply_and_fetch_dependencies(
+            Keyword.put(opts, :operation, "compiling #{names_message}")
+          )
+          |> maybe_set_dep_options(install_names, argv, task_name)
+
+        acc = insert_installs(acc, install_names, insert_before)
+        adds_deps = schema.adds_deps
+
+        {igniter, acc, schema} =
+          installs
+          |> Enum.reduce({igniter, acc, schema}, fn install, {igniter, acc, schema} ->
+            name =
+              if is_tuple(install) do
+                elem(install, 0)
+              else
+                install
+              end
+
+            compose_install_and_validate!(
+              igniter,
+              argv,
+              %{
+                schema
+                | composes: ["#{name}.install"],
+                  installs: [],
+                  adds_deps: []
+              },
+              task_name,
+              Keyword.delete(opts, :only),
+              :schema,
+              name,
+              acc
+            )
+          end)
+
+        compose_install_and_validate!(
+          igniter,
           argv,
           %{
             schema
-            | composes: Enum.map(install_names, &"#{&1}.install"),
-              installs: [],
-              adds_deps: schema.adds_deps
+            | adds_deps: schema.adds_deps ++ adds_deps
           },
           task_name,
           Keyword.delete(opts, :only),
-          install_names ++ acc
+          return,
+          insert_before,
+          acc
         )
+    end
+  end
+
+  defp insert_installs(acc, install_names, insert_before) do
+    if insert_before in acc do
+      Enum.flat_map(acc, fn item ->
+        if item == insert_before do
+          install_names ++ [item]
+        else
+          [item]
+        end
+      end)
+    else
+      install_names ++ acc
     end
   end
 

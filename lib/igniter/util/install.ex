@@ -108,7 +108,7 @@ defmodule Igniter.Util.Install do
 
       If you don't yet have a `.igniter.exs`, run `mix igniter.setup`.
 
-      For more information, see: 
+      For more information, see:
 
       https://hexdocs.pm/igniter/Igniter.Project.IgniterConfig.html
       """)
@@ -306,7 +306,7 @@ defmodule Igniter.Util.Install do
 
               If you don't yet have a `.igniter.exs`, run `mix igniter.setup`.
 
-              For more information, see: 
+              For more information, see:
 
               https://hexdocs.pm/igniter/Igniter.Project.IgniterConfig.html
               """)
@@ -376,7 +376,7 @@ defmodule Igniter.Util.Install do
 
           igniter ->
             message = """
-            Conflict in `only` option for dependency #{inspect(dep)}. 
+            Conflict in `only` option for dependency #{inspect(dep)}.
             Between #{source1} and #{source2}.
 
             We must update the `only` option as shown to continue.
