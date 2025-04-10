@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.45](https://github.com/ash-project/igniter/compare/v0.5.44...v0.5.45) (2025-04-10)
+
+
+
+
+### Bug Fixes:
+
+* keep as close to installer order as possible for dependencies
+
 ## [v0.5.44](https://github.com/ash-project/igniter/compare/v0.5.43...v0.5.44) (2025-04-09)
 
 
