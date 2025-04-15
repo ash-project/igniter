@@ -115,7 +115,7 @@ defmodule Igniter.Libs.Phoenix do
   If multiple endpoints are found, the user is prompted to select one of them.
   """
   @spec select_endpoint(Igniter.t(), module(), String.t()) :: {Igniter.t(), module() | nil}
-  def select_endpoint(igniter, router, label \\ "Which endpoint should be user") do
+  def select_endpoint(igniter, router, label \\ "Which endpoint should be used") do
     case endpoints_for_router(igniter, router) do
       {igniter, []} ->
         {igniter, nil}
