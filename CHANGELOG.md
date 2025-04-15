@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.46](https://github.com/ash-project/igniter/compare/v0.5.45...v0.5.46) (2025-04-15)
+
+
+
+
+### Bug Fixes:
+
+* wording in router selection message
+
 ## [v0.5.45](https://github.com/ash-project/igniter/compare/v0.5.44...v0.5.45) (2025-04-10)
 
 
