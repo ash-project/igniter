@@ -114,17 +114,35 @@ defmodule Igniter.Libs.Phoenix do
 
   If multiple endpoints are found, the user is prompted to select one of them.
   """
-  @spec select_endpoint(Igniter.t(), module(), String.t()) :: {Igniter.t(), module() | nil}
-  def select_endpoint(igniter, router, label \\ "Which endpoint should be used") do
-    case endpoints_for_router(igniter, router) do
-      {igniter, []} ->
-        {igniter, nil}
+  @spec select_endpoint(Igniter.t(), module() | nil, String.t()) :: {Igniter.t(), module() | nil}
+  def select_endpoint(igniter, router \\ nil, label \\ "Which endpoint should be used") do
+    if router do
+      case endpoints_for_router(igniter, router) do
+        {igniter, []} ->
+          {igniter, nil}
 
-      {igniter, [endpoint]} ->
-        {igniter, endpoint}
+        {igniter, [endpoint]} ->
+          {igniter, endpoint}
 
-      {igniter, endpoints} ->
-        {igniter, Igniter.Util.IO.select(label, endpoints, display: &inspect/1)}
+        {igniter, endpoints} ->
+          {igniter, Igniter.Util.IO.select(label, endpoints, display: &inspect/1)}
+      end
+    else
+      {igniter, endpoints} =
+        Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
+          Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error
+        end)
+
+      case endpoints do
+        [] ->
+          {igniter, nil}
+
+        [endpoint] ->
+          {igniter, endpoint}
+
+        endpoints ->
+          {igniter, Igniter.Util.IO.select(label, endpoints, display: &inspect/1)}
+      end
     end
   end
 

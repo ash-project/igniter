@@ -24,6 +24,14 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @doc "Returns true if the node represents a variable with the given name"
+  @spec variable?(zipper :: Zipper.t(), name :: atom) :: boolean()
+  def variable?(%{node: {name, _, ctx}}, name) when is_atom(ctx) do
+    true
+  end
+
+  def variable?(_, _), do: false
+
   @doc "Returns true if the node represents a variable assignment"
   @spec variable_assignment?(zipper :: Zipper.t(), name :: atom) :: boolean()
   def variable_assignment?(%{node: {:=, _, [{name, _, ctx}, _]}}, name) when is_atom(ctx) do

@@ -208,7 +208,7 @@ defmodule Igniter.Test do
           flunk("""
           Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks.
 
-          Found tasks: 
+          Found tasks:
 
           #{Enum.map_join(igniter.tasks, "\n", fn {task, argv} -> "- mix #{task} #{Enum.join(argv)}" end)}
           """)
@@ -221,7 +221,13 @@ defmodule Igniter.Test do
 
   defmacro assert_has_notice(igniter, notice) do
     quote bind_quoted: [igniter: igniter, notice: notice] do
-      if notice not in igniter.notices do
+      if !Enum.any?(igniter.notices, fn found_notice ->
+           if is_binary(notice) do
+             notice == found_notice
+           else
+             notice.(found_notice)
+           end
+         end) do
         if Enum.empty?(igniter.notices) do
           flunk("""
           Expected to find the following notice:
@@ -236,7 +242,7 @@ defmodule Igniter.Test do
 
           #{notice}
 
-          Found notices: 
+          Found notices:
 
           #{Enum.join(igniter.notices, "\n\b")}
           """)
@@ -249,7 +255,13 @@ defmodule Igniter.Test do
 
   defmacro assert_has_warning(igniter, warning) do
     quote bind_quoted: [igniter: igniter, warning: warning] do
-      if warning not in igniter.warnings do
+      if !Enum.any?(igniter.warnings, fn found_warning ->
+           if is_binary(warning) do
+             warning == found_warning
+           else
+             warning.(found_warning)
+           end
+         end) do
         if Enum.empty?(igniter.warnings) do
           flunk("""
           Expected to find the following warning:
@@ -264,7 +276,7 @@ defmodule Igniter.Test do
 
           #{warning}
 
-          Found warnings: 
+          Found warnings:
 
           #{Enum.join(igniter.warnings, "\n\b")}
           """)
@@ -287,7 +299,13 @@ defmodule Igniter.Test do
             []
           end
 
-        if issue not in issues do
+        if !Enum.any?(igniter.issues, fn found_issue ->
+             if is_binary(issue) do
+               issue == found_issue
+             else
+               issue.(found_issue)
+             end
+           end) do
           if Enum.empty?(issues) do
             flunk("""
             Expected to find the following issue at path: #{inspect(path)}}
@@ -302,14 +320,20 @@ defmodule Igniter.Test do
 
             #{issue}
 
-            Found issue: 
+            Found issue:
 
             #{Enum.join(issues, "\n\b")}
             """)
           end
         end
       else
-        if issue not in igniter.issues do
+        if !Enum.any?(igniter.issues, fn found_issue ->
+             if is_binary(issue) do
+               issue == found_issue
+             else
+               issue.(found_issue)
+             end
+           end) do
           if Enum.empty?(igniter.issues) do
             flunk("""
             Expected to find the following issue:
@@ -324,7 +348,7 @@ defmodule Igniter.Test do
 
             #{issue}
 
-            Found issues: 
+            Found issues:
 
             #{Enum.join(igniter.issues, "\n\b")}
             """)
