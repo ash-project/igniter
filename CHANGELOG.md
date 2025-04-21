@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.47](https://github.com/ash-project/igniter/compare/v0.5.46...v0.5.47) (2025-04-21)
+
+
+
+
+### Improvements:
+
+* make router optional in `select_endpoint`
+
+* accept functions in warning/notice/issue assertions
+
+* add `Igniter.Code.Common.variable?`
+
 ## [v0.5.46](https://github.com/ash-project/igniter/compare/v0.5.45...v0.5.46) (2025-04-15)
 
 
