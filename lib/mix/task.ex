@@ -71,7 +71,6 @@ defmodule Igniter.Mix.Task do
       import Igniter.Mix.Task, only: [options!: 1, positional_args!: 1]
 
       @behaviour Igniter.Mix.Task
-      @after_compile Igniter.Mix.Task
       @before_compile Igniter.Mix.Task
 
       @impl Mix.Task
@@ -127,37 +126,34 @@ defmodule Igniter.Mix.Task do
     end
   end
 
-  def __after_compile__(env, _bytecode) do
-    igniter1_defined? = function_exported?(env.module, :igniter, 1)
-    igniter2_defined? = function_exported?(env.module, :igniter, 2)
-
-    if not (igniter1_defined? or igniter2_defined?) do
-      raise CompileError,
-        description:
-          "#{inspect(env.module)} must define either igniter/1 or igniter/2 to implement the #{inspect(__MODULE__)} behaviour"
-    end
-  end
-
   defmacro __before_compile__(_env) do
     quote do
       require Logger
 
-      if Module.defines?(__MODULE__, {:igniter, 1}, :def) and
-           Module.defines?(__MODULE__, {:igniter, 2}, :def) do
+      igniter1_defined? = Module.defines?(__MODULE__, {:igniter, 1}, :def)
+      igniter2_defined? = Module.defines?(__MODULE__, {:igniter, 2}, :def)
+
+      if igniter1_defined? and igniter2_defined? do
         Logger.warning("""
-        #{inspect(__MODULE__)} (#{__ENV__.file})
+        #{inspect(__MODULE__)} (#{__ENV__.file}):
 
             Module defines both igniter/1 and igniter/2, but igniter/2 is deprecated and will never be called.
         """)
       end
 
-      if !Module.defines?(__MODULE__, {:igniter, 2}, :def) &&
-           Module.defines?(__MODULE__, {:igniter, 1}, :def) do
-        @doc false
-        @impl true
-        def igniter(igniter, _argv) do
-          igniter(igniter)
-        end
+      if not (igniter1_defined? or igniter2_defined?) do
+        raise CompileError,
+          description:
+            "#{inspect(__MODULE__)} must define either igniter/1 or igniter/2 to implement the #{inspect(unquote(__MODULE__))} behaviour"
+      end
+
+      if igniter2_defined? do
+        Logger.warning("""
+        #{inspect(__MODULE__)} (#{__ENV__.file}):
+
+            Module defines both igniter/2, but igniter/2 is deprecated and will never be called.
+            Please refactor to `igniter/1`. Use `igniter.args` to access `argv`, `positional` and `options`.
+        """)
       end
     end
   end
