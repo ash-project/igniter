@@ -151,7 +151,7 @@ defmodule Igniter.Mix.Task do
         Logger.warning("""
         #{inspect(__MODULE__)} (#{__ENV__.file}):
 
-            Module defines `igniter/2`, but `igniter/2` is deprecated and will never be called.
+            Module defines `igniter/2`, but `igniter/2` is deprecated.
             Please refactor to `igniter/1`. Use `igniter.args` to access `argv`, `positional` and `options`.
         """)
       end
