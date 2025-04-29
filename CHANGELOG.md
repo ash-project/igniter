@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.48](https://github.com/ash-project/igniter/compare/v0.5.47...v0.5.48) (2025-04-29)
+
+
+
+
+### Improvements:
+
+* clean up `igniter/1-2` check, and make it a warning
+
 ## [v0.5.47](https://github.com/ash-project/igniter/compare/v0.5.46...v0.5.47) (2025-04-21)
 
 
