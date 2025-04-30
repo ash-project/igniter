@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.49](https://github.com/ash-project/igniter/compare/v0.5.48...v0.5.49) (2025-04-30)
+
+
+
+
+### Improvements:
+
+* properly honor `--only` flag
+
 ## [v0.5.48](https://github.com/ash-project/igniter/compare/v0.5.47...v0.5.48) (2025-04-29)
 
 
