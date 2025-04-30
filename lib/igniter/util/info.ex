@@ -13,7 +13,8 @@ defmodule Igniter.Util.Info do
     smokestack: [:test],
     mishka_chelekom: [:dev],
     mneme: [:dev, :test],
-    live_debugger: [:dev]
+    live_debugger: [:dev],
+    tidewave: [:dev]
   ]
 
   @known_only_keys Keyword.keys(@known_only_options)
@@ -79,14 +80,27 @@ defmodule Igniter.Util.Info do
 
         installs =
           Enum.map(installs, fn
-            {dep, val} when is_binary(val) and dep in @known_only_keys ->
-              {dep, val, only: @known_only_options[dep]}
+            {dep, val} when is_binary(val) ->
+              if dep in @known_only_keys || opts[:only] do
+                {dep, val, only: opts[:only] || @known_only_options[dep]}
+              else
+                {dep, val}
+              end
 
-            {dep, opts} when is_list(opts) and dep in @known_only_keys ->
-              {dep, Keyword.put_new(opts, :only, @known_only_options[dep])}
+            {dep, dep_opts} when is_list(dep_opts) ->
+              if dep in @known_only_keys || opts[:only] do
+                {dep, Keyword.put_new(dep_opts, :only, opts[:only] || @known_only_options[dep])}
+              else
+                {dep, dep_opts}
+              end
 
-            {dep, val, opts} when dep in @known_only_keys ->
-              {dep, val, Keyword.put_new(opts, :only, @known_only_options[dep])}
+            {dep, val, dep_opts} when dep in @known_only_keys ->
+              if dep in @known_only_keys || opts[:only] do
+                {dep, val,
+                 Keyword.put_new(dep_opts, :only, opts[:only] || @known_only_options[dep])}
+              else
+                {dep, val, dep_opts}
+              end
 
             other ->
               other
