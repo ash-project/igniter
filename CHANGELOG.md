@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.50](https://github.com/ash-project/igniter/compare/v0.5.49...v0.5.50) (2025-05-01)
+
+
+
+
+### Bug Fixes:
+
+* don't try to inspect functions in test helpers
+
 ## [v0.5.49](https://github.com/ash-project/igniter/compare/v0.5.48...v0.5.49) (2025-04-30)
 
 
