@@ -228,20 +228,27 @@ defmodule Igniter.Test do
              notice.(found_notice)
            end
          end) do
+        message =
+          if is_binary(notice) do
+            """
+            Expected to find the following notice:
+
+            #{notice}
+            """
+          else
+            """
+            Expected to find a matching notice.
+            """
+          end
+
         if Enum.empty?(igniter.notices) do
           flunk("""
-          Expected to find the following notice:
-
-          #{notice}
-
+          #{message}
           but no notices were found on the igniter.
           """)
         else
           flunk("""
-          Expected to find the following notice:
-
-          #{notice}
-
+          #{message}
           Found notices:
 
           #{Enum.join(igniter.notices, "\n\b")}
@@ -262,20 +269,27 @@ defmodule Igniter.Test do
              warning.(found_warning)
            end
          end) do
+        message =
+          if is_binary(warning) do
+            """
+            Expected to find the following warning:
+
+            #{warning}
+            """
+          else
+            """
+            Expected to find a matching warning.
+            """
+          end
+
         if Enum.empty?(igniter.warnings) do
           flunk("""
-          Expected to find the following warning:
-
-          #{warning}
-
+          #{message}
           but no warnings were found on the igniter.
           """)
         else
           flunk("""
-          Expected to find the following warning:
-
-          #{warning}
-
+          #{message}
           Found warnings:
 
           #{Enum.join(igniter.warnings, "\n\b")}
@@ -306,20 +320,27 @@ defmodule Igniter.Test do
                issue.(found_issue)
              end
            end) do
+          message =
+            if is_binary(issue) do
+              """
+              Expected to find the following issue at path: #{inspect(path)}
+
+              #{issue}
+              """
+            else
+              """
+              Expected to find a matching issue at path: #{inspect(path)}.
+              """
+            end
+
           if Enum.empty?(issues) do
             flunk("""
-            Expected to find the following issue at path: #{inspect(path)}}
-
-            #{issue}
-
+            #{message}
             but no issues were found on the igniter.
             """)
           else
             flunk("""
-            Expected to find the following issue at path: #{inspect(path)}:
-
-            #{issue}
-
+            #{message}
             Found issue:
 
             #{Enum.join(issues, "\n\b")}
@@ -334,20 +355,27 @@ defmodule Igniter.Test do
                issue.(found_issue)
              end
            end) do
+          message =
+            if is_binary(issue) do
+              """
+              Expected to find the following issue:
+
+              #{issue}
+              """
+            else
+              """
+              Expected to find a matching issue.
+              """
+            end
+
           if Enum.empty?(igniter.issues) do
             flunk("""
-            Expected to find the following issue:
-
-            #{issue}
-
+            #{message}
             but no issues were found on the igniter.
             """)
           else
             flunk("""
-            Expected to find the following issue:
-
-            #{issue}
-
+            #{message}
             Found issues:
 
             #{Enum.join(igniter.issues, "\n\b")}
