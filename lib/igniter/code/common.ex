@@ -1156,6 +1156,7 @@ defmodule Igniter.Code.Common do
       10
     end
     \"\"\"
+    |> Sourceror.parse_string!()
     |> Sourceror.Zipper.zip()
 
   pattern =
@@ -1165,10 +1166,17 @@ defmodule Igniter.Code.Common do
     end
     \"\"\"
 
-  zipper
-  |> Igniter.Code.Common.move_to_cursor(pattern)
-  |> Zipper.node()
-  # => 10
+  {:ok, zipper} = Igniter.Code.Common.move_to_cursor(zipper, pattern)
+  Sourceror.Zipper.node(zipper)
+  # => {:__block__,
+  #     [
+  #       trailing_comments: [],
+  #       leading_comments: [],
+  #       end_of_expression: [newlines: 1, line: 2, column: 5],
+  #       token: "10",
+  #       line: 2,
+  #       column: 3
+  #     ], ~c"\n"}
   ```
   """
   @spec move_to_cursor(Zipper.t(), Zipper.t() | String.t()) :: {:ok, Zipper.t()} | :error
