@@ -52,7 +52,7 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  defp do_move_to_def(zipper, fun, arity, kind) do
+  defp do_move_to_def(zipper, fun, arity, kind, move_to_do \\ true) do
     case Common.move_to(zipper, fn zipper ->
            case Zipper.node(zipper) do
              # Match the standard function definition
@@ -76,11 +76,118 @@ defmodule Igniter.Code.Function do
                false
            end
          end) do
-      {:ok, zipper} ->
-        Common.move_to_do_block(zipper)
+      {:ok, zipper} = resp ->
+        if move_to_do, do: Common.move_to_do_block(zipper), else: resp
 
       :error ->
         :error
+    end
+  end
+
+  @doc """
+  This will move the zipper to the beginning of the function. If the function
+  includes the attributes `@doc`, `@spec`, or `@impl`, it will move to the first
+  of those attributes.
+
+  This is useful for placing code before a function definition.
+
+  For example:
+
+  ```elixir
+  zipper =
+    \"\"\"
+    defmodule Test do
+      @doc "hello"
+      @spec hello() :: :world
+      def hello() do
+        :world
+      end
+    end
+    \"\"\"
+    |> Sourceror.parse_string!()
+    |> Zipper.zip()
+
+  {:ok, zipper} = Igniter.Code.Function.move_to_function_and_attrs(zipper, :hello, 0)
+
+  zipper =
+    Igniter.Code.Common.add_code(
+      zipper,
+      \"\"\"
+      def world() do
+        :hello
+      end
+      \"\"\",
+      placement: :before
+    )
+
+  Igniter.Util.Debug.code_at_node(Zipper.topmost(zipper))
+  # defmodule Test do
+  #   def world() do
+  #     :hello
+  #   end
+  #
+  #   @doc "hello"
+  #   @spec hello() :: :world
+  #   def hello() do
+  #     :world
+  #   end
+  # end
+  ```
+  """
+  @spec move_to_function_and_attrs(
+          Zipper.t(),
+          fun :: atom,
+          arity :: integer | list(integer),
+          kind :: :def | :defp
+        ) :: {:ok, Zipper.t()} | :error
+  def move_to_function_and_attrs(zipper, fun, arity, kind \\ :def) do
+    case do_move_to_def(zipper, fun, arity, kind, false) do
+      {:ok, zipper} ->
+        current_node = Zipper.node(zipper)
+
+        case Common.move_left(zipper, fn z ->
+               if z.path[:left] == [] do
+                 true
+               else
+                 !match_function_or_attr?(z, current_node)
+               end
+             end) do
+          {:ok, zipper} = resp ->
+            # We need to match here to see if we are at the leftmost node and
+            # still match the function or attr. This happens when a function
+            # being matched on is the first thing in the module.
+            if match_function_or_attr?(zipper, current_node) do
+              resp
+            else
+              # Otherwise, we need to move right to the function or attr
+              Common.move_right(zipper, 1)
+            end
+
+          :error ->
+            :error
+        end
+
+      :error ->
+        :error
+    end
+  end
+
+  defp match_function_or_attr?(zipper, current_node) do
+    case Zipper.node(zipper) do
+      ^current_node ->
+        true
+
+      {:@, _, [{:doc, _, _}]} ->
+        true
+
+      {:@, _, [{:spec, _, _}]} ->
+        true
+
+      {:@, _, [{:impl, _, _}]} ->
+        true
+
+      _ ->
+        false
     end
   end
 
