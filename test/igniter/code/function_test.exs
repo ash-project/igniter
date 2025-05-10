@@ -69,6 +69,56 @@ defmodule Igniter.Code.FunctionTest do
     end
   end
 
+  describe "move_to_def/3" do
+    test "works with standard function definitions" do
+      assert {:ok, zipper} =
+               """
+               defmodule Test do
+                 def hello do
+                   :world
+                 end
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_def(:hello, 0)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == ":world"
+    end
+
+    test "works with a function with zero arity and a guard" do
+      assert {:ok, zipper} =
+               """
+               defmodule Test do
+                 def hello when true do
+                   :world
+                 end
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_def(:hello, 0)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == ":world"
+    end
+
+    test "works with a function with arity and a guard" do
+      assert {:ok, zipper} =
+               """
+               defmodule Test do
+                 def hello(x) when is_integer(x) do
+                   :world
+                 end
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_def(:hello, 1)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == ":world"
+    end
+  end
+
   describe "function_call?/3" do
     test "works on calls with do blocks" do
       zipper =

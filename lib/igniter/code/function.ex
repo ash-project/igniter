@@ -53,28 +53,34 @@ defmodule Igniter.Code.Function do
   end
 
   defp do_move_to_def(zipper, fun, arity, kind) do
-    case Common.move_to_pattern(
-           zipper,
-           {^kind, _, [{^fun, _, args}, _]} when length(args) == arity
-         ) do
-      :error ->
-        if arity == 0 do
-          case Common.move_to_pattern(
-                 zipper,
-                 {^kind, _, [{^fun, _, context}, _]} when is_atom(context)
-               ) do
-            :error ->
-              :error
+    case Common.move_to(zipper, fn zipper ->
+           case Zipper.node(zipper) do
+             # Match the standard function definition
+             {^kind, _, [{^fun, _, args}, _body]} when length(args) == arity ->
+               true
 
-            {:ok, zipper} ->
-              Common.move_to_do_block(zipper)
-          end
-        else
-          :error
-        end
+             # Match a zero-arity function that is defined without parentheses
+             {^kind, _, [{^fun, _, nil}, __body]} when arity == 0 ->
+               true
 
+             # Match a function with a guard clause
+             {^kind, _, [{:when, _, [{^fun, _, args}, _guard]}, _body]} when length(args) == arity ->
+               true
+
+             # Probably not a common occurrence, but it is possible to have a
+             # function with a guard clause and no args
+             {^kind, _, [{:when, _, [{^fun, _, nil}, _guard]}, _body]} when arity == 0 ->
+               true
+
+             _ ->
+               false
+           end
+         end) do
       {:ok, zipper} ->
         Common.move_to_do_block(zipper)
+
+      :error ->
+        :error
     end
   end
 
