@@ -117,10 +117,8 @@ defmodule Igniter.Code.FunctionTest do
 
       assert Igniter.Util.Debug.code_at_node(zipper) == ":world"
     end
-  end
 
-  describe "move_to_function_and_attrs/3" do
-    test "works with no attrs in the function definition" do
+    test "proper inserts code into the function" do
       assert {:ok, zipper} =
                """
                defmodule Test do
@@ -131,7 +129,41 @@ defmodule Igniter.Code.FunctionTest do
                """
                |> Sourceror.parse_string!()
                |> Sourceror.Zipper.zip()
-               |> Igniter.Code.Function.move_to_function_and_attrs(:hello, 0)
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :inside)
+               |> then(fn {:ok, zipper} ->
+                 {:ok, Igniter.Code.Common.add_code(zipper, ":other_stuff", placement: :after)}
+               end)
+
+      assert Igniter.Util.Debug.code_at_node(Sourceror.Zipper.topmost(zipper)) ==
+               """
+               defmodule Test do
+                 def hello do
+                   :world
+                   :other_stuff
+                 end
+               end
+               """
+               |> String.trim()
+    end
+  end
+
+  describe "move_to_def/3 - target = :before" do
+    test "works with no attrs in the function definition" do
+      assert {:ok, zipper} =
+               """
+               defmodule Test do
+                 def hello do
+                   :world
+                 end
+
+                 def world do
+                   :hello
+                 end
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :before)
 
       assert Igniter.Util.Debug.code_at_node(zipper) == "def hello do\n  :world\nend"
     end
@@ -148,7 +180,7 @@ defmodule Igniter.Code.FunctionTest do
                """
                |> Sourceror.parse_string!()
                |> Sourceror.Zipper.zip()
-               |> Igniter.Code.Function.move_to_function_and_attrs(:hello, 0)
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :before)
 
       assert Igniter.Util.Debug.code_at_node(zipper) ==
                "@doc \"hello\""
@@ -168,7 +200,7 @@ defmodule Igniter.Code.FunctionTest do
                """
                |> Sourceror.parse_string!()
                |> Sourceror.Zipper.zip()
-               |> Igniter.Code.Function.move_to_function_and_attrs(:hello, 0)
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :before)
 
       assert Igniter.Util.Debug.code_at_node(zipper) == "@doc \"world\""
     end
@@ -190,7 +222,7 @@ defmodule Igniter.Code.FunctionTest do
                """
                |> Sourceror.parse_string!()
                |> Sourceror.Zipper.zip()
-               |> Igniter.Code.Function.move_to_function_and_attrs(:world, 0)
+               |> Igniter.Code.Function.move_to_def(:world, 0, target: :before)
 
       assert Igniter.Util.Debug.code_at_node(zipper) == "@doc \"world\""
     end
@@ -208,7 +240,7 @@ defmodule Igniter.Code.FunctionTest do
                """
                |> Sourceror.parse_string!()
                |> Sourceror.Zipper.zip()
-               |> Igniter.Code.Function.move_to_function_and_attrs(:hello, 0)
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :before)
                |> then(fn {:ok, zipper} ->
                  {:ok,
                   Igniter.Code.Common.add_code(zipper, "def world do\n  :hello\nend",
@@ -227,6 +259,63 @@ defmodule Igniter.Code.FunctionTest do
                  @impl true
                  def hello do
                    :world
+                 end
+               end
+               """
+               |> String.trim()
+    end
+  end
+
+  describe "move_to_def/3 - target = :at" do
+    test "works with no attrs in the function definition" do
+      assert {:ok, zipper} =
+               """
+               defmodule Test do
+                 @doc "hello"
+                 def hello do
+                   :world
+                 end
+
+                 def world do
+                   :hello
+                 end
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :at)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == "def hello do\n  :world\nend"
+    end
+
+    test "proper inserts code after the function" do
+      assert {:ok, zipper} =
+               """
+               defmodule Test do
+                 def hello do
+                   :world
+                 end
+               end
+               """
+               |> Sourceror.parse_string!()
+               |> Sourceror.Zipper.zip()
+               |> Igniter.Code.Function.move_to_def(:hello, 0, target: :at)
+               |> then(fn {:ok, zipper} ->
+                 {:ok,
+                  Igniter.Code.Common.add_code(zipper, "def world do\n  :hello\nend",
+                    placement: :after
+                  )}
+               end)
+
+      assert Igniter.Util.Debug.code_at_node(Sourceror.Zipper.topmost(zipper)) ==
+               """
+               defmodule Test do
+                 def hello do
+                   :world
+                 end
+
+                 def world do
+                   :hello
                  end
                end
                """

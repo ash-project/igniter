@@ -4,6 +4,7 @@ defmodule Igniter.Code.Function do
   """
 
   require Igniter.Code.Common
+
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
@@ -24,60 +25,19 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @spec move_to_defp(Zipper.t(), fun :: atom, arity :: integer | list(integer)) ::
+  @spec move_to_defp(Zipper.t(), fun :: atom, arity :: integer | list(integer), [opts]) ::
           {:ok, Zipper.t()} | :error
-  def move_to_defp(zipper, fun, arity) do
-    do_move_to_def(zipper, fun, arity, :defp)
+        when opts: {:target, :inside | :before | :at}
+  def move_to_defp(zipper, fun, arity, opts \\ [target: :inside]) do
+    do_move_to_def(zipper, fun, arity, :defp, opts)
   end
 
-  @spec move_to_def(Zipper.t()) :: {:ok, Zipper.t()} | :error
-  def move_to_def(zipper) do
-    move_to_function_call(zipper, :def, :any)
-  end
-
-  @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer)) ::
-          {:ok, Zipper.t()} | :error
-  def move_to_def(zipper, fun, arity) do
-    do_move_to_def(zipper, fun, arity, :def)
-  end
-
-  defp do_move_to_def(zipper, fun, [arity], kind) do
-    do_move_to_def(zipper, fun, arity, kind)
-  end
-
-  defp do_move_to_def(zipper, fun, [arity | rest], kind) do
-    case do_move_to_def(zipper, fun, arity, kind) do
-      {:ok, zipper} -> {:ok, zipper}
-      :error -> do_move_to_def(zipper, fun, rest, kind)
-    end
-  end
-
-  defp do_move_to_def(zipper, fun, arity, kind, move_to_do \\ true) do
-    case Common.move_to(zipper, fn zipper ->
-           case Zipper.node(zipper) do
-             # Match the standard function definition
-             {^kind, _, [{^fun, _, args}, _body]} when length(args) == arity ->
-               true
-
-             # Match a zero-arity function that is defined without parentheses
-             {^kind, _, [{^fun, _, nil}, __body]} when arity == 0 ->
-               true
-
-             # Match a function with a guard clause
-             {^kind, _, [{:when, _, [{^fun, _, args}, _guard]}, _body]} when length(args) == arity ->
-               true
-
-             # Probably not a common occurrence, but it is possible to have a
-             # function with a guard clause and no args
-             {^kind, _, [{:when, _, [{^fun, _, nil}, _guard]}, _body]} when arity == 0 ->
-               true
-
-             _ ->
-               false
-           end
-         end) do
-      {:ok, zipper} = resp ->
-        if move_to_do, do: Common.move_to_do_block(zipper), else: resp
+  @spec move_to_def(Zipper.t(), [opts]) :: {:ok, Zipper.t()} | :error
+        when opts: {:target, :inside | :before | :at}
+  def move_to_def(zipper, opts \\ [target: :at]) do
+    case move_to_function_call(zipper, :def, :any) do
+      {:ok, zipper} ->
+        move_to_target(zipper, Keyword.get(opts, :target, :inside))
 
       :error ->
         :error
@@ -85,13 +45,17 @@ defmodule Igniter.Code.Function do
   end
 
   @doc """
-  This will move the zipper to the beginning of the function. If the function
-  includes the attributes `@doc`, `@spec`, or `@impl`, it will move to the first
-  of those attributes.
+  Moves the zipper to a function definition by the given name and arity. You may
+  also pass in a :target option to specify where in the function you want to
+  move to. By default it will move to the inside of the function.
+  The `:target` option can be one of the following:
+  - `:inside` - moves to the inside of the function
+  - `:before` - moves to before the function and takes into consideration the
+    attributes `@doc`, `@spec`, and `@impl` if they exist
+  - `:at` - moves to the function definition itself. Use this if you want to add
+    code directly before or directly after the function.
 
-  This is useful for placing code before a function definition.
-
-  For example:
+  ## Example - Moves before the function.
 
   ```elixir
   zipper =
@@ -134,37 +98,91 @@ defmodule Igniter.Code.Function do
   # end
   ```
   """
-  @spec move_to_function_and_attrs(
-          Zipper.t(),
-          fun :: atom,
-          arity :: integer | list(integer),
-          kind :: :def | :defp
-        ) :: {:ok, Zipper.t()} | :error
-  def move_to_function_and_attrs(zipper, fun, arity, kind \\ :def) do
-    case do_move_to_def(zipper, fun, arity, kind, false) do
+  @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer), [opts]) ::
+          {:ok, Zipper.t()} | :error
+        when opts: {:target, :inside | :before | :at}
+  def move_to_def(zipper, fun, arity, opts \\ [target: :inside]) do
+    do_move_to_def(zipper, fun, arity, :def, opts)
+  end
+
+  defp do_move_to_def(zipper, fun, [arity], kind, opts) do
+    do_move_to_def(zipper, fun, arity, kind, opts)
+  end
+
+  defp do_move_to_def(zipper, fun, [arity | rest], kind, opts) do
+    case do_move_to_def(zipper, fun, arity, kind, opts) do
+      {:ok, zipper} -> {:ok, zipper}
+      :error -> do_move_to_def(zipper, fun, rest, kind, opts)
+    end
+  end
+
+  defp do_move_to_def(zipper, fun, arity, kind, target: target) do
+    case Common.move_to(zipper, fn zipper ->
+           case Zipper.node(zipper) do
+             # Match the standard function definition
+             {^kind, _, [{^fun, _, args}, _body]} when length(args) == arity ->
+               true
+
+             # Match a zero-arity function that is defined without parentheses
+             {^kind, _, [{^fun, _, nil}, __body]} when arity == 0 ->
+               true
+
+             # Match a function with a guard clause
+             {^kind, _, [{:when, _, [{^fun, _, args}, _guard]}, _body]} when length(args) == arity ->
+               true
+
+             # Probably not a common occurrence, but it is possible to have a
+             # function with a guard clause and no args
+             {^kind, _, [{:when, _, [{^fun, _, nil}, _guard]}, _body]} when arity == 0 ->
+               true
+
+             _ ->
+               false
+           end
+         end) do
       {:ok, zipper} ->
-        current_node = Zipper.node(zipper)
+        move_to_target(zipper, target)
 
-        case Common.move_left(zipper, fn z ->
-               if z.path[:left] == [] do
-                 true
-               else
-                 !match_function_or_attr?(z, current_node)
-               end
-             end) do
-          {:ok, zipper} = resp ->
-            # We need to match here to see if we are at the leftmost node and
-            # still match the function or attr. This happens when a function
-            # being matched on is the first thing in the module.
-            if match_function_or_attr?(zipper, current_node) do
-              resp
-            else
-              # Otherwise, we need to move right to the function or attr
-              Common.move_right(zipper, 1)
-            end
+      :error ->
+        :error
+    end
+  end
 
-          :error ->
-            :error
+  defp move_to_target(zipper, target) do
+    case target do
+      :inside ->
+        Common.move_to_do_block(zipper)
+
+      :before ->
+        move_before_attrs(zipper)
+
+      :at ->
+        {:ok, zipper}
+
+      _ ->
+        :error
+    end
+  end
+
+  defp move_before_attrs(zipper) do
+    current_node = Zipper.node(zipper)
+
+    case Common.move_left(zipper, fn z ->
+           if z.path[:left] == [] || z.path[:left] == nil do
+             true
+           else
+             !match_function_or_attr?(z, current_node)
+           end
+         end) do
+      {:ok, zipper} = resp ->
+        # We need to match here to see if we are at the leftmost node and
+        # still match the function or attr. This happens when a function
+        # being matched on is the first thing in the module.
+        if match_function_or_attr?(zipper, current_node) do
+          resp
+        else
+          # Otherwise, we need to move right to the function or attr
+          Common.move_right(zipper, 1)
         end
 
       :error ->
