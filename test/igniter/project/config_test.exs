@@ -690,11 +690,10 @@ defmodule Igniter.Project.ConfigTest do
         """
       )
       |> assert_creates("config/config.exs", """
-      import Config
       #  Configures the foobar to
       #  accomplish the barbaz
+      import Config
       config :foo, bar: [baz: :buz]
-      import_config "\#{config_env()}.exs"
       """)
     end
 

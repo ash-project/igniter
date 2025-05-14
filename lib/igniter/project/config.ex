@@ -91,8 +91,11 @@ defmodule Igniter.Project.Config do
 
       config_file_path = config_file_path(igniter, file_path)
 
+      file_contents = "import Config\n"
+
       igniter
-      |> ensure_default_configs_exist()
+      |> Igniter.include_or_create_file(config_file_path, file_contents)
+      |> ensure_default_configs_exist(file_path)
       |> Igniter.update_elixir_file(config_file_path, fn zipper ->
         case Zipper.find(zipper, fn
                {:import, _, [Config]} ->
@@ -266,7 +269,7 @@ defmodule Igniter.Project.Config do
     updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     igniter
-    |> ensure_default_configs_exist()
+    |> ensure_default_configs_exist(file_name)
     |> Igniter.include_or_create_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
       case Zipper.find(zipper, fn
@@ -300,21 +303,25 @@ defmodule Igniter.Project.Config do
     |> Path.join(file_name)
   end
 
-  defp ensure_default_configs_exist(igniter) do
-    igniter
-    |> Igniter.include_or_create_file(config_file_path(igniter, "config.exs"), """
-    import Config
-    """)
-    |> ensure_config_evaluates_env()
-    |> Igniter.include_or_create_file(config_file_path(igniter, "dev.exs"), """
-    import Config
-    """)
-    |> Igniter.include_or_create_file(config_file_path(igniter, "test.exs"), """
-    import Config
-    """)
-    |> Igniter.include_or_create_file(config_file_path(igniter, "prod.exs"), """
-    import Config
-    """)
+  defp ensure_default_configs_exist(igniter, file_name) do
+    if file_name in ["dev.exs", "test.exs", "prod.exs"] do
+      igniter
+      |> Igniter.include_or_create_file(config_file_path(igniter, "config.exs"), """
+      import Config
+      """)
+      |> ensure_config_evaluates_env()
+      |> Igniter.include_or_create_file(config_file_path(igniter, "dev.exs"), """
+      import Config
+      """)
+      |> Igniter.include_or_create_file(config_file_path(igniter, "test.exs"), """
+      import Config
+      """)
+      |> Igniter.include_or_create_file(config_file_path(igniter, "prod.exs"), """
+      import Config
+      """)
+    else
+      igniter
+    end
   end
 
   defp ensure_config_evaluates_env(igniter) do
