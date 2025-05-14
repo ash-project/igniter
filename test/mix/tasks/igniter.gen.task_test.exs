@@ -92,6 +92,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
 
             use Mix.Task
 
+            @impl Mix.Task
             def run(_argv) do
               Mix.shell().error(\"""
               The task 'foo.bar' requires igniter. Please install igniter and try again.
