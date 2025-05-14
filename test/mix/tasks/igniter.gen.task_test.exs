@@ -12,14 +12,17 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
         defmodule Mix.Tasks.Foo.Bar.Docs do
           @moduledoc false
 
+          @spec short_doc() :: String.t()
           def short_doc do
             "A short description of your task"
           end
 
+          @spec example() :: String.t()
           def example do
             "mix foo.bar --example arg"
           end
 
+          @spec long_doc() :: String.t()
           def long_doc do
             \"""
             \#{short_doc()}
