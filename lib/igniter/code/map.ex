@@ -110,6 +110,7 @@ defmodule Igniter.Code.Map do
         |> case do
           :error ->
             value = Common.use_aliases(value, zipper)
+
             format = map_keys_format(zipper)
 
             {:ok,
@@ -136,9 +137,12 @@ defmodule Igniter.Code.Map do
   end
 
   defp map_keys_format(zipper) do
-    case zipper.node do
+    case Zipper.children(zipper.node) do
       value when is_list(value) ->
         Enum.all?(value, fn
+          {{:__block__, meta, _}, _} ->
+            meta[:format] == :keyword
+
           {:__block__, meta, _} ->
             meta[:format] == :keyword
 

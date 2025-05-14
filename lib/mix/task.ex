@@ -66,7 +66,7 @@ defmodule Igniter.Mix.Task do
   @optional_callbacks [igniter: 1, igniter: 2]
 
   defmacro __using__(_opts) do
-    quote do
+    quote generated: true do
       use Mix.Task
       import Igniter.Mix.Task, only: [options!: 1, positional_args!: 1]
 
@@ -127,7 +127,7 @@ defmodule Igniter.Mix.Task do
   end
 
   defmacro __before_compile__(_env) do
-    quote do
+    quote generated: true do
       require Logger
 
       igniter1_defined? = Module.defines?(__MODULE__, {:igniter, 1}, :def)
@@ -181,7 +181,7 @@ defmodule Igniter.Mix.Task do
   @doc "Parses the options for the task based on its info."
   @spec options!(argv :: term()) :: term() | no_return
   defmacro options!(argv) do
-    quote do
+    quote generated: true do
       argv = unquote(argv)
 
       task_name = Mix.Task.task_name(__MODULE__)
@@ -276,7 +276,7 @@ defmodule Igniter.Mix.Task do
   end
 
   defmacro positional_args!(argv) do
-    quote do
+    quote generated: true do
       argv = unquote(argv)
       task_name = Mix.Task.task_name(__MODULE__)
       info = info(argv, task_name)
