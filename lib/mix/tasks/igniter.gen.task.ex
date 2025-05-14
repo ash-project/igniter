@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
   ## Example
 
-  ```bash
+  ```sh
   #{@example}
   ```
 
@@ -80,7 +80,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
         ## Example
 
-        ```bash
+        ```sh
         \#{@example}
         ```
 
@@ -162,7 +162,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
 
           ## Example
 
-          ```bash
+          ```sh
           \#{example()}
           ```
 
