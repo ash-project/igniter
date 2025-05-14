@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
 
             ## Example
 
-            ```bash
+            ```sh
             \#{example()}
             ```
 
@@ -127,7 +127,7 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
 
           ## Example
 
-          ```bash
+          ```sh
           \#{@example}
           ```
 
