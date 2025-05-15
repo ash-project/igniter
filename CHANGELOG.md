@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.51](https://github.com/ash-project/igniter/compare/v0.5.50...v0.5.51) (2025-05-15)
+
+
+
+
+### Bug Fixes:
+
+* properly detect map format
+
+* don't always create default config files
+
+* Add impl to generated mix task (#276)
+
+* Matches function guards when using move_to_def (#273)
+
 ## [v0.5.50](https://github.com/ash-project/igniter/compare/v0.5.49...v0.5.50) (2025-05-01)
 
 
