@@ -32,7 +32,7 @@ defmodule Igniter.Code.Function do
     do_move_to_def(zipper, fun, arity, :defp, opts)
   end
 
-  @spec move_to_def(Zipper.t(), [opts]) :: {:ok, Zipper.t()} | :error
+  @spec move_to_def(Zipper.t(), Keyword.t()) :: {:ok, Zipper.t()} | :error
         when opts: {:target, :inside | :before | :at}
   def move_to_def(zipper, opts \\ [target: :at]) do
     case move_to_function_call(zipper, :def, :any) do
