@@ -25,7 +25,7 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  @spec move_to_defp(Zipper.t(), fun :: atom, arity :: integer | list(integer), [opts]) ::
+  @spec move_to_defp(Zipper.t(), fun :: atom, arity :: integer | list(integer), Keyword.t()) ::
           {:ok, Zipper.t()} | :error
         when opts: {:target, :inside | :before | :at}
   def move_to_defp(zipper, fun, arity, opts \\ [target: :inside]) do
