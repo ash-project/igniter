@@ -54,7 +54,25 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
         template(module_name, task_name, app_name, options)
       end
 
+    test_contents =
+      """
+      defmodule #{inspect(module_name)}Test do
+        use ExUnit.Case, async: true
+        import Igniter.Test
+
+        test "it warns when run" do
+          # generate a test project
+          test_project()
+          # run our task
+          |> Igniter.compose_task(\"#{task_name}\", [])
+          # see tools in `Igniter.Test` for available assertions & helpers
+          |> assert_has_warning("mix #{task_name} is not yet implemented")
+        end
+      end
+      """
+
     file = "lib/mix/tasks/#{task_name}.ex"
+    test_file = "test/mix/tasks/#{task_name}_test.exs"
 
     if Igniter.exists?(igniter, file) do
       Igniter.add_issue(
@@ -62,7 +80,9 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
         "Could not generate task #{task_name}, as `#{file}` already exists."
       )
     else
-      Igniter.create_new_file(igniter, file, contents)
+      igniter
+      |> Igniter.create_new_file(file, contents)
+      |> Igniter.create_new_file(test_file, test_contents)
     end
   end
 

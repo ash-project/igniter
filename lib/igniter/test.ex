@@ -221,12 +221,15 @@ defmodule Igniter.Test do
 
   defmacro assert_has_notice(igniter, notice) do
     quote bind_quoted: [igniter: igniter, notice: notice] do
+      condition =
+        if is_function(notice, 1) do
+          notice
+        else
+          &(&1 == notice)
+        end
+
       if !Enum.any?(igniter.notices, fn found_notice ->
-           if is_binary(notice) do
-             notice == found_notice
-           else
-             notice.(found_notice)
-           end
+           condition.(found_notice)
          end) do
         message =
           if is_binary(notice) do
@@ -262,12 +265,15 @@ defmodule Igniter.Test do
 
   defmacro assert_has_warning(igniter, warning) do
     quote bind_quoted: [igniter: igniter, warning: warning] do
+      condition =
+        if is_function(warning, 1) do
+          warning
+        else
+          &(&1 == warning)
+        end
+
       if !Enum.any?(igniter.warnings, fn found_warning ->
-           if is_binary(warning) do
-             warning == found_warning
-           else
-             warning.(found_warning)
-           end
+           condition.(found_warning)
          end) do
         message =
           if is_binary(warning) do
@@ -303,6 +309,13 @@ defmodule Igniter.Test do
 
   defmacro assert_has_issue(igniter, path \\ nil, issue) do
     quote bind_quoted: [igniter: igniter, path: path, issue: issue] do
+      condition =
+        if is_binary(issue) do
+          issue == found_issue
+        else
+          issue.(found_issue)
+        end
+
       if path do
         source = Rewrite.source(igniter, path)
 
@@ -314,11 +327,7 @@ defmodule Igniter.Test do
           end
 
         if !Enum.any?(igniter.issues, fn found_issue ->
-             if is_binary(issue) do
-               issue == found_issue
-             else
-               issue.(found_issue)
-             end
+             condition.(found_issue)
            end) do
           message =
             if is_binary(issue) do
@@ -349,11 +358,7 @@ defmodule Igniter.Test do
         end
       else
         if !Enum.any?(igniter.issues, fn found_issue ->
-             if is_binary(issue) do
-               issue == found_issue
-             else
-               issue.(found_issue)
-             end
+             condition.(found_issue)
            end) do
           message =
             if is_binary(issue) do
