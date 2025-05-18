@@ -27,14 +27,16 @@ defmodule Igniter.Code.Function do
 
   @spec move_to_defp(Zipper.t(), fun :: atom, arity :: integer | list(integer), Keyword.t()) ::
           {:ok, Zipper.t()} | :error
-        when opts: {:target, :inside | :before | :at}
-  def move_to_defp(zipper, fun, arity, opts \\ [target: :inside]) do
+  def move_to_defp(zipper, fun, arity, opts \\ []) do
+    opts = Keyword.put(opts, :target, Keyword.get(opts, :target, :inside))
+
     do_move_to_def(zipper, fun, arity, :defp, opts)
   end
 
   @spec move_to_def(Zipper.t(), Keyword.t()) :: {:ok, Zipper.t()} | :error
-        when opts: {:target, :inside | :before | :at}
-  def move_to_def(zipper, opts \\ [target: :at]) do
+  def move_to_def(zipper, opts \\ []) do
+    opts = Keyword.put(opts, :target, Keyword.get(opts, :target, :at))
+
     case move_to_function_call(zipper, :def, :any) do
       {:ok, zipper} ->
         move_to_target(zipper, Keyword.get(opts, :target, :inside))
@@ -100,8 +102,8 @@ defmodule Igniter.Code.Function do
   """
   @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer), Keyword.t()) ::
           {:ok, Zipper.t()} | :error
-        when opts: {:target, :inside | :before | :at}
-  def move_to_def(zipper, fun, arity, opts \\ [target: :inside]) do
+  def move_to_def(zipper, fun, arity, opts \\ []) do
+    opts = Keyword.put(opts, :target, Keyword.get(opts, :target, :inside))
     do_move_to_def(zipper, fun, arity, :def, opts)
   end
 
@@ -116,7 +118,9 @@ defmodule Igniter.Code.Function do
     end
   end
 
-  defp do_move_to_def(zipper, fun, arity, kind, target: target) do
+  defp do_move_to_def(zipper, fun, arity, kind, opts) do
+    target = Keyword.get(opts, :target)
+
     case Common.move_to(zipper, fn zipper ->
            case Zipper.node(zipper) do
              # Match the standard function definition
