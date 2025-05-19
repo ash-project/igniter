@@ -217,13 +217,15 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             Mix.Task.reenable("igniter.install")
             Mix.Task.run("igniter.install", argv ++ ["--igniter-repeat"])
 
-            Igniter.Installer.Loading.with_spinner(
-              "cleaning up",
-              fn ->
-                Mix.Task.run("igniter.remove", ["igniter", "--yes"])
-              end,
-              verbose?: "--verbose" in argv
-            )
+            if new_contents != contents do
+              Igniter.Installer.Loading.with_spinner(
+                "cleaning up",
+                fn ->
+                  Mix.Task.run("igniter.remove", ["igniter", "--yes"])
+                end,
+                verbose?: "--verbose" in argv
+              )
+            end
           end
         else
           Mix.shell().error("""
