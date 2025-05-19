@@ -855,12 +855,7 @@ defmodule Igniter do
 
         if opts[:force?] || changed?(source) do
           message =
-            opts[:message] ||
-              if opts[:error_on_abort?] do
-                "These dependencies #{IO.ANSI.red()}must#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-              else
-                "These dependencies #{IO.ANSI.yellow()}should#{IO.ANSI.reset()} be installed before continuing. Modify mix.exs and install?"
-              end
+            opts[:message] || "Modify mix.exs and install?"
 
           if opts[:yes] || opts[:yes_to_deps] || !changed?(source) ||
                diff_and_yes?(igniter, [source], opts, message) do
