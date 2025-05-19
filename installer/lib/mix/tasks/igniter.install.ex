@@ -135,17 +135,22 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
             |> File.read!()
 
           new_contents =
-            contents
-            |> add_igniter_dep()
+            Igniter.Installer.Loading.with_spinner(
+              "temporarily adding igniter",
+              fn ->
+                new_contents =
+                  contents
+                  |> add_igniter_dep()
 
-          new_contents =
-            if contents == new_contents do
-              contents
-            else
-              new_contents
-              |> Mix.Tasks.Igniter.New.dont_consolidate_protocols_in_dev()
-              |> Code.format_string!()
-            end
+                if contents == new_contents do
+                  contents
+                else
+                  new_contents
+                  |> Mix.Tasks.Igniter.New.dont_consolidate_protocols_in_dev()
+                  |> Code.format_string!()
+                end
+              end
+            )
 
           if new_contents == contents && !String.contains?(contents, "{:igniter,") do
             Mix.shell().error("""
@@ -211,6 +216,14 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
             Mix.Task.reenable("igniter.install")
             Mix.Task.run("igniter.install", argv ++ ["--igniter-repeat"])
+
+            Igniter.Installer.Loading.with_spinner(
+              "cleaning up",
+              fn ->
+                Mix.Task.run("igniter.remove", ["igniter", "--yes"])
+              end,
+              verbose?: "--verbose" in argv
+            )
           end
         else
           Mix.shell().error("""
