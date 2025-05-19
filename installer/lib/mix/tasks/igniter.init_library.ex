@@ -1,11 +1,11 @@
-defmodule Mix.Tasks.Igniter.Init do
+defmodule Mix.Tasks.Igniter.InitLibrary do
   @moduledoc """
-  Set up a library for using Igniter. Adds the optional dependency
+  Set up a library to use Igniter. Adds the optional dependency
   and an install task.
 
   ## Args
 
-  mix igniter.init my_library
+  mix igniter.init_library my_lib
 
   * `--dry-run` - Run the task without making any changes.
   * `--yes` - Automatically answer yes to any prompts.
@@ -17,7 +17,7 @@ defmodule Mix.Tasks.Igniter.Init do
   @apps [:logger, :public_key, :ssl, :inets, :eex]
 
   @impl true
-  @shortdoc "Set up a library for using Igniter. Adds the optional dependency and an install task."
+  @shortdoc "Set up a library to use Igniter. Adds the optional dependency and an install task."
   def run(argv) do
     app_name =
       case argv do
@@ -25,7 +25,7 @@ defmodule Mix.Tasks.Igniter.Init do
           Mix.shell().error("""
           Missing argument: app name
 
-          Try running `mix igniter.init my_app`.
+          Try running `mix igniter.init_library my_lib`.
           """)
 
           exit({:shutdown, 1})
