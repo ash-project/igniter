@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.52](https://github.com/ash-project/igniter/compare/v0.5.51...v0.5.52) (2025-05-20)
+
+
+
+
+### Improvements:
+
+* bump installer version
+
+* Add igniter.init task to igniter_new archive (#283)
+
+* clean up igniter after adding it for installation
+
+* Task/adds move to function and attrs (#274)
+
+* generate a test when generating a new task
+
 ## [v0.5.51](https://github.com/ash-project/igniter/compare/v0.5.50...v0.5.51) (2025-05-15)
 
 
