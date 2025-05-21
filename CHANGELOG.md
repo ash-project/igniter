@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.0](https://github.com/ash-project/igniter/compare/v0.5.52...v0.6.0) (2025-05-21)
+
+
+
+
+### Bug Fixes:
+
+* OTP 28 Compatibility via removing inflex (#288)
+
+Use `Igniter.Inflex.pluralize` or depend on `Inflex` directly if you need it
+
 ## [v0.5.52](https://github.com/ash-project/igniter/compare/v0.5.51...v0.5.52) (2025-05-20)
 
 
