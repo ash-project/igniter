@@ -108,7 +108,6 @@ defmodule Igniter.MixProject do
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
       {:phx_new, "~> 1.7", optional: true},
-      {:inflex, "~> 2.0"},
       {:owl, "~> 0.11"},
       # Dev/Test dependencies
       {:eflame, "~> 1.0", only: [:dev, :test]},
@@ -119,7 +118,6 @@ defmodule Igniter.MixProject do
       {:mimic, "~> 1.7", only: [:test]},
       {:git_ops, "~> 2.6.3", only: :dev},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
-      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
       {:doctor, "~> 0.21", only: [:dev, :test]}
     ]
