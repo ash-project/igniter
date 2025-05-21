@@ -40,16 +40,24 @@ defmodule Igniter.Project.IgniterConfig do
     dont_move_files: [
       type: {:list, :any},
       doc:
-        "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved.",
-      default: [
-        ~r"lib/mix"
-      ],
-      quoted_default:
-        quote do
-          [~r"lib/mix"]
-        end
+        "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved."
     ]
   ]
+
+  def configs() do
+    Keyword.update(@configs, :dont_move_files, [], fn options ->
+      # We use this trick to inject values that cannot be stored in a module constant as of Erlang/OTP 28
+      Keyword.merge(options,
+        default: [
+          ~r"lib/mix"
+        ],
+        quoted_default:
+          quote do
+            [~r"lib/mix"]
+          end
+      )
+    end)
+  end
 
   docs =
     Enum.map_join(@configs, "\n", fn {name, config} ->
@@ -71,7 +79,7 @@ defmodule Igniter.Project.IgniterConfig do
   """
 
   def get(igniter, config) do
-    igniter.assigns[:igniter_exs][config] || @configs[config][:default]
+    igniter.assigns[:igniter_exs][config] || configs()[config][:default]
   end
 
   def add_extension(igniter, extension) do
@@ -206,7 +214,7 @@ defmodule Igniter.Project.IgniterConfig do
         rightmost = Igniter.Code.Common.rightmost(zipper)
 
         if Igniter.Code.List.list?(rightmost) do
-          Enum.reduce_while(@configs, {:ok, zipper}, fn {name, config}, {:ok, zipper} ->
+          Enum.reduce_while(configs(), {:ok, zipper}, fn {name, config}, {:ok, zipper} ->
             default =
               config[:quoted_default] ||
                 quote do
