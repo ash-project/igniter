@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.1](https://github.com/ash-project/igniter/compare/v0.6.0...v0.6.1) (2025-05-22)
+
+
+
+
+### Bug Fixes:
+
+* remove references to old versions
+
 ## [v0.6.0](https://github.com/ash-project/igniter/compare/v0.5.52...v0.6.0) (2025-05-21)
 
 
