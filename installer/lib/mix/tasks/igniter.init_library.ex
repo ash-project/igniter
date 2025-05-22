@@ -191,7 +191,7 @@ defmodule Mix.Tasks.Igniter.InitLibrary do
   end
 
   defp add_igniter_dep(contents) do
-    version_requirement = "\"~> 0.5\""
+    version_requirement = "\"~> 0.6\""
 
     if String.contains?(contents, "{:igniter") do
       Mix.shell().info("Igniter is already in the project.")

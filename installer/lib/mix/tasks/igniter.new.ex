@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Igniter.New do
   @shortdoc "Creates a new Igniter application"
   use Mix.Task
 
-  @igniter_version "~> 0.5"
+  @igniter_version "~> 0.6"
   @installer_version Igniter.New.MixProject.project()[:version]
 
   @impl Mix.Task
@@ -161,7 +161,7 @@ defmodule Mix.Tasks.Igniter.New do
 
       Additionally, many package installers do not support umbrella applications.
 
-      If you are sure that you want to use umbrella applications (there are plenty 
+      If you are sure that you want to use umbrella applications (there are plenty
       of good reasons), please generate the application using `mix #{install_with}`,
       and then run installers from individual applications.
       """)

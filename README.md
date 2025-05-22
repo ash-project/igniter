@@ -49,7 +49,7 @@ In addition to providing tools for library authors to patch your code, common op
 Add Igniter to an existing elixir project by adding it to your dependencies in `mix.exs`:
 
 ```elixir
-{:igniter, "~> 0.5", only: [:dev, :test]}
+{:igniter, "~> 0.6", only: [:dev, :test]}
 ```
 
 Note: If you only want to use `mix igniter.install` to add dependencies to your project then you can install the archive instead of adding Igniter to your project.
@@ -91,7 +91,7 @@ Igniter is a toolkit for writing smarter generators that can semantically create
 For library authors, add Igniter to your `mix.exs` with `optional: true`:
 
 ```elixir
-{:igniter, "~> 0.5", optional: true}
+{:igniter, "~> 0.6", optional: true}
 ```
 
 `optional: true` ensures that end users can install as outlined above, and `:igniter` will not be included in their production application.

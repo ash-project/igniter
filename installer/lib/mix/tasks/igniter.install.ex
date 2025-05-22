@@ -240,7 +240,7 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     end
 
     defp add_igniter_dep(contents) do
-      version_requirement = "\"~> 0.5\""
+      version_requirement = "\"~> 0.6\""
 
       if String.contains?(contents, "{:igniter") do
         contents
