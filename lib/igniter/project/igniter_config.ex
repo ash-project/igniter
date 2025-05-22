@@ -44,7 +44,7 @@ defmodule Igniter.Project.IgniterConfig do
     ]
   ]
 
-  def configs() do
+  def configs do
     Keyword.update(@configs, :dont_move_files, [], fn options ->
       # We use this trick to inject values that cannot be stored in a module constant as of Erlang/OTP 28
       Keyword.merge(options,
