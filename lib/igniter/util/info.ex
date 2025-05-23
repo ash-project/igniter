@@ -13,6 +13,7 @@ defmodule Igniter.Util.Info do
     smokestack: [:test],
     mishka_chelekom: [:dev],
     mneme: [:dev, :test],
+    usage_rules: [:dev],
     live_debugger: [:dev],
     tidewave: [:dev]
   ]

@@ -88,7 +88,7 @@ defmodule Igniter.MixProject do
       name: :igniter,
       licenses: ["MIT"],
       files: ~w(lib .formatter.exs mix.exs README* LICENSE*
-      CHANGELOG*),
+      CHANGELOG* usage-rules.md),
       links: %{
         GitHub: "https://github.com/ash-project/igniter",
         Discord: "https://discord.gg/HTHRaaVPUc",
