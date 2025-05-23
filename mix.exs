@@ -52,6 +52,7 @@ defmodule Igniter.MixProject do
       extra_section: "GUIDES",
       extras: [
         {"README.md", title: "Home"},
+        {"usage-rules.md", title: "LLM Usage Rules"},
         "documentation/writing-generators.md",
         "documentation/configuring-igniter.md",
         "documentation/upgrades.md",
