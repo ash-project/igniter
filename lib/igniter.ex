@@ -15,14 +15,14 @@ defmodule Igniter do
 
   The following assigns have special meaning and can be set to control Igniter's behavior:
 
-  * `:prompt_on_git_changes?` - Controls whether Igniter should warn users about 
-    uncommitted git changes before applying modifications. Defaults to `true`. When 
-    enabled, Igniter will check git status and display a warning if there are 
+  * `:prompt_on_git_changes?` - Controls whether Igniter should warn users about
+    uncommitted git changes before applying modifications. Defaults to `true`. When
+    enabled, Igniter will check git status and display a warning if there are
     uncommitted changes, giving users a chance to save their work before proceeding.
-    
-  * `:quiet_on_no_changes?` - Controls whether Igniter should display a message when 
-    no changes are proposed. Defaults to `false`. When set to `true`, Igniter will 
-    suppress the "No proposed content changes!" message that normally appears when 
+
+  * `:quiet_on_no_changes?` - Controls whether Igniter should display a message when
+    no changes are proposed. Defaults to `false`. When set to `true`, Igniter will
+    suppress the "No proposed content changes!" message that normally appears when
     running operations that don't result in any file modifications.
   """
 
@@ -1044,7 +1044,7 @@ defmodule Igniter do
       end
     end)
     |> Enum.any?(fn source ->
-      Rewrite.Source.from?(source, :string) || Rewrite.Source.updated?(source)
+      changed?(source)
     end)
   end
 
