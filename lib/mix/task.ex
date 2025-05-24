@@ -98,6 +98,7 @@ defmodule Igniter.Mix.Task do
           Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
 
         Igniter.new()
+        |> Map.put(:task, Mix.Task.task_name(__MODULE__))
         |> Igniter.Mix.Task.configure_and_run(__MODULE__, argv)
         |> Igniter.do_or_dry_run(opts)
       end

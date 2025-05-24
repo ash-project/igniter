@@ -1,10 +1,35 @@
 defmodule Igniter do
   @moduledoc """
   Tools for generating and patching code into an Elixir project.
+
+  ## Assigns
+
+  Assigns are a way to store arbitrary data on an Igniter struct that can be used to
+  pass information between tasks, configure behavior, or maintain state throughout
+  the execution pipeline. They work similarly to assigns in Phoenix LiveView or Plug.
+
+  You can set assigns using `assign/3` or `assign/2`, and access them via the
+  `assigns` field on the Igniter struct.
+
+  ### Special Assigns
+
+  The following assigns have special meaning and can be set to control Igniter's behavior:
+
+  * `:prompt_on_git_changes?` - Controls whether Igniter should warn users about 
+    uncommitted git changes before applying modifications. Defaults to `true`. When 
+    enabled, Igniter will check git status and display a warning if there are 
+    uncommitted changes, giving users a chance to save their work before proceeding.
+    
+  * `:quiet_on_no_changes?` - Controls whether Igniter should display a message when 
+    no changes are proposed. Defaults to `false`. When set to `true`, Igniter will 
+    suppress the "No proposed content changes!" message that normally appears when 
+    running operations that don't result in any file modifications.
   """
 
   defstruct [
     :rewrite,
+    task: nil,
+    parent: nil,
     issues: [],
     tasks: [],
     warnings: [],
@@ -413,7 +438,11 @@ defmodule Igniter do
         add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
       else
         igniter
+        |> Map.put(:task, Mix.Task.task_name(task))
+        |> Map.put(:parent, igniter.task)
         |> Igniter.Mix.Task.configure_and_run(task, argv || igniter.args.argv_flags)
+        |> Map.put(:parent, igniter.parent)
+        |> Map.put(:task, igniter.task)
         |> Map.replace!(:args, original_args)
       end
     else
@@ -1050,7 +1079,8 @@ defmodule Igniter do
               end
             end
           else
-            if !(opts[:quiet_on_no_changes?] || opts[:yes]) do
+            if !(opts[:quiet_on_no_changes?] || opts[:yes] ||
+                   igniter.assigns[:quiet_on_no_changes?]) do
               Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
 
               display_notices(igniter)
