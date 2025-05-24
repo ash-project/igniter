@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.2](https://github.com/ash-project/igniter/compare/v0.6.1...v0.6.2) (2025-05-24)
+
+
+
+
+### Improvements:
+
+* track task name and parent task name in igniter
+
+* add `quiet_on_no_changes?` assign
+
+* add usage-rules.md
+
 ## [v0.6.1](https://github.com/ash-project/igniter/compare/v0.6.0...v0.6.1) (2025-05-22)
 
 
