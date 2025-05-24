@@ -14,6 +14,7 @@ defmodule Igniter.Util.Info do
     mishka_chelekom: [:dev],
     mneme: [:dev, :test],
     usage_rules: [:dev],
+    git_ops: [:dev],
     live_debugger: [:dev],
     tidewave: [:dev]
   ]
