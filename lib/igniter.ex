@@ -1082,9 +1082,9 @@ defmodule Igniter do
             if !(opts[:quiet_on_no_changes?] || opts[:yes] ||
                    igniter.assigns[:quiet_on_no_changes?]) do
               Mix.shell().info("\n#{title}:\n\n    No proposed content changes!\n")
-
-              display_notices(igniter)
             end
+
+            display_notices(igniter)
 
             :dry_run_with_no_changes
           end
