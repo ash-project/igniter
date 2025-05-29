@@ -29,7 +29,11 @@ defmodule Igniter.Installer.Loading do
 
               def info(_message), do: :ok
 
-              def error(_message), do: :ok
+              def error(message) do
+                # Instead of discarding, send to stderr so it gets captured
+                IO.puts(:stderr, message)
+                :ok
+              end
 
               def prompt(_message), do: :ok
 
@@ -66,9 +70,17 @@ defmodule Igniter.Installer.Loading do
           |> elem(0)
         rescue
           e ->
+            Process.put(:spinner_error, true)
             Mix.shell(shell)
             Mix.shell().info(Igniter.Installer.CaptureServer.device_output(:standard_error, ref))
             reraise e, __STACKTRACE__
+        catch
+          kind, reason ->
+            File.write("catch_output", inspect({kind, reason}))
+            Process.put(:spinner_error, true)
+            Mix.shell(shell)
+            Mix.shell().info(Igniter.Installer.CaptureServer.device_output(:standard_error, ref))
+            :erlang.raise(kind, reason, __STACKTRACE__)
         after
           Mix.shell(shell)
           Igniter.Installer.CaptureServer.device_capture_off(ref)
@@ -77,7 +89,14 @@ defmodule Igniter.Installer.Loading do
       after
         if shell == Mix.Shell.IO do
           loader_ref = make_ref()
-          send(loader, {:stop, self(), loader_ref})
+          error_occurred = Process.get(:spinner_error, false)
+
+          stop_message =
+            if error_occurred,
+              do: {:stop_error, self(), loader_ref},
+              else: {:stop_success, self(), loader_ref}
+
+          send(loader, stop_message)
 
           receive do
             {:loader_stopped, ^loader_ref} ->
@@ -129,8 +148,13 @@ defmodule Igniter.Installer.Loading do
       |> Stream.cycle()
       |> Stream.map(fn next ->
         receive do
-          {:stop, pid, ref} ->
+          {:stop_success, pid, ref} ->
             IO.puts("\r\e[K" <> task_name <> " " <> "#{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
+            send(pid, {:loader_stopped, ref})
+            exit(:normal)
+
+          {:stop_error, pid, ref} ->
+            IO.puts("\r\e[K" <> task_name <> " " <> "#{IO.ANSI.red()}✗#{IO.ANSI.reset()}")
             send(pid, {:loader_stopped, ref})
             exit(:normal)
         after
