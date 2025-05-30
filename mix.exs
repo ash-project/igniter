@@ -54,6 +54,7 @@ defmodule Igniter.MixProject do
         {"README.md", title: "Home"},
         "documentation/writing-generators.md",
         "documentation/configuring-igniter.md",
+        "documentation/documenting-tasks.md",
         "documentation/upgrades.md",
         "CHANGELOG.md"
       ],

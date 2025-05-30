@@ -97,10 +97,21 @@ defmodule Igniter.Mix.Task do
         {opts, _} =
           Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
 
-        Igniter.new()
+        if opts[:scribe] do
+          Igniter.Test.test_project()
+          |> Igniter.assign(:scribe?, true)
+        else
+          Igniter.new()
+        end
         |> Map.put(:task, Mix.Task.task_name(__MODULE__))
         |> Igniter.Mix.Task.configure_and_run(__MODULE__, argv)
-        |> Igniter.do_or_dry_run(opts)
+        |> then(fn igniter ->
+          if opts[:scribe] do
+            Igniter.Scribe.write(igniter, opts[:scribe])
+          else
+            Igniter.do_or_dry_run(igniter, opts)
+          end
+        end)
       end
 
       defoverridable run: 1

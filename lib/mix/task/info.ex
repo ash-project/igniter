@@ -77,7 +77,8 @@ defmodule Igniter.Mix.Task.Info do
       yes_to_deps: :boolean,
       verbose: :boolean,
       only: :keep,
-      check: :boolean
+      check: :boolean,
+      scribe: :string
     ],
     # no aliases for global options!
     aliases: []
