@@ -10,19 +10,25 @@ if Code.ensure_loaded?(Phx.New.Project) do
     @mod Phx.New.Single
 
     def generate(igniter, project) do
-      generators = [
-        {true, &gen_new/2},
-        {Project.ecto?(project), &gen_ecto/2},
-        {Project.html?(project), &gen_html/2},
-        {Project.mailer?(project), &gen_mailer/2},
-        {Project.gettext?(project), &gen_gettext/2},
-        {true, &gen_assets/2}
-      ]
-
-      Enum.reduce(generators, igniter, fn
-        {true, gen_fun}, acc -> gen_fun.(acc, project)
-        _, acc -> acc
-      end)
+      Enum.reduce(
+        [
+          {true, &gen_new/2},
+          {Project.ecto?(project), &gen_ecto/2},
+          {Project.html?(project), &gen_html/2},
+          {Project.mailer?(project), &gen_mailer/2},
+          {Project.gettext?(project), &gen_gettext/2},
+          {true, &gen_assets/2}
+        ],
+        igniter,
+        fn
+          {key, fun}, igniter ->
+            if key do
+              fun.(igniter, project)
+            else
+              igniter
+            end
+        end
+      )
     end
 
     def gen_new(igniter, project) do
