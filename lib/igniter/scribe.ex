@@ -46,7 +46,7 @@ defmodule Igniter.Scribe do
   end
 
   def patch(original_igniter, callback) do
-    if igniter.assigns[:scribe?] do
+    if original_igniter.assigns[:scribe?] do
       new_igniter = callback.(original_igniter)
 
       new_igniter.rewrite
@@ -103,7 +103,7 @@ defmodule Igniter.Scribe do
         end
       end)
     else
-      callback.(igniter)
+      callback.(original_igniter)
     end
   end
 
