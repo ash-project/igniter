@@ -127,17 +127,15 @@ defmodule Igniter.Util.Loading do
   end
 
   defp do_capture_gl(string_io, fun) do
-    try do
-      fun.()
-    catch
-      kind, reason ->
-        _ = StringIO.close(string_io)
-        :erlang.raise(kind, reason, __STACKTRACE__)
-    else
-      result ->
-        {:ok, {_input, output}} = StringIO.close(string_io)
-        {result, output}
-    end
+    fun.()
+  catch
+    kind, reason ->
+      _ = StringIO.close(string_io)
+      :erlang.raise(kind, reason, __STACKTRACE__)
+  else
+    result ->
+      {:ok, {_input, output}} = StringIO.close(string_io)
+      {result, output}
   end
 
   def spawn_loader(task_name) do
