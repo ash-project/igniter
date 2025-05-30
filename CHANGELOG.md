@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.4](https://github.com/ash-project/igniter/compare/v0.6.3...v0.6.4) (2025-05-30)
+
+
+
+
+### Bug Fixes:
+
+* reword syntax to avoid compile error
+
+### Improvements:
+
+* introduce `Igniter.Scribe` and `--scribe` option
+
 ## [v0.6.3](https://github.com/ash-project/igniter/compare/v0.6.2...v0.6.3) (2025-05-29)
 
 
