@@ -41,66 +41,70 @@ defmodule Igniter.Scribe do
       |> assign(:header, current_header)
       |> assign(:nesting_level, nesting_level)
     else
-      igniter
+      callback.(igniter)
     end
   end
 
   def patch(original_igniter, callback) do
-    new_igniter = callback.(original_igniter)
+    if igniter.assigns[:scribe?] do
+      new_igniter = callback.(original_igniter)
 
-    new_igniter.rewrite
-    |> Enum.reduce(new_igniter, fn source, igniter ->
-      existing_source =
-        Rewrite.source(original_igniter.rewrite, source.path)
+      new_igniter.rewrite
+      |> Enum.reduce(new_igniter, fn source, igniter ->
+        existing_source =
+          Rewrite.source(original_igniter.rewrite, source.path)
 
-      lang = if Path.extname(source.path) in [".ex", ".eex"], do: "elixir", else: nil
+        lang = if Path.extname(source.path) in [".ex", ".eex"], do: "elixir", else: nil
 
-      case existing_source do
-        {:ok, existing_source} ->
-          if Rewrite.Source.version(existing_source) == Rewrite.Source.version(source) do
-            igniter
-          else
-            TextDiff.format(
-              existing_source |> Rewrite.Source.get(:content) |> eof_newline(),
-              source |> Rewrite.Source.get(:content) |> eof_newline(),
-              color: false,
-              line_numbers: false,
-              format: [
-                separator: ""
-              ]
-            )
-            |> IO.iodata_to_binary()
-            |> String.trim_trailing()
-            |> String.split("\n")
-            |> Enum.map_join("\n", fn
-              " " <> str -> str
-              other -> other
-            end)
-            |> case do
-              "" ->
-                igniter
+        case existing_source do
+          {:ok, existing_source} ->
+            if Rewrite.Source.version(existing_source) == Rewrite.Source.version(source) do
+              igniter
+            else
+              TextDiff.format(
+                existing_source |> Rewrite.Source.get(:content) |> eof_newline(),
+                source |> Rewrite.Source.get(:content) |> eof_newline(),
+                color: false,
+                line_numbers: false,
+                format: [
+                  separator: ""
+                ]
+              )
+              |> IO.iodata_to_binary()
+              |> String.trim_trailing()
+              |> String.split("\n")
+              |> Enum.map_join("\n", fn
+                " " <> str -> str
+                other -> other
+              end)
+              |> case do
+                "" ->
+                  igniter
 
-              diff ->
-                igniter
-                |> append_content("Update `#{source.path}`:")
-                |> append_content("""
-                ```diff
-                #{diff}
-                ```
-                """)
+                diff ->
+                  igniter
+                  |> append_content("Update `#{source.path}`:")
+                  |> append_content("""
+                  ```diff
+                  #{diff}
+                  ```
+                  """)
+              end
             end
-          end
 
-        _ ->
-          igniter
-          |> append_content("Create `#{source.path}`:")
-          |> append_content("""
-          ```#{lang}
-          #{Rewrite.Source.get(source, :content)}
-          ```
-          """)
-      end
-    end)
+          _ ->
+            igniter
+            |> append_content("Create `#{source.path}`:")
+            |> append_content("""
+            ```#{lang}
+            #{Rewrite.Source.get(source, :content)}
+            ```
+            """)
+        end
+      end)
+    else
+      callback.(igniter)
+    end
   end
 
   @doc false
