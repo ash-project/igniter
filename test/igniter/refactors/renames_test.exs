@@ -124,6 +124,41 @@ defmodule Igniter.Refactors.RenameTest do
     """)
   end
 
+  test "performs a simple rename to a different module" do
+    test_project()
+    |> Igniter.create_new_file("lib/example.ex", """
+    defmodule Example do
+      @doc "what"
+      @spec some_function() :: :hello
+      def some_function() do
+        :hello
+      end
+    end
+    """)
+    |> Igniter.create_new_file("lib/new_example.ex", """
+    defmodule NewExample do
+    end
+    """)
+    |> apply_igniter!()
+    |> Igniter.Refactors.Rename.rename_function(
+      {Example, :some_function},
+      {NewExample, :some_other_function}
+    )
+    |> assert_content_equals("lib/example.ex", """
+    defmodule Example do
+    end
+    """)
+    |> assert_content_equals("lib/new_example.ex", """
+    defmodule NewExample do
+      @doc "what"
+      @spec some_other_function() :: :hello
+      def some_other_function() do
+        :hello
+      end
+    end
+    """)
+  end
+
   test "performs a simple rename on two arity functions" do
     test_project()
     |> Igniter.create_new_file("lib/example.ex", """
