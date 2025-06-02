@@ -81,14 +81,33 @@ defmodule Igniter.Refactors.Rename do
             igniter
           else
             bodies =
-              Igniter.Code.Common.find_all(old_zipper, fn zipper ->
-                case subsume_module_attrs(zipper) do
+              old_zipper
+              |> Igniter.Code.Common.find_all(fn zipper ->
+                case subsume_module_attrs(zipper, [], not_if_above?: true) do
                   {%{node: {:def, _, [{^old_function, _, args}, _]}}, _} ->
                     arity == :any || length(args) in List.wrap(arity)
 
                   _ ->
                     false
                 end
+              end)
+              |> Enum.map(fn zipper ->
+                Zipper.traverse(zipper, fn
+                  %{node: {:@, _, [{:spec, _, _}]} = node} = zipper ->
+                    Zipper.replace(
+                      zipper,
+                      rename_spec(node, old_function, new_function)
+                    )
+
+                  %{node: {:def, def_meta, [{^old_function, fun_meta, args}, body]}} = zipper ->
+                    Zipper.replace(
+                      zipper,
+                      {:def, def_meta, [{new_function, fun_meta, args}, body]}
+                    )
+
+                  zipper ->
+                    zipper
+                end)
               end)
 
             case bodies do
@@ -128,13 +147,34 @@ defmodule Igniter.Refactors.Rename do
     end
   end
 
-  def subsume_module_attrs(zipper, attrs \\ []) do
-    case zipper.node do
-      {:@, _, [{attr, _, _}]} = node when attr in @function_module_attrs ->
-        subsume_module_attrs(Zipper.right(zipper), [node | attrs])
+  def subsume_module_attrs(zipper, attrs \\ [], top? \\ true) do
+    continue? =
+      if top? do
+        case Zipper.up(zipper) do
+          %{node: {:@, _, [{attr, _, _}]}} when attr in @function_module_attrs ->
+            false
 
-      _ ->
-        {zipper, attrs}
+          _ ->
+            true
+        end
+      else
+        true
+      end
+
+    if continue? do
+      case zipper.node do
+        {:@, _, [{attr, _, _}]} = node when attr in @function_module_attrs ->
+          subsume_module_attrs(
+            Zipper.right(zipper),
+            [node | attrs],
+            false
+          )
+
+        _ ->
+          {zipper, attrs}
+      end
+    else
+      {zipper, attrs}
     end
   end
 
@@ -297,29 +337,32 @@ defmodule Igniter.Refactors.Rename do
 
   defp prepend_attrs(zipper, attrs, old_function, new_function) do
     Enum.reduce(attrs, zipper, fn attr, zipper ->
-      attr =
-        case attr do
-          {:@, at_meta,
-           [
-             {:spec, spec_meta,
-              [
-                {:"::", returns_meta, [{^old_function, name_meta, args}, returns]}
-              ]}
-           ]} ->
-            {:@, at_meta,
-             [
-               {:spec, spec_meta,
-                [
-                  {:"::", returns_meta, [{new_function, name_meta, args}, returns]}
-                ]}
-             ]}
-
-          other ->
-            other
-        end
+      attr = rename_spec(attr, old_function, new_function)
 
       Igniter.Code.Common.add_code(zipper, attr, placement: :before)
     end)
+  end
+
+  defp rename_spec(attr, old_function, new_function) do
+    case attr do
+      {:@, at_meta,
+       [
+         {:spec, spec_meta,
+          [
+            {:"::", returns_meta, [{^old_function, name_meta, args}, returns]}
+          ]}
+       ]} ->
+        {:@, at_meta,
+         [
+           {:spec, spec_meta,
+            [
+              {:"::", returns_meta, [{new_function, name_meta, args}, returns]}
+            ]}
+         ]}
+
+      other ->
+        other
+    end
   end
 
   defp has_deprecation_type?(nil, _), do: false

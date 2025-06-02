@@ -100,7 +100,7 @@ defmodule Igniter.Code.Function do
   # end
   ```
   """
-  @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer), Keyword.t()) ::
+  @spec move_to_def(Zipper.t(), fun :: atom, arity :: integer | list(integer) | :any, Keyword.t()) ::
           {:ok, Zipper.t()} | :error
   def move_to_def(zipper, fun, arity, opts \\ []) do
     opts = Keyword.put(opts, :target, Keyword.get(opts, :target, :inside))
@@ -124,20 +124,22 @@ defmodule Igniter.Code.Function do
     case Common.move_to(zipper, fn zipper ->
            case Zipper.node(zipper) do
              # Match the standard function definition
-             {^kind, _, [{^fun, _, args}, _body]} when length(args) == arity ->
+             {^kind, _, [{^fun, _, args}, _body]} when arity == :any or length(args) == arity ->
                true
 
              # Match a zero-arity function that is defined without parentheses
-             {^kind, _, [{^fun, _, nil}, __body]} when arity == 0 ->
+             {^kind, _, [{^fun, _, nil}, __body]} when arity == :any or arity == 0 ->
                true
 
              # Match a function with a guard clause
-             {^kind, _, [{:when, _, [{^fun, _, args}, _guard]}, _body]} when length(args) == arity ->
+             {^kind, _, [{:when, _, [{^fun, _, args}, _guard]}, _body]}
+             when arity == :any or length(args) == arity ->
                true
 
              # Probably not a common occurrence, but it is possible to have a
              # function with a guard clause and no args
-             {^kind, _, [{:when, _, [{^fun, _, nil}, _guard]}, _body]} when arity == 0 ->
+             {^kind, _, [{:when, _, [{^fun, _, nil}, _guard]}, _body]}
+             when arity == :any or arity == 0 ->
                true
 
              _ ->
