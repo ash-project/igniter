@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.5](https://github.com/ash-project/igniter/compare/v0.6.4...v0.6.5) (2025-06-04)
+
+
+
+
+### Bug Fixes:
+
+* properly rename function & attributes on module move
+
 ## [v0.6.4](https://github.com/ash-project/igniter/compare/v0.6.3...v0.6.4) (2025-05-30)
 
 
