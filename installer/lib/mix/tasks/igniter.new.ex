@@ -15,6 +15,7 @@ defmodule Mix.Tasks.Igniter.New do
     to the `--with` command, as it may or may not support it. Use `--with-args`
     to provide arguments to that command.
   * `--no-installer-version-check` - skip the version check for the latest igniter_new version
+  * `--git` - Initialize a git repository in the project directory and commit the initial state.
 
   ## Options for `mix.new`
 
@@ -71,7 +72,8 @@ defmodule Mix.Tasks.Igniter.New do
           module: :string,
           sup: :boolean,
           umbrella: :boolean,
-          installer_version_check: :boolean
+          installer_version_check: :boolean,
+          git: :boolean
         ],
         aliases: [i: :install, l: :local, e: :example, w: :with]
       )
@@ -242,6 +244,10 @@ defmodule Mix.Tasks.Igniter.New do
       )
     end
 
+    if options[:git] do
+      initialize_git_repo()
+    end
+
     :ok
   end
 
@@ -313,7 +319,7 @@ defmodule Mix.Tasks.Igniter.New do
     end
   end
 
-  @flags ~w(example sup umbrella installer-version-check no-installer-version-check)
+  @flags ~w(example sup umbrella installer-version-check no-installer-version-check git)
   @flags_with_values ~w(install local with with-args module)
   @switches ~w(e)
   @switches_with_values ~w(i l)
@@ -396,6 +402,33 @@ defmodule Mix.Tasks.Igniter.New do
 
   @doc false
   def igniter_version, do: @igniter_version
+
+  defp initialize_git_repo do
+    Igniter.Installer.Loading.with_spinner(
+      "Initializing local git repository, staging all files, and committing",
+      fn ->
+        case System.cmd("git", ["init"]) do
+          {_, 0} ->
+            case System.cmd("git", ["add", "."]) do
+              {_, 0} ->
+                case System.cmd("git", ["commit", "-m", "Initial commit"]) do
+                  {_, 0} ->
+                    Mix.shell().info("Git repository initialized and initial commit created.")
+
+                  {output, _} ->
+                    Mix.shell().error("Failed to create initial commit: #{output}")
+                end
+
+              {output, _} ->
+                Mix.shell().error("Failed to add files to git: #{output}")
+            end
+
+          {output, _} ->
+            Mix.shell().error("Failed to initialize git repository: #{output}")
+        end
+      end
+    )
+  end
 
   defp maybe_warn_outdated(latest_version, opts) do
     if Version.compare(@installer_version, latest_version) == :lt do
