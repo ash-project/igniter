@@ -454,7 +454,7 @@ defmodule Igniter.Util.Info do
         end
 
       recursively_compose_schema(
-        %Info{
+        %{
           schema
           | schema:
               merge_schemas(

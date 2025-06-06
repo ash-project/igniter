@@ -1122,6 +1122,8 @@ defmodule Igniter do
 
         display_moves(igniter)
 
+        display_rms(igniter)
+
         display_warnings(igniter, title)
 
         display_tasks(igniter, result_of_dry_run, opts)
@@ -1884,7 +1886,7 @@ defmodule Igniter do
     igniter.moves
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(fn {from, to} ->
-      [:red, from, :reset, ": ", :green, to]
+      ["* ", :red, from, :reset, ": ", :green, to]
     end)
     |> display_list("These files will be moved:")
   end
@@ -1894,7 +1896,7 @@ defmodule Igniter do
     igniter.rms
     |> Enum.sort()
     |> Enum.map(fn path ->
-      [:red, path, :reset]
+      ["* ", :red, path, :reset]
     end)
     |> display_list("These files will be removed:")
   end
