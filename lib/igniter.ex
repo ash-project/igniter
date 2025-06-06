@@ -36,6 +36,7 @@ defmodule Igniter do
     notices: [],
     assigns: %{},
     mkdirs: [],
+    rms: [],
     moves: %{},
     args: %Igniter.Mix.Task.Args{}
   ]
@@ -50,6 +51,7 @@ defmodule Igniter do
           notices: [String.t()],
           assigns: map(),
           mkdirs: [String.t()],
+          rms: [String.t()],
           moves: %{optional(String.t()) => String.t()},
           args: Igniter.Mix.Task.Args.t()
         }
@@ -232,7 +234,7 @@ defmodule Igniter do
       end)
       |> Enum.map(&Igniter.Util.BackwardsCompat.relative_to_cwd(&1, force: true))
       |> Enum.reject(fn path ->
-        Rewrite.has_source?(igniter.rewrite, path)
+        Rewrite.has_source?(igniter.rewrite, path) || path in igniter.rms
       end)
       |> Enum.map(fn path ->
         source_handler = source_handler(path)
@@ -244,7 +246,12 @@ defmodule Igniter do
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
       end)
     else
-      %{igniter | rewrite: Rewrite.read!(igniter.rewrite, glob)}
+      igniter.rewrite
+      |> Rewrite.read!(glob)
+      |> Map.update!(:sources, fn sources ->
+        Map.drop(sources, igniter.rms)
+      end)
+      |> then(&%{igniter | rewrite: &1})
     end
   end
 
@@ -518,7 +525,12 @@ defmodule Igniter do
   @doc "Checks if a file exists on the file system or in the igniter."
   @spec exists?(t(), Path.t()) :: boolean()
   def exists?(igniter, path) do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
+
     cond do
+      path in igniter.rms ->
+        false
+
       Rewrite.has_source?(igniter.rewrite, path) ->
         true
 
@@ -644,7 +656,7 @@ defmodule Igniter do
             |> update_source(igniter, :content, contents, by: :file_creator)
         end
 
-      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+      %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source), rms: igniter.rms -- [path]}
       |> maybe_format(path, true, source_handler: source_handler)
     end
   end
@@ -658,15 +670,22 @@ defmodule Igniter do
       igniter
       |> update_elixir_file(path, updater)
     else
-      {created?, source} =
-        try do
-          {false, read_ex_source!(igniter, path)}
-        rescue
-          _ ->
-            {true,
-             ""
-             |> Rewrite.Source.Ex.from_string(path)
-             |> update_source(igniter, :content, contents, by: :file_creator)}
+      {igniter, created?, source} =
+        if path in igniter.rms do
+          {%{igniter | rms: igniter.rms -- [path]}, true,
+           ""
+           |> Rewrite.Source.Ex.from_string(path)
+           |> update_source(igniter, :content, contents, by: :file_creator)}
+        else
+          try do
+            {igniter, false, read_ex_source!(igniter, path)}
+          rescue
+            _ ->
+              {igniter, true,
+               ""
+               |> Rewrite.Source.Ex.from_string(path)
+               |> update_source(igniter, :content, contents, by: :file_creator)}
+          end
         end
 
       %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
@@ -752,7 +771,7 @@ defmodule Igniter do
     target_path = Path.expand(path)
 
     if String.starts_with?(target_path, current_dir) do
-      %{igniter | mkdirs: List.wrap(path) ++ igniter.mkdirs}
+      %{igniter | mkdirs: [path | igniter.mkdirs]}
     else
       add_issue(igniter, "Igniter.mkdir invalid path: #{path} is outside the current directory.")
     end
@@ -809,7 +828,8 @@ defmodule Igniter do
 
     %{
       igniter
-      | rewrite: %{igniter.rewrite | sources: sources}
+      | rewrite: %{igniter.rewrite | sources: sources},
+        rms: igniter.rms -- [path]
     }
     |> maybe_format(path, true, opts)
   end
@@ -1102,6 +1122,8 @@ defmodule Igniter do
 
         display_moves(igniter)
 
+        display_rms(igniter)
+
         display_warnings(igniter, title)
 
         display_tasks(igniter, result_of_dry_run, opts)
@@ -1109,7 +1131,7 @@ defmodule Igniter do
         if opts[:dry_run] ||
              (result_of_diff_handling == :dry_run_with_no_changes &&
                 Enum.empty?(igniter.tasks) &&
-                Enum.empty?(igniter.moves)) do
+                Enum.empty?(igniter.moves) && Enum.empty?(igniter.rms)) do
           result_of_dry_run
         else
           if opts[:yes] || result_of_diff_handling == :no_confirm_dry_run_with_changes ||
@@ -1120,6 +1142,7 @@ defmodule Igniter do
             end)
             |> Kernel.||(!Enum.empty?(igniter.tasks))
             |> Kernel.||(!Enum.empty?(igniter.moves))
+            |> Kernel.||(!Enum.empty?(igniter.rms))
             |> if do
               igniter.rewrite
               |> Rewrite.write_all()
@@ -1140,6 +1163,10 @@ defmodule Igniter do
                   |> Enum.each(fn {from, to} ->
                     File.mkdir_p!(Path.dirname(to))
                     File.rename!(from, to)
+                  end)
+
+                  Enum.each(igniter.rms, fn path ->
+                    File.rm!(path)
                   end)
 
                   igniter.tasks
@@ -1207,6 +1234,12 @@ defmodule Igniter do
       !Enum.empty?(igniter.moves) ->
         Mix.shell().error("Files would have been moved and the --check flag was specified.")
         display_moves(igniter)
+
+        System.halt(3)
+
+      !Enum.empty?(igniter.moves) ->
+        Mix.shell().error("Files would have been removed and the --check flag was specified.")
+        display_rms(igniter)
 
         System.halt(3)
 
@@ -1295,12 +1328,24 @@ defmodule Igniter do
       if Enum.empty?(igniter.moves) do
         files_changed
       else
-        ("Moving: \n\n" <>
-           igniter.moves)
-        |> Enum.sort_by(&elem(&1, 0))
-        |> Enum.map(fn {from, to} ->
-          "#{IO.ANSI.red()} #{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
-        end)
+        "Moving: \n\n" <>
+          (igniter.moves
+           |> Enum.sort_by(&elem(&1, 0))
+           |> Enum.map_join("\n", fn {from, to} ->
+             "#{IO.ANSI.red()} #{from}#{IO.ANSI.reset()}: #{IO.ANSI.green()}#{to}#{IO.ANSI.reset()}"
+           end))
+      end
+
+    files_changed =
+      if Enum.empty?(igniter.rms) do
+        files_changed
+      else
+        "Deleting: \n\n" <>
+          (igniter.rms
+           |> Enum.sort()
+           |> Enum.map_join("\n", fn path ->
+             "#{IO.ANSI.red()} #{path}#{IO.ANSI.reset()}"
+           end))
       end
 
     options = [
@@ -1624,15 +1669,19 @@ defmodule Igniter do
   end
 
   defp read_source!(igniter, path, source_handler) do
-    if igniter.assigns[:test_mode?] do
-      if content = igniter.assigns[:test_files][path] do
-        source_handler.from_string(content, path: path)
-        |> Map.put(:from, :file)
-      else
-        raise "File #{path} not found in test files."
-      end
+    if path in igniter.rms do
+      raise %File.Error{reason: :enoent, path: path, action: "read file"}
     else
-      source_handler.read!(path)
+      if igniter.assigns[:test_mode?] do
+        if content = igniter.assigns[:test_files][path] do
+          source_handler.from_string(content, path: path)
+          |> Map.put(:from, :file)
+        else
+          raise "File #{path} not found in test files."
+        end
+      else
+        source_handler.read!(path)
+      end
     end
   end
 
@@ -1804,6 +1853,12 @@ defmodule Igniter do
     end
   end
 
+  @doc "Deletes a file when the igniter is applied"
+  def rm(igniter, path) do
+    path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
+    %{igniter | rms: [path | igniter.rms], rewrite: Rewrite.delete(igniter.rewrite, path)}
+  end
+
   @doc false
   def display_mkdirs(igniter) do
     igniter.mkdirs
@@ -1831,9 +1886,19 @@ defmodule Igniter do
     igniter.moves
     |> Enum.sort_by(&elem(&1, 0))
     |> Enum.map(fn {from, to} ->
-      [:red, from, :reset, ": ", :green, to]
+      ["* ", :red, from, :reset, ": ", :green, to]
     end)
     |> display_list("These files will be moved:")
+  end
+
+  @doc false
+  def display_rms(igniter) do
+    igniter.rms
+    |> Enum.sort()
+    |> Enum.map(fn path ->
+      ["* ", :red, path, :reset]
+    end)
+    |> display_list("These files will be removed:")
   end
 
   @doc false

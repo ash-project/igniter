@@ -146,7 +146,6 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
                   contents
                 else
                   new_contents
-                  |> Mix.Tasks.Igniter.New.dont_consolidate_protocols_in_dev()
                   |> Code.format_string!()
                 end
               end

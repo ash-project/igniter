@@ -160,6 +160,7 @@ defmodule Igniter.Test do
           igniter
           |> simulate_write()
           |> move_files()
+          |> rm_files()
 
         {:ok, new_igniter,
          %{tasks: igniter.tasks, warnings: igniter.warnings, notices: igniter.notices}}
@@ -190,6 +191,37 @@ defmodule Igniter.Test do
 
         #{TextDiff.format(text, content, color: false)}
         """)
+      end
+
+      igniter
+    end
+  end
+
+  defmacro assert_rms(igniter, expected_paths) do
+    quote bind_quoted: [igniter: igniter, expected_paths: expected_paths] do
+      actual_rms = Enum.sort(igniter.rms)
+      expected_rms = Enum.sort(List.wrap(expected_paths))
+
+      if actual_rms != expected_rms do
+        if Enum.empty?(actual_rms) do
+          flunk("""
+          Expected the following files to be marked for removal:
+
+          #{Enum.map_join(expected_rms, "\n", &"* #{&1}")}
+
+          but no files were marked for removal.
+          """)
+        else
+          flunk("""
+          Expected the following files to be marked for removal:
+
+          #{Enum.map_join(expected_rms, "\n", &"* #{&1}")}
+
+          But found these files marked for removal:
+
+          #{Enum.map_join(actual_rms, "\n", &"* #{&1}")}
+          """)
+        end
       end
 
       igniter
@@ -620,6 +652,15 @@ defmodule Igniter.Test do
       |> Igniter.assign(:test_files, test_files)
       |> Map.put(:moves, %{})
     end)
+  end
+
+  defp rm_files(igniter) do
+    test_files =
+      Map.drop(igniter.assigns[:test_files], igniter.rms)
+
+    igniter
+    |> Igniter.assign(:test_files, test_files)
+    |> Map.put(:rms, [])
   end
 
   defp add_mix_new(opts) do

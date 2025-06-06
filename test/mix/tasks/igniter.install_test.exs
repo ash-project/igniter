@@ -10,7 +10,6 @@ defmodule Mix.Tasks.Igniter.InstallTest do
     new_contents =
       mix_exs
       |> add_igniter_dep()
-      |> dont_consolidate_protocols_in_dev()
       |> Code.format_string!()
 
     File.write!("test_project/mix.exs", new_contents)
@@ -50,14 +49,6 @@ defmodule Mix.Tasks.Igniter.InstallTest do
       contents,
       "defp deps do\n    [\n",
       "defp deps do\n    [\n      {:igniter, path: \"../\"},\n"
-    )
-  end
-
-  defp dont_consolidate_protocols_in_dev(contents) do
-    String.replace(
-      contents,
-      "start_permanent: Mix.env() == :prod,\n",
-      "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
     )
   end
 

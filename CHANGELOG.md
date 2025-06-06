@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.6](https://github.com/ash-project/igniter/compare/v0.6.5...v0.6.6) (2025-06-06)
+
+
+
+
+### Improvements:
+
+* remove protocol consolidation dev changes
+
+* add `Igniter.rm` and track removed files across operations
+
 ## [v0.6.5](https://github.com/ash-project/igniter/compare/v0.6.4...v0.6.5) (2025-06-04)
 
 
