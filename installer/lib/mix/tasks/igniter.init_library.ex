@@ -111,7 +111,6 @@ defmodule Mix.Tasks.Igniter.InitLibrary do
           contents
         else
           new_contents
-          |> Mix.Tasks.Igniter.New.dont_consolidate_protocols_in_dev()
           |> Code.format_string!()
         end
 

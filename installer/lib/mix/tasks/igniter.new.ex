@@ -184,7 +184,6 @@ defmodule Mix.Tasks.Igniter.New do
       new_contents =
         contents
         |> add_igniter_dep(version_requirement)
-        |> dont_consolidate_protocols_in_dev()
         |> Code.format_string!()
 
       File.write!("mix.exs", new_contents)
@@ -377,19 +376,6 @@ defmodule Mix.Tasks.Igniter.New do
         contents,
         "defp deps do\n    [\n",
         "defp deps do\n    [\n      {:igniter, #{version_requirement}, only: [:dev, :test]},\n"
-      )
-    end
-  end
-
-  @doc false
-  def dont_consolidate_protocols_in_dev(contents) do
-    if String.contains?(contents, "consolidate_protocols") do
-      contents
-    else
-      String.replace(
-        contents,
-        "start_permanent: Mix.env() == :prod,\n",
-        "start_permanent: Mix.env() == :prod,\n      consolidate_protocols: Mix.env() != :dev,\n"
       )
     end
   end
