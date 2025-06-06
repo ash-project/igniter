@@ -172,8 +172,8 @@ defmodule IgniterTest do
 
                These files will be moved:
 
-               \e[31mlib/test.ex\e[0m: \e[32mlib/new_test.ex\e[0m
-               \e[31mtest/test_test.exs\e[0m: \e[32mtest/new_test_test.exs\e[0m
+               * \e[31mlib/test.ex\e[0m: \e[32mlib/new_test.ex\e[0m
+               * \e[31mtest/test_test.exs\e[0m: \e[32mtest/new_test_test.exs\e[0m
 
                """
     end

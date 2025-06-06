@@ -165,8 +165,8 @@ defmodule Igniter.RmTest do
 
              These files will be removed:
 
-             \e[31mlib/example1.ex\e[0m\e[0m
-             \e[31mlib/example2.ex\e[0m\e[0m
+             * \e[31mlib/example1.ex\e[0m\e[0m
+             * \e[31mlib/example2.ex\e[0m\e[0m
 
              """
     end
