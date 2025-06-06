@@ -342,10 +342,10 @@ defmodule Igniter.Test do
   defmacro assert_has_issue(igniter, path \\ nil, issue) do
     quote bind_quoted: [igniter: igniter, path: path, issue: issue] do
       condition =
-        if is_binary(issue) do
-          issue == found_issue
+        if is_function(issue, 1) do
+          issue
         else
-          issue.(found_issue)
+          &(&1 == issue)
         end
 
       if path do
