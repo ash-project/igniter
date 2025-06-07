@@ -22,6 +22,10 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
 
     * `package@git:git_url@ref`
 
+    ## Options
+
+    * `--only` - Install the requested packages in only a specific environment(s), i.e `--only dev`, `--only dev,test`
+
     ## Switches
 
     * `--dry-run` - Run the task without making any changes.
