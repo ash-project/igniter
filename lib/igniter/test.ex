@@ -342,10 +342,10 @@ defmodule Igniter.Test do
   defmacro assert_has_issue(igniter, path \\ nil, issue) do
     quote bind_quoted: [igniter: igniter, path: path, issue: issue] do
       condition =
-        if is_binary(issue) do
-          issue == found_issue
+        if is_function(issue, 1) do
+          issue
         else
-          issue.(found_issue)
+          &(&1 == issue)
         end
 
       if path do
@@ -553,6 +553,21 @@ defmodule Igniter.Test do
     end)
   end
 
+  @doc """
+  Asserts that a file was created during the igniter run.
+
+  Optionally validates the content of the created file if `content` is provided.
+
+  ## Examples
+
+      test_project()
+      |> Igniter.create_new_file("lib/example.ex", "defmodule Example, do: nil")
+      |> assert_creates("lib/example.ex")
+
+      test_project()
+      |> Igniter.create_new_file("lib/example.ex", "defmodule Example, do: nil")
+      |> assert_creates("lib/example.ex", "defmodule Example, do: nil")
+  """
   defmacro assert_creates(igniter, path, content \\ nil) do
     quote bind_quoted: [igniter: igniter, path: path, content: content] do
       assert source = igniter.rewrite.sources[path],
@@ -585,6 +600,35 @@ defmodule Igniter.Test do
           #{TextDiff.format(actual_content, content)}
           """)
         end
+      end
+
+      igniter
+    end
+  end
+
+  @doc """
+  Asserts that a file was NOT created during the igniter run.
+
+  This will pass if the file doesn't exist at all, or if it already existed
+  before the igniter run started.
+
+  ## Examples
+
+      test_project()
+      |> refute_creates("lib/non_existent.ex")
+
+      test_project()
+      |> refute_creates("mix.exs")  # mix.exs already exists
+  """
+  defmacro refute_creates(igniter, path) do
+    quote bind_quoted: [igniter: igniter, path: path] do
+      source = igniter.rewrite.sources[path]
+
+      if source && source.from == :string do
+        flunk("""
+        Expected #{inspect(path)} to not have been created, but it was.
+        #{Igniter.Test.created_files(igniter)}
+        """)
       end
 
       igniter
