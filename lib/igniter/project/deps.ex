@@ -595,6 +595,7 @@ defmodule Igniter.Project.Deps do
     {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
   end
 
+  @dialyzer {:nowarn_function, fetch_org_package_url: 3}
   defp fetch_org_package_url(package, org, default_headers) do
     Hex.start()
     auth = get_hex_auth()
@@ -604,6 +605,7 @@ defmodule Igniter.Project.Deps do
      auth_headers(auth) ++ default_headers}
   end
 
+  @dialyzer {:nowarn_function, get_hex_auth: 0}
   defp get_hex_auth do
     case Mix.Tasks.Hex.auth_info(:read) do
       [] ->
@@ -618,6 +620,7 @@ defmodule Igniter.Project.Deps do
     end
   end
 
+  @dialyzer {:nowarn_function, validate_org_package_exists: 3}
   defp validate_org_package_exists(package, org, auth) do
     case Hex.API.Package.get(org, "#{package}", auth) do
       {:ok, {200, resp, _}} ->
