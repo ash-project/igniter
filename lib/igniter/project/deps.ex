@@ -584,43 +584,60 @@ defmodule Igniter.Project.Deps do
 
     case opts[:organization] do
       nil ->
-        {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
+        fetch_public_package_url(package, default_headers)
 
       org ->
-        Hex.start()
-
-        auth =
-          case Mix.Tasks.Hex.auth_info(:read) do
-            [] ->
-              raise """
-              No authentication key found for api:read.
-
-              Please run `mix hex.user auth` to authenticate with Hex and ensure that the user is a member of the organization.
-              """
-
-            auth ->
-              auth
-          end
-
-        case Hex.API.Package.get(org, "#{package}", auth) do
-          {:ok, {200, resp, _}} ->
-            Enum.find_value(resp["releases"], fn release ->
-              version = Version.parse!(release["version"])
-
-              if match?(%Version{pre: []}, version) do
-                version
-              end
-            end)
-
-          {:ok, {404, _resp, _}} ->
-            raise """
-            Package #{package} not found in organization #{org}.
-            """
-        end
-
-        {:ok, "https://hex.pm/api/repos/#{org}/packages/#{package}",
-         auth_headers(auth) ++ default_headers}
+        fetch_org_package_url(package, org, default_headers)
     end
+  end
+
+  defp fetch_public_package_url(package, default_headers) do
+    {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
+  end
+
+  defp fetch_org_package_url(package, org, default_headers) do
+    Hex.start()
+    auth = get_hex_auth()
+    validate_org_package_exists(package, org, auth)
+
+    {:ok, "https://hex.pm/api/repos/#{org}/packages/#{package}",
+     auth_headers(auth) ++ default_headers}
+  end
+
+  defp get_hex_auth do
+    case Mix.Tasks.Hex.auth_info(:read) do
+      [] ->
+        raise """
+        No authentication key found for api:read.
+
+        Please run `mix hex.user auth` to authenticate with Hex and ensure that the user is a member of the organization.
+        """
+
+      auth ->
+        auth
+    end
+  end
+
+  defp validate_org_package_exists(package, org, auth) do
+    case Hex.API.Package.get(org, "#{package}", auth) do
+      {:ok, {200, resp, _}} ->
+        find_stable_version(resp["releases"])
+
+      {:ok, {404, _resp, _}} ->
+        raise """
+        Package #{package} not found in organization #{org}.
+        """
+    end
+  end
+
+  defp find_stable_version(releases) do
+    Enum.find_value(releases, fn release ->
+      version = Version.parse!(release["version"])
+
+      if match?(%Version{pre: []}, version) do
+        version
+      end
+    end)
   end
 
   defp auth_headers(opts) do
