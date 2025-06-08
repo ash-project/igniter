@@ -602,22 +602,21 @@ defmodule Igniter.Project.Deps do
               auth
           end
 
-        version =
-          case Hex.API.Package.get(org, "#{package}", auth) do
-            {:ok, {200, resp, _}} ->
-              Enum.find_value(resp["releases"], fn release ->
-                version = Version.parse!(release["version"])
+        case Hex.API.Package.get(org, "#{package}", auth) do
+          {:ok, {200, resp, _}} ->
+            Enum.find_value(resp["releases"], fn release ->
+              version = Version.parse!(release["version"])
 
-                if match?(%Version{pre: []}, version) do
-                  version
-                end
-              end)
+              if match?(%Version{pre: []}, version) do
+                version
+              end
+            end)
 
-            {:ok, {404, _resp, _}} ->
-              raise """
-              Package #{package} not found in organization #{org}.
-              """
-          end
+          {:ok, {404, _resp, _}} ->
+            raise """
+            Package #{package} not found in organization #{org}.
+            """
+        end
 
         {:ok, "https://hex.pm/api/repos/#{org}/packages/#{package}",
          auth_headers(auth) ++ default_headers}
