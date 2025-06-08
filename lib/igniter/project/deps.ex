@@ -631,7 +631,6 @@ defmodule Igniter.Project.Deps do
       :error
   end
 
-  @dialyzer {:nowarn_function, fetch_hex_api_url_and_headers: 2}
   def fetch_hex_api_url_and_headers(package, opts) do
     default_headers = [
       {"User-Agent", "igniter-installer"},
@@ -645,7 +644,7 @@ defmodule Igniter.Project.Deps do
       repo = opts[:repo] ->
         repo =
           :repos
-          |> Hex.State.fetch!()
+          |> fetch_hex_state()
           |> Map.get(repo)
           |> Kernel.||(
             raise """
@@ -683,18 +682,23 @@ defmodule Igniter.Project.Deps do
     {:ok, "#{api_url}/repos/#{org}/packages/#{package}", auth_headers(auth) ++ default_headers}
   end
 
-  @dialyzer {:nowarn_function, get_hex_auth: 0}
   defp get_hex_auth do
-    case Mix.Tasks.Hex.auth_info(:read) do
-      [] ->
+    api_key_write_unencrypted = fetch_hex_state(:api_key_write_unencrypted)
+    api_key_read = fetch_hex_state(:api_key_read)
+
+    cond do
+      api_key_write_unencrypted ->
+        [key: api_key_write_unencrypted]
+
+      api_key_read ->
+        [key: api_key_read]
+
+      true ->
         raise """
         No authentication key found for api:read.
 
         Please run `mix hex.user auth` to authenticate with Hex and ensure that the user is a member of the organization.
         """
-
-      auth ->
-        auth
     end
   end
 
@@ -726,5 +730,20 @@ defmodule Igniter.Project.Deps do
     |> Version.parse!()
     |> Map.get(:pre)
     |> Enum.any?()
+  end
+
+  # This is a hack. I've done this because actually talking to hex was causing
+  # errors w/ the type system on 1.16, and including `:hex` in the apps list
+  # caused its own kind of strange compilation errors.
+  defp fetch_hex_state(key) do
+    Agent.get(Hex.State, fn state ->
+      case Map.fetch(state, key) do
+        {:ok, {_source, value}} ->
+          value
+
+        _ ->
+          nil
+      end
+    end)
   end
 end
