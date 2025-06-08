@@ -5,30 +5,41 @@ if Code.ensure_loaded?(Phx.New.Project) do
     # https://github.com/phoenixframework/phoenix/blob/7586cbee9e37afbe0b3cdbd560b9e6aa60d32bf6/installer/lib/phx_new/single.ex
 
     alias Igniter.Phoenix.Generator
-    alias Phx.New.Project
 
     @mod Phx.New.Single
 
     def generate(igniter, project) do
-      Enum.reduce(
-        [
-          {true, &gen_new/2},
-          {Project.ecto?(project), &gen_ecto/2},
-          {Project.html?(project), &gen_html/2},
-          {Project.mailer?(project), &gen_mailer/2},
-          {Project.gettext?(project), &gen_gettext/2},
-          {true, &gen_assets/2}
-        ],
-        igniter,
-        fn
-          {key, fun}, igniter ->
-            if key do
-              fun.(igniter, project)
-            else
-              igniter
-            end
+      igniter = gen_new(igniter, project)
+
+      igniter =
+        if Keyword.get(project.binding, :ecto, false) do
+          gen_ecto(igniter, project)
+        else
+          igniter
         end
-      )
+
+      igniter =
+        if Keyword.get(project.binding, :html, false) do
+          gen_html(igniter, project)
+        else
+          igniter
+        end
+
+      igniter =
+        if Keyword.get(project.binding, :mailer, false) do
+          gen_mailer(igniter, project)
+        else
+          igniter
+        end
+
+      igniter =
+        if Keyword.get(project.binding, :gettext, false) do
+          gen_gettext(igniter, project)
+        else
+          igniter
+        end
+
+      gen_assets(igniter, project)
     end
 
     def gen_new(igniter, project) do
@@ -54,9 +65,9 @@ if Code.ensure_loaded?(Phx.New.Project) do
     end
 
     def gen_assets(igniter, project) do
-      javascript? = Project.javascript?(project)
-      css? = Project.css?(project)
-      html? = Project.html?(project)
+      javascript? = Keyword.get(project.binding, :javascript, false)
+      css? = Keyword.get(project.binding, :css, false)
+      html? = Keyword.get(project.binding, :html, false)
 
       igniter = Generator.copy_from(igniter, project, @mod, :static)
 
