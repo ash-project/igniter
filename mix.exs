@@ -38,8 +38,7 @@ defmodule Igniter.MixProject do
   def application do
     [
       # if you change this, change it in the installer archive too.
-      extra_applications: [:logger, :public_key, :ssl, :inets, :eex, :hex],
-      plt_add_apps: [:mix, :hex]
+      extra_applications: [:logger, :public_key, :ssl, :inets, :eex]
     ]
   end
 
