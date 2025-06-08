@@ -493,13 +493,19 @@ defmodule Igniter.Project.Deps do
   end
 
   @doc false
-  def determine_dep_type_and_version(requirement) do
+  def determine_dep_type_and_version!(requirement) do
     [package | maybe_version] = String.split(requirement, "@", trim: true, parts: 2)
 
     {package, opts} =
       case String.split(package, "/", parts: 2) do
         [org, package] -> {package, organization: org}
         [package] -> {package, []}
+      end
+
+    {package, opts} =
+      case String.split(package, ".", parts: 2) do
+        [repo, package] -> {package, Keyword.put(opts, :repo, repo)}
+        [package] -> {package, opts}
       end
 
     case maybe_version do
@@ -540,7 +546,50 @@ defmodule Igniter.Project.Deps do
         to_dependency_spec(package, version, additional_opts ++ opts)
 
       :error ->
-        :error
+        if opts[:repo] do
+          Mix.raise("""
+          Failed to automatically determine latest version for `#{requirement}`
+
+          Private repositories (like `#{opts[:repo]}`) do not always expose APIs that allow
+          us to determine the latest verison. This means you may need to specify a version manually.
+
+          For example:
+
+              mix igniter.install #{requirement}@1.0
+
+          Please see the documentation of the package you are trying to install for more information.
+          """)
+        else
+          if opts[:organization] do
+            Mix.raise("""
+            Failed to automatically determine latest version for `#{requirement}`.
+
+            You may need to specify a version manually. For example:
+
+              mix igniter.install #{requirement}@1.0
+
+            Please see the documentation of the package you are trying to install for more information.
+            """)
+          else
+            Mix.raise("""
+            Failed to automatically determine latest version for `#{requirement}`
+
+            This may mean that the package `#{package}` is not available on hex, or that you are missing some extra information.
+
+            You may need to specify a version manually. For example:
+
+              mix igniter.install #{requirement}@1.0
+
+            If it is a private package from a hexpm organization, include that organization.
+
+                mix igniter.install org/#{requirement}
+
+            Or if it is a package from a private repository, include the repository name.
+
+                mix igniter.install repo.#{requirement}
+            """)
+          end
+        end
     end
   end
 
@@ -577,32 +626,61 @@ defmodule Igniter.Project.Deps do
     else
       :error
     end
+  rescue
+    _ ->
+      :error
   end
 
+  @dialyzer {:nowarn_function, fetch_hex_api_url_and_headers: 2}
   def fetch_hex_api_url_and_headers(package, opts) do
-    default_headers = [{"User-Agent", "igniter-installer"}]
+    default_headers = [
+      {"User-Agent", "igniter-installer"},
+      {
+        "Accept",
+        "application/json"
+      }
+    ]
 
-    case opts[:organization] do
-      nil ->
-        fetch_public_package_url(package, default_headers)
+    cond do
+      repo = opts[:repo] ->
+        repo =
+          :repos
+          |> Hex.State.fetch!()
+          |> Map.get(repo)
+          |> Kernel.||(
+            raise """
+            No repository found for #{opts[:repo]}. Perhaps you missed a setup step, like below?
 
-      org ->
-        fetch_org_package_url(package, org, default_headers)
+                mix hex.repo add ...
+            """
+          )
+
+        fetch_public_package_url(
+          repo.url,
+          package,
+          default_headers ++ auth_headers(key: repo.auth_key)
+        )
+
+      org = opts[:organization] ->
+        fetch_org_package_url("https://hex.pm/api", package, org, default_headers)
+
+      true ->
+        fetch_public_package_url(
+          "https://hex.pm/api",
+          package,
+          default_headers
+        )
     end
   end
 
-  defp fetch_public_package_url(package, default_headers) do
-    {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
+  defp fetch_public_package_url(api_url, package, default_headers) do
+    {:ok, "#{api_url}/packages/#{package}", default_headers}
   end
 
-  @dialyzer {:nowarn_function, fetch_org_package_url: 3}
-  defp fetch_org_package_url(package, org, default_headers) do
-    Hex.start()
+  defp fetch_org_package_url(api_url, package, org, default_headers) do
     auth = get_hex_auth()
-    validate_org_package_exists(package, org, auth)
 
-    {:ok, "https://hex.pm/api/repos/#{org}/packages/#{package}",
-     auth_headers(auth) ++ default_headers}
+    {:ok, "#{api_url}/repos/#{org}/packages/#{package}", auth_headers(auth) ++ default_headers}
   end
 
   @dialyzer {:nowarn_function, get_hex_auth: 0}
@@ -618,29 +696,6 @@ defmodule Igniter.Project.Deps do
       auth ->
         auth
     end
-  end
-
-  @dialyzer {:nowarn_function, validate_org_package_exists: 3}
-  defp validate_org_package_exists(package, org, auth) do
-    case Hex.API.Package.get(org, "#{package}", auth) do
-      {:ok, {200, resp, _}} ->
-        find_stable_version(resp["releases"])
-
-      {:ok, {404, _resp, _}} ->
-        raise """
-        Package #{package} not found in organization #{org}.
-        """
-    end
-  end
-
-  defp find_stable_version(releases) do
-    Enum.find_value(releases, fn release ->
-      version = Version.parse!(release["version"])
-
-      if match?(%Version{pre: []}, version) do
-        version
-      end
-    end)
   end
 
   defp auth_headers(opts) do

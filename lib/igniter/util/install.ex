@@ -26,13 +26,7 @@ defmodule Igniter.Util.Install do
   def install([head | _] = deps, argv, igniter, opts) when is_binary(head) do
     deps =
       Enum.map(deps, fn dep ->
-        case Igniter.Project.Deps.determine_dep_type_and_version(dep) do
-          :error ->
-            raise "Could not determine source for requested package #{dep}"
-
-          dep_specification ->
-            dep_specification
-        end
+        Igniter.Project.Deps.determine_dep_type_and_version!(dep)
       end)
 
     install(deps, argv, igniter, opts)

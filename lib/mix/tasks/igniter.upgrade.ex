@@ -419,15 +419,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
   defp replace_dep(igniter, package) do
     if String.contains?(package, "@") do
-      requirement =
-        case Igniter.Project.Deps.determine_dep_type_and_version(package) do
-          {package, requirement} ->
-            {package, requirement}
-
-          :error ->
-            Mix.shell().error("Invalid package identifier: #{package}")
-            exit({:shutdown, 1})
-        end
+      requirement = Igniter.Project.Deps.determine_dep_type_and_version!(package)
 
       Igniter.Project.Deps.add_dep(igniter, requirement, yes?: true)
     else

@@ -57,11 +57,11 @@ defmodule Igniter.Project.DepsTest do
 
               # Run "mix help deps" to learn about dependencies.
               defp deps do
-                deps = [] 
+                deps = []
 
                 if 1 == 2 do
                   deps
-                else 
+                else
                   deps ++ [{:req, "~> 1.0"}]
                 end
               end
@@ -111,11 +111,11 @@ defmodule Igniter.Project.DepsTest do
 
               # Run "mix help deps" to learn about dependencies.
               defp deps do
-                deps = [] 
+                deps = []
 
                 if 1 == 2 do
                   deps
-                else 
+                else
                   deps ++ [{:req, "~> 1.0"}]
                 end
               end
@@ -172,7 +172,7 @@ defmodule Igniter.Project.DepsTest do
       ]
 
       for {spec, expected} <- tests do
-        assert spec |> to_string() |> Igniter.Project.Deps.determine_dep_type_and_version() ==
+        assert spec |> to_string() |> Igniter.Project.Deps.determine_dep_type_and_version!() ==
                  expected
       end
     end
