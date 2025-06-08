@@ -563,7 +563,8 @@ defmodule Igniter.Project.Deps do
     if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
       {:ok, _} = Application.ensure_all_started(:req)
 
-      with {:ok, url, headers} <- fetch_hex_api_url_and_headers(package, opts),
+      with {:ok, url, headers} <-
+             fetch_hex_api_url_and_headers(package, opts),
            {:ok, %{body: %{"releases" => releases} = body}} <-
              Req.get(url,
                headers: headers
@@ -618,7 +619,22 @@ defmodule Igniter.Project.Deps do
               """
           end
 
-        {:ok, "https://hex.pm/api/packages/#{org}/#{package}/#{version}", default_headers}
+        {:ok, "https://hex.pm/api/repos/#{org}/packages/#{package}",
+         auth_headers(auth) ++ default_headers}
+    end
+  end
+
+  defp auth_headers(opts) do
+    cond do
+      opts[:key] ->
+        [{"authorization", opts[:key]}]
+
+      opts[:user] && opts[:pass] ->
+        base64 = :base64.encode(opts[:user] <> ":" <> opts[:pass])
+        [{"authorization", "Basic " <> base64}]
+
+      true ->
+        []
     end
   end
 

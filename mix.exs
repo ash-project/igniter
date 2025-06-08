@@ -21,7 +21,7 @@ defmodule Igniter.MixProject do
       docs: docs(),
       deps: deps(),
       dialyzer: [
-        plt_add_apps: [:mix]
+        plt_add_apps: [:mix, :hex]
       ]
     ]
   end
