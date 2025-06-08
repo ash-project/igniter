@@ -1856,7 +1856,12 @@ defmodule Igniter do
   @doc "Deletes a file when the igniter is applied"
   def rm(igniter, path) do
     path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
-    %{igniter | rms: [path | igniter.rms], rewrite: Rewrite.delete(igniter.rewrite, path)}
+
+    %{
+      igniter
+      | rms: Enum.uniq([path | igniter.rms]),
+        rewrite: Rewrite.delete(igniter.rewrite, path)
+    }
   end
 
   @doc false
