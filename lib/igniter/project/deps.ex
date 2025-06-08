@@ -563,7 +563,8 @@ defmodule Igniter.Project.Deps do
     if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
       {:ok, _} = Application.ensure_all_started(:req)
 
-      with {:ok, url, headers} <- fetch_hex_api_url_and_headers(package, opts),
+      with {:ok, url, headers} <-
+             fetch_hex_api_url_and_headers(package, opts),
            {:ok, %{body: %{"releases" => releases} = body}} <-
              Req.get(url,
                headers: headers
@@ -578,44 +579,83 @@ defmodule Igniter.Project.Deps do
     end
   end
 
-  defp fetch_hex_api_url_and_headers(package, opts) do
+  def fetch_hex_api_url_and_headers(package, opts) do
     default_headers = [{"User-Agent", "igniter-installer"}]
 
     case opts[:organization] do
       nil ->
-        {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
+        fetch_public_package_url(package, default_headers)
 
       org ->
-        # Pending: https://github.com/hexpm/hexpm/issues/1302
-
-        raise """
-        Cannot currently determine the version for private packages automatically.
-
-        Instead of `mix igniter.install #{org}/#{package}`, please include a version, i.e
-
-            mix igniter.install #{org}/#{package}@2.4
-
-        Replacing the version with the latest major/minor version.
-        """
-
-        # url = "https://hex.pm/api/repos/#{org}/packages/#{package}"
-        # repo_name = "hexpm:#{org}"
-        #
-        # case fetch_hex_repos!() do
-        #   %{^repo_name => repo} ->
-        #     {:ok, url, [{"authorization", repo.auth_key}] ++ default_headers}
-        #
-        #   _ ->
-        #     :error
-        # end
+        fetch_org_package_url(package, org, default_headers)
     end
   end
 
-  # @dialyzer {:nowarn_function, {:fetch_hex_repos!, 0}}
-  # defp fetch_hex_repos! do
-  #   # This is a private API, but unlikely to change.
-  #   Hex.State.fetch!(:repos)
-  # end
+  defp fetch_public_package_url(package, default_headers) do
+    {:ok, "https://hex.pm/api/packages/#{package}", default_headers}
+  end
+
+  @dialyzer {:nowarn_function, fetch_org_package_url: 3}
+  defp fetch_org_package_url(package, org, default_headers) do
+    Hex.start()
+    auth = get_hex_auth()
+    validate_org_package_exists(package, org, auth)
+
+    {:ok, "https://hex.pm/api/repos/#{org}/packages/#{package}",
+     auth_headers(auth) ++ default_headers}
+  end
+
+  @dialyzer {:nowarn_function, get_hex_auth: 0}
+  defp get_hex_auth do
+    case Mix.Tasks.Hex.auth_info(:read) do
+      [] ->
+        raise """
+        No authentication key found for api:read.
+
+        Please run `mix hex.user auth` to authenticate with Hex and ensure that the user is a member of the organization.
+        """
+
+      auth ->
+        auth
+    end
+  end
+
+  @dialyzer {:nowarn_function, validate_org_package_exists: 3}
+  defp validate_org_package_exists(package, org, auth) do
+    case Hex.API.Package.get(org, "#{package}", auth) do
+      {:ok, {200, resp, _}} ->
+        find_stable_version(resp["releases"])
+
+      {:ok, {404, _resp, _}} ->
+        raise """
+        Package #{package} not found in organization #{org}.
+        """
+    end
+  end
+
+  defp find_stable_version(releases) do
+    Enum.find_value(releases, fn release ->
+      version = Version.parse!(release["version"])
+
+      if match?(%Version{pre: []}, version) do
+        version
+      end
+    end)
+  end
+
+  defp auth_headers(opts) do
+    cond do
+      opts[:key] ->
+        [{"authorization", opts[:key]}]
+
+      opts[:user] && opts[:pass] ->
+        base64 = :base64.encode(opts[:user] <> ":" <> opts[:pass])
+        [{"authorization", "Basic " <> base64}]
+
+      true ->
+        []
+    end
+  end
 
   defp first_non_rc_version_or_first_version(releases, body) do
     releases = Enum.reject(releases, &body["retirements"][&1["version"]])

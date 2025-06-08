@@ -29,7 +29,7 @@ defmodule Igniter.New.MixProject do
 
   def application do
     [
-      extra_applications: [:eex, :crypto, :public_key]
+      extra_applications: [:hex, :eex, :crypto, :public_key]
     ]
   end
 
