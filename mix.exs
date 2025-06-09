@@ -116,7 +116,7 @@ defmodule Igniter.MixProject do
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mimic, "~> 1.7", only: [:test]},
-      {:git_ops, "~> 2.6.3", only: :dev},
+      {:git_ops, github: "zachdaniel/git_ops", branch: "no-igniter", only: :dev},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
       {:doctor, "~> 0.21", only: [:dev, :test]}
