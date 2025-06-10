@@ -1,7 +1,7 @@
 defmodule Igniter.New.MixProject do
   use Mix.Project
 
-  @version "0.5.28"
+  @version "0.5.29"
   @scm_url "https://github.com/ash-project/igniter"
 
   def project do
@@ -29,7 +29,7 @@ defmodule Igniter.New.MixProject do
 
   def application do
     [
-      extra_applications: [:eex, :crypto, :public_key]
+      extra_applications: [:hex, :eex, :crypto, :public_key]
     ]
   end
 

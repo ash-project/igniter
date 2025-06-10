@@ -17,10 +17,16 @@ if !Code.ensure_loaded?(Mix.Tasks.Igniter.Install) do
     * `package@git:git_url` - The package will be installed from the specified git url.
     * `package@github:project/repo` - The package will be installed from the specified github repo.
     * `package@path:path/to/dep` - The package will be installed from the specified path.
+    * `organization/package` - The package will be installed from the specified organization, supports all formats above.
+    * `repo.package` - The package will be installed from the specified repository, supports all formats above.
 
     Additionally, a Git ref can be specified when using `git` or `github`:
 
     * `package@git:git_url@ref`
+
+    ## Options
+
+    * `--only` - Install the requested packages in only a specific environment(s), i.e `--only dev`, `--only dev,test`
 
     ## Switches
 

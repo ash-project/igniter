@@ -1,7 +1,7 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.6.6"
+  @version "0.6.7"
   @install_version "~> 0.6"
 
   @description """
@@ -21,7 +21,7 @@ defmodule Igniter.MixProject do
       docs: docs(),
       deps: deps(),
       dialyzer: [
-        plt_add_apps: [:mix]
+        plt_add_apps: [:mix, :hex]
       ]
     ]
   end
@@ -38,8 +38,7 @@ defmodule Igniter.MixProject do
   def application do
     [
       # if you change this, change it in the installer archive too.
-      extra_applications: [:logger, :public_key, :ssl, :inets, :eex],
-      plt_add_apps: [:mix]
+      extra_applications: [:logger, :public_key, :ssl, :inets, :eex]
     ]
   end
 
@@ -117,7 +116,7 @@ defmodule Igniter.MixProject do
       {:credo, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:dialyxir, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:mimic, "~> 1.7", only: [:test]},
-      {:git_ops, "~> 2.6.3", only: :dev},
+      {:git_ops, github: "zachdaniel/git_ops", branch: "no-igniter", only: :dev},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
       {:doctor, "~> 0.21", only: [:dev, :test]}

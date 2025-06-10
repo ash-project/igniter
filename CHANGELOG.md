@@ -5,6 +5,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.7](https://github.com/ash-project/igniter/compare/v0.6.6...v0.6.7) (2025-06-08)
+
+
+
+
+### Bug Fixes:
+
+* In assert_has_issue/3 set condition with issue as function #297 (#298)
+
+### Improvements:
+
+* fix issue w/ type system validation on old versions of elixir
+
+* support private repositories
+
+* Use hex to support looking up org package versions (#299)
+
+* Add missing --only flag documentation for installer install task (#284)
+
+* add `refute_creates`
+
 ## [v0.6.6](https://github.com/ash-project/igniter/compare/v0.6.5...v0.6.6) (2025-06-06)
 
 
