@@ -397,7 +397,7 @@ defmodule Mix.Tasks.Igniter.New do
           {_, 0} ->
             case System.cmd("git", ["add", "."]) do
               {_, 0} ->
-                case System.cmd("git", ["commit", "-m", "Initial commit"]) do
+                case System.cmd("git", ["commit", "-m", "🔥 initial commit 🔥"]) do
                   {_, 0} ->
                     Mix.shell().info("Git repository initialized and initial commit created.")
 

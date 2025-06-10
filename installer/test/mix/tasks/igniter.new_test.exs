@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
           # Verify there is at least one commit
           {output, 0} = System.cmd("git", ["log", "--oneline"])
 
-          assert String.contains?(output, "🔥 Initial commit"),
+          assert String.contains?(output, "🔥 initial commit 🔥"),
                  "Should have initial commit with fire emoji"
 
           # Verify essential files are tracked
