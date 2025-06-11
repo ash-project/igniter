@@ -34,7 +34,7 @@ defmodule Mix.Tasks.YourLib.Gen.YourThing do
       app_name,
       [:list_of_things],
       [module_name],
-      &Igniter.Code.List.prepend_new_to_list(&1, module_name)
+      updater: &Igniter.Code.List.prepend_new_to_list(&1, module_name)
     )
   end
 end
