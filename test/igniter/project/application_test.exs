@@ -77,6 +77,43 @@ defmodule Igniter.Project.ApplicationTest do
       """)
     end
 
+    test "gives a nice warning when children can't be found" do
+      test_project(
+        files: %{
+          "lib/test/application.ex" => """
+          defmodule Test.Application do
+            @moduledoc false
+
+            use Application
+
+            @impl true
+            def start(_type, _args) do
+              something = []
+
+              opts = [strategy: :one_for_one, name: Test.Supervisor]
+              Supervisor.start_link(something, opts)
+            end
+          end
+          """
+        }
+      )
+      |> Igniter.Project.MixProject.update(:application, [:mod], fn _zipper ->
+        {:ok, {:code, "{Test.Application, []}"}}
+      end)
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child({Foo, a: :b})
+      |> assert_has_warning(fn warning ->
+        String.contains?(
+          warning,
+          "Please ensure that {Foo, [a: :b]} is added started by the application `Test.Application` manually."
+        ) and
+          String.contains?(
+            warning,
+            "Could not find a `children = [...]`"
+          )
+      end)
+    end
+
     test "supports updating options using `opts_updater`" do
       test_project()
       |> Igniter.Project.Application.add_new_child({Foo, a: :b})
