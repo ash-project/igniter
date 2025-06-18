@@ -91,15 +91,22 @@ defmodule Igniter.Util.Info do
 
             {dep, dep_opts} when is_list(dep_opts) ->
               if dep in @known_only_keys || opts[:only] do
-                {dep, Keyword.put_new(dep_opts, :only, opts[:only] || @known_only_options[dep])}
+                if opts[:only] do
+                  {dep, Keyword.put(dep_opts, :only, opts[:only])}
+                else
+                  {dep, Keyword.put_new(dep_opts, :only, @known_only_options[dep])}
+                end
               else
                 {dep, dep_opts}
               end
 
             {dep, val, dep_opts} when dep in @known_only_keys ->
               if dep in @known_only_keys || opts[:only] do
-                {dep, val,
-                 Keyword.put_new(dep_opts, :only, opts[:only] || @known_only_options[dep])}
+                if opts[:only] do
+                  {dep, val, Keyword.put(dep_opts, :only, opts[:only])}
+                else
+                  {dep, val, Keyword.put_new(dep_opts, :only, @known_only_options[dep])}
+                end
               else
                 {dep, val, dep_opts}
               end
@@ -117,7 +124,7 @@ defmodule Igniter.Util.Info do
           |> Igniter.apply_and_fetch_dependencies(
             Keyword.put(opts, :operation, "compiling #{names_message}")
           )
-          |> maybe_set_dep_options(install_names, argv, task_name)
+          |> maybe_set_dep_options(install_names, argv, task_name, opts)
 
         acc = insert_installs(acc, install_names, insert_before)
         adds_deps = schema.adds_deps
@@ -248,7 +255,7 @@ defmodule Igniter.Util.Info do
     end
   end
 
-  defp maybe_set_dep_options(igniter, install_names, argv, parent) do
+  defp maybe_set_dep_options(igniter, install_names, argv, parent, opts) do
     Enum.reduce(install_names, igniter, fn install, igniter ->
       composing_task = "#{install}.install"
 
@@ -257,7 +264,7 @@ defmodule Igniter.Util.Info do
            composing_schema when not is_nil(composing_schema) <-
              composing_task.info(argv, parent) do
         options =
-          if composing_schema.only do
+          if composing_schema.only && !opts[:only] do
             Keyword.put(composing_schema.dep_opts, :only, composing_schema.only)
           else
             composing_schema.dep_opts

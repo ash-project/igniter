@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Igniter.Install do
      if it is specific, like `3.0.1`, it will be pinned at that *exact* version with `==`.
   * `package@git:git_url` - The package will be installed from the specified git url.
   * `package@github:project/repo` - The package will be installed from the specified github repo.
+  * `package@github:project/repo@ref` - The package will be installed from the specified github repo, at the specified ref (i.e tag, branch, commit).
   * `package@path:path/to/dep` - The package will be installed from the specified path.
   * `org/package` - The package exists in a private Hex organization. This can be used
     along with all the options above, e.g. `org/package@version`.

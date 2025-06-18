@@ -1074,7 +1074,7 @@ defmodule Igniter do
   def do_or_dry_run(igniter, opts \\ []) do
     if igniter.assigns[:test_mode?] do
       raise ArgumentError,
-            "Must `Igniter.Test.apply/1` instead of `Igniter.do_or_dry_run` when running in `test_mode?`."
+            "Must `Igniter.Test.apply_igniter/1` instead of `Igniter.do_or_dry_run` when running in `test_mode?`."
     end
 
     igniter = prepare_for_write(igniter)

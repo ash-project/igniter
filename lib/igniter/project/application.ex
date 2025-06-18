@@ -334,10 +334,16 @@ defmodule Igniter.Project.Application do
         end
       else
         _ ->
+          to_supervise =
+            case to_supervise do
+              module when is_atom(module) -> inspect(module)
+              {module, opts} -> "{#{inspect(module)}, #{Macro.to_string(opts)}}"
+            end
+
           {:warning,
            """
-           Could not find a `children = [...]` assignment in the `start` function of the `#{application}` module.
-           Please ensure that #{inspect(to_supervise)} is added started by the application `#{application}` manually.
+           Could not find a `children = [...]` assignment in the `start` function of the `#{inspect(application)}` module.
+           Please ensure that #{to_supervise} is added started by the application `#{inspect(application)}` manually.
            """}
       end
     end)
