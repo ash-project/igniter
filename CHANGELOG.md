@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.8](https://github.com/ash-project/igniter/compare/v0.6.7...v0.6.8) (2025-06-18)
+
+
+
+
+### Bug Fixes:
+
+* properly honor explicitly passed --only flag over other `only` configs by Zach Daniel
+
+* properly render the child that must be placed in the supervision tree by Zach Daniel
+
+### Improvements:
+
+* Update argument error message about apply_igniter in test (#305) by Kenneth Kostrešević
+
 ## [v0.6.7](https://github.com/ash-project/igniter/compare/v0.6.6...v0.6.7) (2025-06-08)
 
 
