@@ -283,12 +283,17 @@ defmodule Igniter.Project.Config do
   def remove_application_configuration(igniter, file_name, app_name) do
     file_path = config_file_path(igniter, file_name)
 
-    Igniter.update_existing_elixir_file(igniter, file_path, fn zipper ->
-      case find_config(zipper) do
-        nil -> igniter
-        _ -> recursively_remove_configurations(zipper, app_name)
-      end
-    end)
+    Igniter.update_elixir_file(
+      igniter,
+      file_path,
+      fn zipper ->
+        case find_config(zipper) do
+          nil -> igniter
+          _ -> recursively_remove_configurations(zipper, app_name)
+        end
+      end,
+      required?: false
+    )
   end
 
   defp recursively_remove_configurations(zipper, app_name) do

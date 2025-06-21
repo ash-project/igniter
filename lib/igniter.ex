@@ -501,54 +501,35 @@ defmodule Igniter do
 
   @doc """
   Updates the source code of the given elixir file
+
+  ## Options
+
+  - `:required?` - Tracks an issue for the file missing. Defaults to `true`.
+
   """
-  @spec update_elixir_file(t(), Path.t(), zipper_updater()) :: Igniter.t()
-  def update_elixir_file(igniter, path, func) do
-    case use_or_read_elixir_file(igniter, path) do
-      {:exists, igniter} ->
-        igniter
-        |> apply_func_with_zipper(path, func)
-        |> format(path)
+  @spec update_elixir_file(t(), Path.t(), zipper_updater(), keyword) :: Igniter.t()
+  def update_elixir_file(igniter, path, func, opts \\ []) do
+    required? = Keyword.get(opts, :required?, true)
 
-      {:missing, igniter} ->
-        add_issue(igniter, "Required #{path} but it did not exist")
-    end
-  end
-
-  @doc """
-  Updates the source code of the given elixir file if it exists
-  """
-  @spec update_existing_elixir_file(t(), Path.t(), zipper_updater(), keyword) :: Igniter.t()
-  def update_existing_elixir_file(igniter, path, func, opts \\ []) do
-    required? = Keyword.get(opts, :required?, false)
-
-    case use_or_read_elixir_file(igniter, path) do
-      {:exists, igniter} ->
-        igniter
-        |> apply_func_with_zipper(path, func)
-        |> format(path)
-
-      {:missing, igniter} ->
-        if required? do
-          add_issue(igniter, "Required #{path} but it did not exist")
-        else
-          igniter
-        end
-    end
-  end
-
-  defp use_or_read_elixir_file(igniter, path) do
     cond do
       Rewrite.has_source?(igniter.rewrite, path) ->
-        {:exists, igniter}
+        igniter
+        |> apply_func_with_zipper(path, func)
+        |> format(path)
 
       exists?(igniter, path) ->
         source = read_ex_source!(igniter, path)
-        igniter = %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        {:exists, format(igniter, path)}
+
+        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+        |> format(path)
+        |> apply_func_with_zipper(path, func)
+        |> format(path)
+
+      required? ->
+        add_issue(igniter, "Required #{path} but it did not exist")
 
       true ->
-        {:missing, igniter}
+        igniter
     end
   end
 
@@ -636,7 +617,14 @@ defmodule Igniter do
     include_existing_file(igniter, path, Keyword.put(opts, :source_handler, Rewrite.Source.Ex))
   end
 
-  @doc "Includes the given file in the project, expecting it to exist. Does nothing if its already been added."
+  @doc """
+  Includes the given file in the project, expecting it to exist. Does nothing if its already been added.
+
+  ## Options
+
+  - `:required?` - Tracks an issue for the file missing. Defaults to `false`.
+
+  """
   @spec include_existing_file(t(), Path.t(), opts :: Keyword.t()) :: t()
   def include_existing_file(igniter, path, opts \\ []) do
     required? = Keyword.get(opts, :required?, false)
