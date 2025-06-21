@@ -504,21 +504,51 @@ defmodule Igniter do
   """
   @spec update_elixir_file(t(), Path.t(), zipper_updater()) :: Igniter.t()
   def update_elixir_file(igniter, path, func) do
-    if Rewrite.has_source?(igniter.rewrite, path) do
-      igniter
-      |> apply_func_with_zipper(path, func)
-      |> format(path)
-    else
-      if exists?(igniter, path) do
-        source = read_ex_source!(igniter, path)
-
-        %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
-        |> format(path)
+    case use_or_read_elixir_file(igniter, path) do
+      {:exists, igniter} ->
+        igniter
         |> apply_func_with_zipper(path, func)
         |> format(path)
-      else
+
+      {:missing, igniter} ->
         add_issue(igniter, "Required #{path} but it did not exist")
-      end
+    end
+  end
+
+  @doc """
+  Updates the source code of the given elixir file if it exists
+  """
+  @spec update_existing_elixir_file(t(), Path.t(), zipper_updater(), keyword) :: Igniter.t()
+  def update_existing_elixir_file(igniter, path, func, opts \\ []) do
+    required? = Keyword.get(opts, :required?, false)
+
+    case use_or_read_elixir_file(igniter, path) do
+      {:exists, igniter} ->
+        igniter
+        |> apply_func_with_zipper(path, func)
+        |> format(path)
+
+      {:missing, igniter} ->
+        if required? do
+          add_issue(igniter, "Required #{path} but it did not exist")
+        else
+          igniter
+        end
+    end
+  end
+
+  defp use_or_read_elixir_file(igniter, path) do
+    cond do
+      Rewrite.has_source?(igniter.rewrite, path) ->
+        {:exists, igniter}
+
+      exists?(igniter, path) ->
+        source = read_ex_source!(igniter, path)
+        igniter = %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
+        {:exists, format(igniter, path)}
+
+      true ->
+        {:missing, igniter}
     end
   end
 

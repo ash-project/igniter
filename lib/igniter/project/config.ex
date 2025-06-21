@@ -97,16 +97,7 @@ defmodule Igniter.Project.Config do
       |> Igniter.include_or_create_file(config_file_path, file_contents)
       |> ensure_default_configs_exist(file_path)
       |> Igniter.update_elixir_file(config_file_path, fn zipper ->
-        case Zipper.find(zipper, fn
-               {:import, _, [Config]} ->
-                 true
-
-               {:import, _, [{:__aliases__, _, [:Config]}]} ->
-                 true
-
-               _ ->
-                 false
-             end) do
+        case find_config(zipper) do
           nil ->
             {:warning,
              bad_config_message(
@@ -272,16 +263,7 @@ defmodule Igniter.Project.Config do
     |> ensure_default_configs_exist(file_name)
     |> Igniter.include_or_create_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
-      case Zipper.find(zipper, fn
-             {:import, _, [Config]} ->
-               true
-
-             {:import, _, [{:__aliases__, _, [:Config]}]} ->
-               true
-
-             _ ->
-               false
-           end) do
+      case find_config(zipper) do
         nil ->
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
@@ -290,6 +272,31 @@ defmodule Igniter.Project.Config do
             updater: updater,
             after: opts[:after]
           )
+      end
+    end)
+  end
+
+  def remove_configuration(igniter, file_name, app_name) do
+    file_path = config_file_path(igniter, file_name)
+
+    Igniter.update_existing_elixir_file(igniter, file_path, fn zipper ->
+      case find_config(zipper) do
+        nil ->
+          igniter
+
+        _ ->
+          case Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 zipper,
+                 :config,
+                 [2, 3],
+                 &Igniter.Code.Function.argument_equals?(&1, 0, app_name)
+               ) do
+            :error ->
+              :error
+
+            {:ok, zipper} ->
+              Zipper.remove(zipper)
+          end
       end
     end)
   end
@@ -733,5 +740,18 @@ defmodule Igniter.Project.Config do
 
   defp simple_atom(value) do
     is_atom(value) and Regex.match?(~r/^[a-z_][a-zA-Z0-9_?!]*$/, to_string(value))
+  end
+
+  defp find_config(zipper) do
+    Zipper.find(zipper, fn
+      {:import, _, [Config]} ->
+        true
+
+      {:import, _, [{:__aliases__, _, [:Config]}]} ->
+        true
+
+      _ ->
+        false
+    end)
   end
 end
