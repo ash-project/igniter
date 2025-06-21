@@ -720,10 +720,10 @@ defmodule Igniter.Project.ConfigTest do
     end
   end
 
-  describe "remove_configuration/3" do
+  describe "remove_application_configuration/3" do
     test "it does not create the config file if it does not exist" do
       test_project()
-      |> Igniter.Project.Config.remove_configuration("fake.exs", :fake)
+      |> Igniter.Project.Config.remove_application_configuration("fake.exs", :fake)
       |> refute_creates("config/fake.exs")
     end
 
@@ -735,9 +735,25 @@ defmodule Igniter.Project.ConfigTest do
         config :fake, buz: [:blat]
       """)
       |> apply_igniter!()
-      |> Igniter.Project.Config.remove_configuration("fake.exs", :fake)
+      |> Igniter.Project.Config.remove_application_configuration("fake.exs", :fake)
       |> assert_has_patch("config/fake.exs", """
       3 - |config :fake, buz: [:blat]
+      """)
+    end
+
+    test "it removes duplicate application configurations" do
+      test_project()
+      |> Igniter.create_new_file("config/fake.exs", """
+        import Config
+
+        config :fake, buz: [:blat]
+        config :fake, bar: [:blot]
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.remove_application_configuration("fake.exs", :fake)
+      |> assert_has_patch("config/fake.exs", """
+      3 - |config :fake, buz: [:blat]
+      4 - |config :fake, bar: [:blot]
       """)
     end
   end

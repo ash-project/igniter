@@ -276,29 +276,37 @@ defmodule Igniter.Project.Config do
     end)
   end
 
-  def remove_configuration(igniter, file_name, app_name) do
+  @doc """
+  Removes an applications config completely.
+  """
+  @spec remove_application_configuration(Igniter.t(), Path.t(), atom()) :: Igniter.t()
+  def remove_application_configuration(igniter, file_name, app_name) do
     file_path = config_file_path(igniter, file_name)
 
     Igniter.update_existing_elixir_file(igniter, file_path, fn zipper ->
       case find_config(zipper) do
-        nil ->
-          igniter
-
-        _ ->
-          case Igniter.Code.Function.move_to_function_call_in_current_scope(
-                 zipper,
-                 :config,
-                 [2, 3],
-                 &Igniter.Code.Function.argument_equals?(&1, 0, app_name)
-               ) do
-            :error ->
-              :error
-
-            {:ok, zipper} ->
-              Zipper.remove(zipper)
-          end
+        nil -> igniter
+        _ -> recursively_remove_configurations(zipper, app_name)
       end
     end)
+  end
+
+  defp recursively_remove_configurations(zipper, app_name) do
+    case Igniter.Code.Function.move_to_function_call_in_current_scope(
+           zipper,
+           :config,
+           [2, 3],
+           &Igniter.Code.Function.argument_equals?(&1, 0, app_name)
+         ) do
+      :error ->
+        zipper
+
+      {:ok, zipper} ->
+        zipper
+        |> Zipper.remove()
+        |> Zipper.top()
+        |> recursively_remove_configurations(app_name)
+    end
   end
 
   defp config_file_path(igniter, file_name) do
