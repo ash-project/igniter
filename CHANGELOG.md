@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.9](https://github.com/ash-project/igniter/compare/v0.6.8...v0.6.9) (2025-06-25)
+
+
+
+
+### Improvements:
+
+* Implement removal of configuration (#309) by Benjamin Milde
+
+* add `required?` option to `Igniter.update_elixir_file/3` by Benjamin Milde
+
 ## [v0.6.8](https://github.com/ash-project/igniter/compare/v0.6.7...v0.6.8) (2025-06-18)
 
 
