@@ -39,6 +39,8 @@ defmodule Mix.Tasks.Igniter.Install do
   * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
   * `--verbose` - Display additional output from various operations.
   * `--example` - Request that installed packages include initial example code.
+
+  `argv` values are also passed to the igniter installer tasks of installed packages.
   """
 
   use Mix.Task
