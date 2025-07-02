@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.10](https://github.com/ash-project/igniter/compare/v0.6.9...v0.6.10) (2025-07-02)
+
+
+
+
+### Improvements:
+
+* make `Igniter.exists?` support directories by Zach Daniel
+
 ## [v0.6.9](https://github.com/ash-project/igniter/compare/v0.6.8...v0.6.9) (2025-06-25)
 
 
