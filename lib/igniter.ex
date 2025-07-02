@@ -539,14 +539,25 @@ defmodule Igniter do
     path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
     cond do
-      path in igniter.rms ->
+      Enum.any?(
+        igniter.rms,
+        &(&1 == path || subdirectory?(path, &1))
+      ) ->
         false
 
       Rewrite.has_source?(igniter.rewrite, path) ->
         true
 
+      Enum.any?(
+        igniter.rewrite,
+        &(&1.path == path || subdirectory?(path, &1.path))
+      ) ->
+        true
+
       igniter.assigns[:test_mode?] ->
-        Map.has_key?(igniter.assigns[:test_files], path)
+        igniter.assigns[:test_files]
+        |> Map.keys()
+        |> Enum.any?(&(&1 == path || subdirectory?(path, &1)))
 
       true ->
         File.exists?(path)
@@ -1972,5 +1983,22 @@ defmodule Igniter do
   rescue
     _ ->
       :unavailable
+  end
+
+  defp subdirectory?(path, base_path) do
+    case Path.relative_to(path, base_path) do
+      # Same path, not a subdirectory
+      ^base_path ->
+        false
+
+      relative_path ->
+        if String.starts_with?(relative_path, ".") || String.starts_with?(relative_path, "/") do
+          # It's a parent path or an absolute path, not a subdirectory
+          false
+        else
+          # It's a relative path within the base path
+          true
+        end
+    end
   end
 end
