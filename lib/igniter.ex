@@ -541,7 +541,7 @@ defmodule Igniter do
     cond do
       Enum.any?(
         igniter.rms,
-        &(&1 == path || subdirectory?(path, &1))
+        &(&1 == path || subdirectory?(&1, path))
       ) ->
         false
 
@@ -550,14 +550,14 @@ defmodule Igniter do
 
       Enum.any?(
         igniter.rewrite,
-        &(&1.path == path || subdirectory?(path, &1.path))
+        &(&1.path == path || subdirectory?(&1.path, path))
       ) ->
         true
 
       igniter.assigns[:test_mode?] ->
         igniter.assigns[:test_files]
         |> Map.keys()
-        |> Enum.any?(&(&1 == path || subdirectory?(path, &1)))
+        |> Enum.any?(&(&1 == path || subdirectory?(&1, path)))
 
       true ->
         File.exists?(path)

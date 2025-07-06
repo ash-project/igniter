@@ -271,7 +271,15 @@ defmodule Igniter.Mix.Task do
             parsed
         end)
 
-      with_defaults = Keyword.merge(info.defaults, parsed)
+      with_yes =
+        if info.schema[:yes] == :boolean && !Keyword.has_key?(parsed, :yes) &&
+             not Igniter.Mix.Task.tty?() do
+          Keyword.put(parsed, :yes, true)
+        else
+          parsed
+        end
+
+      with_defaults = Keyword.merge(info.defaults, with_yes)
 
       Enum.each(info.required, fn option ->
         if !with_defaults[option] do
@@ -284,6 +292,13 @@ defmodule Igniter.Mix.Task do
       end)
 
       with_defaults
+    end
+  end
+
+  @doc false
+  def tty? do
+    with {:ok, info} <- :file.read_file_info("/dev/stdin") do
+      elem(info, 2) == :device
     end
   end
 
