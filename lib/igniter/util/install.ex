@@ -77,7 +77,7 @@ defmodule Igniter.Util.Install do
       """
     end
 
-    force_yes? = not IO.inspect(Igniter.Mix.Task.tty?())
+    force_yes? = not Igniter.Mix.Task.tty?()
 
     {igniter, installing, {options, _}} =
       Igniter.Util.Info.compose_install_and_validate!(
@@ -89,7 +89,7 @@ defmodule Igniter.Util.Install do
           installs: deps
         },
         "igniter.install",
-        yes: force_yes? or "--yes" in argv ,
+        yes: force_yes? or "--yes" in argv,
         yes_to_deps: force_yes? or "--yes-to-deps" in argv,
         only: only,
         append?: Keyword.get(opts, :append?, false)
