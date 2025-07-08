@@ -1671,7 +1671,7 @@ defmodule Igniter do
               source,
               igniter,
               :quoted,
-              Sourceror.Zipper.root(zipper),
+              Sourceror.Zipper.topmost_root(zipper),
               by: :configure
             )
           )

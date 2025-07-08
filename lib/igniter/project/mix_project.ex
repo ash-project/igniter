@@ -256,7 +256,16 @@ defmodule Igniter.Project.MixProject do
         {:ok, zipper} = Common.move_upwards(zipper, &Common.node_matches_pattern?(&1, {_, _}))
         {:ok, Zipper.remove(zipper)}
 
+      {:ok, {:code, quoted}} when is_binary(quoted) ->
+        quoted = Sourceror.parse_string!(quoted)
+        {:ok, Common.replace_code(zipper, quoted)}
+
       {:ok, {:code, quoted}} ->
+        quoted =
+          quoted
+          |> Sourceror.to_string()
+          |> Sourceror.parse_string!()
+
         {:ok, Common.replace_code(zipper, quoted)}
 
       other ->

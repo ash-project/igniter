@@ -20,6 +20,24 @@ defmodule Igniter.Project.MixProjectTest do
       """)
     end
 
+    test "doesn't strip lists when setting compilers" do
+      test_project()
+      |> Igniter.Project.MixProject.update(:project, [:compilers], fn
+        nil ->
+          {:ok,
+           {:code,
+            quote do
+              [:phoenix_live_view] ++ Mix.compilers()
+            end}}
+
+        _zipper ->
+          raise "nope"
+      end)
+      |> assert_has_patch("mix.exs", """
+      + | compilers: [:phoenix_live_view] ++ Mix.compilers()
+      """)
+    end
+
     test "updates with a code tuple" do
       test_project()
       |> MixProject.update(:project, [:version], fn _zipper ->
