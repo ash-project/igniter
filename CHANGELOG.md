@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.12](https://github.com/ash-project/igniter/compare/v0.6.11...v0.6.12) (2025-07-09)
+
+
+
+
+### Bug Fixes:
+
+* properly encode values added to mix project by Zach Daniel
+
 ## [v0.6.11](https://github.com/ash-project/igniter/compare/v0.6.10...v0.6.11) (2025-07-06)
 
 
