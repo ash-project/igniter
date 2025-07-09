@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.13](https://github.com/ash-project/igniter/compare/v0.6.12...v0.6.13) (2025-07-09)
+
+
+
+
+### Bug Fixes:
+
+* handle unexpected cases around detecting tty by Zach Daniel
+
 ## [v0.6.12](https://github.com/ash-project/igniter/compare/v0.6.11...v0.6.12) (2025-07-09)
 
 
