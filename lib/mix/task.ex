@@ -299,7 +299,12 @@ defmodule Igniter.Mix.Task do
   def tty? do
     with {:ok, info} <- :file.read_file_info("/dev/stdin") do
       elem(info, 2) == :device
+    else
+      _ -> false
     end
+  rescue
+    _ ->
+      false
   end
 
   defmacro positional_args!(argv) do
