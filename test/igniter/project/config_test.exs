@@ -13,6 +13,31 @@ defmodule Igniter.Project.ConfigTest do
       """)
     end
 
+    test "it doesn't modify a file if the updater returns an error" do
+      igniter =
+        test_project(
+          files: %{
+            "config/config.exs" => """
+            import Config
+
+            config :my_app,
+              foo: [
+                bar: :baz
+              ]
+            """
+          }
+        )
+
+      if Igniter.Project.Config.configures_key?(igniter, "config.exs", :my_app, :foo) do
+        Igniter.Project.Config.configure(igniter, "config.exs", :my_app, :foo, nil,
+          updater: fn _zipper -> :error end
+        )
+      else
+        igniter
+      end
+      |> assert_unchanged()
+    end
+
     test "it merges with 2 arg version of existing config" do
       test_project()
       |> Igniter.create_new_file("config/fake.exs", """
@@ -646,7 +671,8 @@ defmodule Igniter.Project.ConfigTest do
 
       config =
         zipper
-        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true)
+        |> Igniter.Project.Config.modify_config_code([:foo], :fake, true)
+        |> elem(1)
         |> Igniter.Util.Debug.code_at_node()
 
       assert String.contains?(config, "config :fake, foo: true")
@@ -663,11 +689,12 @@ defmodule Igniter.Project.ConfigTest do
 
       config =
         zipper
-        |> Igniter.Project.Config.modify_configuration_code([:foo], :fake, true,
+        |> Igniter.Project.Config.modify_config_code([:foo], :fake, true,
           updater: fn zipper ->
             Igniter.Code.Keyword.put_in_keyword(zipper, [:bar], true)
           end
         )
+        |> elem(1)
         |> Igniter.Util.Debug.code_at_node()
 
       assert String.contains?(config, "config :fake, foo: [bar: true]")

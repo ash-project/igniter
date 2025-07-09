@@ -16,6 +16,9 @@ defmodule Igniter.Project.Deps do
   - `:yes?` - Automatically answer yes to any prompts.
   - `:append?` - Append to the dependency list instead of prepending.
   - `:error?` - Returns an error instead of a notice on failure.
+  - `:on_exists` - The action to take if the dep is already present
+    - `:overwrite` (default) - Overwrites with the new depenency
+    - `:skip` - Skips adding the dependency
   """
   def add_dep(igniter, dep, opts \\ []) do
     case dep do
@@ -63,49 +66,53 @@ defmodule Igniter.Project.Deps do
         end
 
       {:ok, current} ->
-        desired =
-          if opts[:dep_opts] do
-            Code.eval_string(
-              "{#{inspect(name)}, #{inspect(version)}, #{inspect(opts[:dep_opts])}}"
-            )
-            |> elem(0)
-          else
-            Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
-          end
-
-        current = Code.eval_string(current) |> elem(0)
-
-        {desired, current} =
-          case {desired, current} do
-            {{da, db}, {ca, cb, []}} ->
-              {{da, db}, {ca, cb}}
-
-            {{da, db, []}, {ca, cb}} ->
-              {{da, db}, {ca, cb}}
-
-            {desired, current} ->
-              {desired, current}
-          end
-
-        if desired == current do
-          if opts[:notify_on_present?] do
-            Mix.shell().info(
-              "Dependency #{name} is already in mix.exs with the desired version. Skipping."
-            )
-          end
-
+        if opts[:on_exists] == :skip do
           igniter
         else
-          if opts[:yes?] ||
-               Igniter.Util.IO.yes?("""
-               Dependency #{name} is already in mix.exs. Should we replace it?
+          desired =
+            if opts[:dep_opts] do
+              Code.eval_string(
+                "{#{inspect(name)}, #{inspect(version)}, #{inspect(opts[:dep_opts])}}"
+              )
+              |> elem(0)
+            else
+              Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
+            end
 
-               Desired: `#{inspect(desired)}`
-               Found: `#{inspect(current)}`
-               """) do
-            do_add_dependency(igniter, name, version, opts)
-          else
+          current = Code.eval_string(current) |> elem(0)
+
+          {desired, current} =
+            case {desired, current} do
+              {{da, db}, {ca, cb, []}} ->
+                {{da, db}, {ca, cb}}
+
+              {{da, db, []}, {ca, cb}} ->
+                {{da, db}, {ca, cb}}
+
+              {desired, current} ->
+                {desired, current}
+            end
+
+          if desired == current do
+            if opts[:notify_on_present?] do
+              Mix.shell().info(
+                "Dependency #{name} is already in mix.exs with the desired version. Skipping."
+              )
+            end
+
             igniter
+          else
+            if opts[:yes?] ||
+                 Igniter.Util.IO.yes?("""
+                 Dependency #{name} is already in mix.exs. Should we replace it?
+
+                 Desired: `#{inspect(desired)}`
+                 Found: `#{inspect(current)}`
+                 """) do
+              do_add_dependency(igniter, name, version, opts)
+            else
+              igniter
+            end
           end
         end
     end

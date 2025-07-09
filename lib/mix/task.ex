@@ -298,10 +298,12 @@ defmodule Igniter.Mix.Task do
   @doc false
   # assume we are in a tty if we can't tell
   def tty? do
-    with {:ok, info} <- :file.read_file_info("/dev/stdin") do
-      elem(info, 2) == :device
-    else
-      _ -> true
+    case :file.read_file_info("/dev/stdin") do
+      {:ok, info} ->
+        elem(info, 2) == :device
+
+      _ ->
+        true
     end
   rescue
     _ ->

@@ -580,7 +580,7 @@ defmodule Igniter do
           {:error, error} ->
             {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
 
-          {:warn, warning} ->
+          {:warning, warning} ->
             {Igniter.add_warning(igniter, warning), source}
 
           {:notice, notice} ->
@@ -600,7 +600,7 @@ defmodule Igniter do
             {:error, error} ->
               {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
 
-            {:warn, warning} ->
+            {:warning, warning} ->
               {Igniter.add_warning(igniter, warning), source}
 
             {:notice, notice} ->

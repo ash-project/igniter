@@ -812,9 +812,9 @@ defmodule Igniter.Code.Function do
           Zipper.t(),
           non_neg_integer(),
           (Zipper.t() ->
-             {:ok, Zipper.t()} | :error)
+             {:ok, Zipper.t()} | :error | term())
         ) ::
-          {:ok, Zipper.t()} | :error
+          {:ok, Zipper.t()} | :error | term()
   def update_nth_argument(zipper, index, func) do
     Common.within(zipper, fn zipper ->
       if pipeline?(zipper) do
