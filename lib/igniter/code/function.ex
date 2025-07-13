@@ -446,7 +446,7 @@ defmodule Igniter.Code.Function do
         end)
 
       _ ->
-        false
+        module == Kernel
     end
   end
 
