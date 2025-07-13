@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.15](https://github.com/ash-project/igniter/compare/v0.6.14...v0.6.15) (2025-07-13)
+
+
+
+
+### Bug Fixes:
+
+* vendor `Path.relative_to` to get 1.18.4 behavior by Zach Daniel
+
+* assume Kernel is imported in older Elixir versions by Zach Daniel
+
 ## [v0.6.14](https://github.com/ash-project/igniter/compare/v0.6.13...v0.6.14) (2025-07-09)
 
 
