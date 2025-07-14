@@ -169,11 +169,12 @@ defmodule Igniter.Util.Install do
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
     igniter_task_sources
-    |> Enum.reduce(igniter, fn {name, task_name}, igniter ->
-      task = task_name |> Mix.Task.get()
-
+    |> Enum.reduce(igniter, fn {name, task}, igniter ->
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
-        Igniter.add_issue(igniter, "Cannot run #{task_name} in an umbrella project.")
+        Igniter.add_issue(
+          igniter,
+          "Cannot run #{Mix.Task.task_name(task)} in an umbrella project."
+        )
       else
         igniter
         |> Map.put(:task, Mix.Task.task_name(task))
