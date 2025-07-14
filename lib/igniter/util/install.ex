@@ -120,9 +120,21 @@ defmodule Igniter.Util.Install do
         Keyword.put(options, :operation, "compiling #{installing_names}")
       )
 
-    available_tasks =
+    {available_tasks, unavailable_tasks} =
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
-      |> Enum.filter(fn {_desired_task, source_task} -> source_task end)
+      |> Enum.split_with(fn {_desired_task, source_task} -> source_task end)
+
+    if Enum.any?(unavailable_tasks) do
+      Mix.shell().info("""
+
+      #{IO.ANSI.yellow()}The following installers did not exist or could not be found.#{IO.ANSI.reset()}
+      If you chose not to install dependencies, this will be true for any uninstalled packages.
+
+      #{Enum.map_join(unavailable_tasks, "\n", &"*  #{IO.ANSI.yellow()}#{elem(&1, 0)}.install#{IO.ANSI.reset()}")}
+      """)
+
+      # `#name}.install` #{IO.ANSI.red()}x#{IO.ANSI.reset()}")
+    end
 
     case igniter.issues do
       [] ->
@@ -149,8 +161,6 @@ defmodule Igniter.Util.Install do
             )
         end
 
-        IO.puts("\nSuccessfully installed:\n\n#{Enum.map_join(installing, "\n", &"* #{&1}")}")
-
       _issues ->
         Igniter.display_issues(igniter)
         exit({:shutdown, 1})
@@ -159,10 +169,38 @@ defmodule Igniter.Util.Install do
 
   defp run_installers(igniter, igniter_task_sources, title, argv, options) do
     igniter_task_sources
-    |> Enum.reduce(igniter, fn {name, task}, igniter ->
-      igniter = Igniter.compose_task(igniter, task, argv)
-      Mix.shell().info("`#{name}.install` #{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
-      igniter
+    |> Enum.reduce(igniter, fn {name, task_name}, igniter ->
+      task = task_name |> Mix.Task.get()
+
+      if !task.supports_umbrella?() && Mix.Project.umbrella?() do
+        Igniter.add_issue(igniter, "Cannot run #{task_name} in an umbrella project.")
+      else
+        igniter
+        |> Map.put(:task, Mix.Task.task_name(task))
+        |> Map.put(:parent, igniter.task)
+        |> Igniter.Mix.Task.configure_and_run(task, argv)
+        |> Map.put(:parent, igniter.parent)
+        |> Map.put(:task, igniter.task)
+        |> Map.replace!(:args, igniter.args)
+        |> tap(fn new_igniter ->
+          new_issue_count = Enum.count(new_igniter.issues)
+          old_issue_count = Enum.count(igniter.issues)
+
+          new_warning_count = Enum.count(new_igniter.warnings)
+          old_warning_count = Enum.count(igniter.warnings)
+
+          cond do
+            new_issue_count > old_issue_count ->
+              Mix.shell().info("`#{name}.install` #{IO.ANSI.red()}x#{IO.ANSI.reset()}")
+
+            new_warning_count > old_warning_count ->
+              Mix.shell().info("`#{name}.install` #{IO.ANSI.yellow()}!#{IO.ANSI.reset()}")
+
+            true ->
+              Mix.shell().info("`#{name}.install` #{IO.ANSI.green()}✔#{IO.ANSI.reset()}")
+          end
+        end)
+      end
     end)
     |> Igniter.do_or_dry_run(Keyword.put(options, :title, title))
 

@@ -961,7 +961,10 @@ defmodule Igniter do
             end
           else
             if opts[:error_on_abort?] do
-              raise "Aborted by the user."
+              add_issue(
+                igniter,
+                "Dependencies fetch was rejected, some installations may not have completed."
+              )
             else
               assign_private(igniter, :refused_fetch_dependencies?, true)
             end
