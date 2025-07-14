@@ -23,18 +23,18 @@ defmodule Mix.Tasks.Igniter.InstallTest do
   describe "installing a new project" do
     test "basic installer works" do
       cmd!("mix", ["deps.compile"], cd: "test_project")
-      output = cmd!("mix", ["igniter.install", "jason", "--yes"], cd: "test_project")
+      output = cmd!("mix", ["igniter.install", "jason"], cd: "test_project")
       refute String.contains?(output, "jason\nCompiling")
     end
 
     test "displays additional information with `--verbose` option" do
-      output = cmd!("mix", ["igniter.install", "jason", "--yes", "--verbose"], cd: "test_project")
+      output = cmd!("mix", ["igniter.install", "jason", "--verbose"], cd: "test_project")
       assert String.contains?(output, "jason\nCompiling")
     end
 
     test "rerunning the same installer lets you know the dependency was not changed" do
-      _ = cmd!("mix", ["igniter.install", "jason", "--yes"], cd: "test_project")
-      output = cmd!("mix", ["igniter.install", "jason", "--yes"], cd: "test_project")
+      _ = cmd!("mix", ["igniter.install", "jason"], cd: "test_project")
+      output = cmd!("mix", ["igniter.install", "jason"], cd: "test_project")
 
       assert String.contains?(
                output,
