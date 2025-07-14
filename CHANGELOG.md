@@ -5,6 +5,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.16](https://github.com/ash-project/igniter/compare/v0.6.15...v0.6.16) (2025-07-14)
+
+
+
+
+### Bug Fixes:
+
+* remove all test macros by Zach Daniel
+
+### Improvements:
+
+* don't assume `--yes` with no tty when in test mode by Zach Daniel
+
+* clean up and deprecate macros in `Igniter.Mix.Task` by Zach Daniel
+
+* more granular info on the output of installers by Zach Daniel
+
 ## [v0.6.15](https://github.com/ash-project/igniter/compare/v0.6.14...v0.6.15) (2025-07-13)
 
 
