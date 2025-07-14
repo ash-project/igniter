@@ -268,7 +268,11 @@ defmodule Igniter.Mix.TaskTest do
       assert_received {:task2_group_c,
                        %{
                          positional: task2_positional,
-                         options: [task1_option: "task1", task2_option: "task2"]
+                         options: [
+                           yes: true,
+                           task1_option: "task1",
+                           task2_option: "task2"
+                         ]
                        }}
 
       assert task2_positional == %{}
