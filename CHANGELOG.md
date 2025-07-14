@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.17](https://github.com/ash-project/igniter/compare/v0.6.16...v0.6.17) (2025-07-14)
+
+
+
+
+### Bug Fixes:
+
+* properly use already retrieved task name by Zach Daniel
+
 ## [v0.6.16](https://github.com/ash-project/igniter/compare/v0.6.15...v0.6.16) (2025-07-14)
 
 
