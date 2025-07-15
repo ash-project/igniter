@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.18](https://github.com/ash-project/igniter/compare/v0.6.17...v0.6.18) (2025-07-15)
+
+
+
+
+### Improvements:
+
+* support more tasks being called just from the archive by Zach Daniel
+
 ## `igniter.new` [v0.5.30](https://github.com/ash-project/igniter/compare/v0.6.16...v0.6.17) (2025-07-14)
 
 ### Features:
