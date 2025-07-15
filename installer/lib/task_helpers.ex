@@ -303,8 +303,7 @@ defmodule Igniter.Installer.TaskHelpers do
   end
 
   defp add_igniter_dep(contents) do
-    # version_requirement = "\"~> 0.6\""
-    version_requirement = "path: \"../../ash/igniter\""
+    version_requirement = "\"~> 0.6\""
 
     if String.contains?(contents, "{:igniter") do
       contents
