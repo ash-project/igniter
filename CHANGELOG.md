@@ -5,6 +5,12 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## `igniter.new` [v0.5.30](https://github.com/ash-project/igniter/compare/v0.6.16...v0.6.17) (2025-07-14)
+
+### Features:
+
+* create git repositories by default, and add `--no-git` to disable it
+
 ## [v0.6.17](https://github.com/ash-project/igniter/compare/v0.6.16...v0.6.17) (2025-07-14)
 
 
