@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.19](https://github.com/ash-project/igniter/compare/v0.6.18...v0.6.19) (2025-07-15)
+
+
+
+
+### Bug Fixes:
+
+* typo in `set_yes` by Zach Daniel
+
 ## [v0.6.18](https://github.com/ash-project/igniter/compare/v0.6.17...v0.6.18) (2025-07-15)
 
 
