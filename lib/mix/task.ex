@@ -178,7 +178,7 @@ defmodule Igniter.Mix.Task do
     end
   else
     def set_yes(igniter, args) do
-      if igniter.assigns[:test_mode?] and !Igniter.Mix.Task.tty?() do
+      if !igniter.assigns[:test_mode?] and !Igniter.Mix.Task.tty?() do
         %{args | options: Keyword.put(args.options, :yes, true)}
       else
         args
