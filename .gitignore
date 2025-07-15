@@ -40,6 +40,8 @@ igniter-*.tar
 # Ignore .fetch files in case you like to edit your project deps locally.
 /installer/.fetch
 
+/installer/priv/docs
+
 # If the VM crashes, it generates a dump, let's ignore it too.
 installer/erl_crash.dump
 

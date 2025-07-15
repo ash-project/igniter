@@ -78,7 +78,9 @@ defmodule Igniter.Mix.Task.Info do
       verbose: :boolean,
       only: :keep,
       check: :boolean,
-      scribe: :string
+      scribe: :string,
+      from_igniter_new: :boolean,
+      igniter_repeat: :boolean
     ],
     # no aliases for global options!
     aliases: []

@@ -172,18 +172,25 @@ defmodule Igniter.Mix.Task do
     end
   end
 
-  @set_yes Mix.env() != :test
+  if Mix.env() != :test do
+    def set_yes(igniter, args) do
+      args
+    end
+  else
+    def set_yes(igniter, args) do
+      if igniter.assigns[:test_mode?] and !Igniter.Mix.Task.tty?() do
+        %{args | options: Keyword.put(args.options, :yes, true)}
+      else
+        args
+      end
+    end
+  end
 
   @doc false
   def configure_and_run(igniter, task_module, argv) do
     case task_module.parse_argv(argv) do
       %Args{} = args ->
-        args =
-          if (@set_yes && !igniter.assigns[:test_mode?]) and !Igniter.Mix.Task.tty?() do
-            %{args | options: Keyword.put(args.options, :yes, true)}
-          else
-            args
-          end
+        args = set_yes(igniter, args)
 
         igniter = %{igniter | args: args}
 

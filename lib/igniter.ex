@@ -1181,7 +1181,13 @@ defmodule Igniter do
               |> case do
                 {:ok, _result} ->
                   if !Enum.empty?(igniter.tasks) do
-                    Mix.shell().cmd("mix deps.get")
+                    case Enum.at(igniter.tasks, 0) do
+                      {"deps.get", []} ->
+                        :ok
+
+                      _ ->
+                        Mix.shell().cmd("mix deps.get")
+                    end
                   end
 
                   igniter.mkdirs

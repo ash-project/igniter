@@ -35,23 +35,6 @@ defmodule Mix.Tasks.Igniter.ApplyUpgrades do
   end
 
   def igniter(igniter) do
-    packages = igniter.args.positional.packages
-
-    Enum.reduce(packages, igniter, fn package, igniter ->
-      case String.split(package, ":", parts: 3, trim: true) do
-        [name, from, to] ->
-          task_name =
-            if name == "igniter" do
-              "igniter.upgrade_igniter"
-            else
-              "#{name}.upgrade"
-            end
-
-          Igniter.compose_task(igniter, task_name, [from, to] ++ igniter.args.argv_flags)
-
-        _ ->
-          Mix.raise("Invalid package format: #{package}")
-      end
-    end)
+    Igniter.CopiedTasks.do_apply_upgrades(igniter)
   end
 end

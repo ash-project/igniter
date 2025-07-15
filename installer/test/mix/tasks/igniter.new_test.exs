@@ -9,7 +9,6 @@ defmodule Mix.Tasks.Igniter.NewTest do
       unless git_available?() do
         :ok
       else
-        IO.inspect(tmp_dir)
         project_name = "test_project"
         project_path = Path.join(tmp_dir, project_name)
 

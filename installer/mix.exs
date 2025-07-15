@@ -20,6 +20,7 @@ defmodule Igniter.New.MixProject do
       preferred_cli_env: [docs: :docs],
       source_url: @scm_url,
       docs: docs(),
+      aliases: aliases(),
       homepage_url: "https://www.ash-hq.org",
       description: """
       Create a new mix project with igniter, and run igniter installers in one command!
@@ -42,6 +43,23 @@ defmodule Igniter.New.MixProject do
   defp docs do
     [
       source_url_pattern: "#{@scm_url}/blob/v#{@version}/installer/%{path}#L%{line}"
+    ]
+  end
+
+  defp aliases do
+    [
+      copy_docs: [
+        "compile",
+        fn _argv ->
+          Igniter.Installer.TaskHelpers.copy_docs()
+          Mix.Task.reenable("compile")
+          Mix.Task.run("compile")
+        end
+      ],
+      docs: [
+        "copy_docs",
+        "docs"
+      ]
     ]
   end
 end
