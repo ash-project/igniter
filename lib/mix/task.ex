@@ -172,7 +172,7 @@ defmodule Igniter.Mix.Task do
     end
   end
 
-  if Mix.env() != :test do
+  if Mix.env() == :test do
     def set_yes(_igniter, args) do
       args
     end
