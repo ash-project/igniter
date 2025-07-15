@@ -269,7 +269,6 @@ defmodule Igniter.Mix.TaskTest do
                        %{
                          positional: task2_positional,
                          options: [
-                           yes: true,
                            task1_option: "task1",
                            task2_option: "task2"
                          ]
@@ -282,7 +281,10 @@ defmodule Igniter.Mix.TaskTest do
                          positional: %{
                            task1_positional: "positional_1"
                          },
-                         options: [task1_option: "task1", task2_option: "task2"]
+                         options: [
+                           task1_option: "task1",
+                           task2_option: "task2"
+                         ]
                        }}
     end
   end

@@ -77,7 +77,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
     end
 
     @tag :integration
-    test "creates project without git when --git flag is not provided", %{tmp_dir: tmp_dir} do
+    test "creates project without git when --no-git flag is provided", %{tmp_dir: tmp_dir} do
       unless git_available?() do
         :ok
       else
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
           {output, exit_code} =
             System.cmd(
               "mix",
-              ["igniter.new", project_name, "--yes", "--no-installer-version-check"],
+              ["igniter.new", project_name, "--yes", "--no-installer-version-check", "--no-git"],
               stderr_to_stdout: true,
               env: [{"MIX_ENV", "test"}]
             )
@@ -133,7 +133,6 @@ defmodule Mix.Tasks.Igniter.NewTest do
               [
                 "igniter.new",
                 project_name,
-                "--git",
                 "--sup",
                 "--yes",
                 "--no-installer-version-check"

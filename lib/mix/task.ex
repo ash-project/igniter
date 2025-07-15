@@ -172,12 +172,14 @@ defmodule Igniter.Mix.Task do
     end
   end
 
+  @set_yes Mix.env() != :test
+
   @doc false
   def configure_and_run(igniter, task_module, argv) do
     case task_module.parse_argv(argv) do
       %Args{} = args ->
         args =
-          if !igniter.assigns[:test_mode?] and !Igniter.Mix.Task.tty?() do
+          if (@set_yes && !igniter.assigns[:test_mode?]) and !Igniter.Mix.Task.tty?() do
             %{args | options: Keyword.put(args.options, :yes, true)}
           else
             args

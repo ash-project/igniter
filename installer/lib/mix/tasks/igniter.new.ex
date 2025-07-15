@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Igniter.New do
     to the `--with` command, as it may or may not support it. Use `--with-args`
     to provide arguments to that command.
   * `--no-installer-version-check` - skip the version check for the latest igniter_new version
-  * `--git` - Initialize a git repository in the project directory and commit the initial state.
+  * `--no-git` - Skip initializing a git repository in the project directory and commit the initial state.
 
   ## Options for `mix.new`
 
@@ -243,7 +243,7 @@ defmodule Mix.Tasks.Igniter.New do
       )
     end
 
-    if options[:git] do
+    if Keyword.get(options, :git, true) do
       initialize_git_repo()
     end
 
