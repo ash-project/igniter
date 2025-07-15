@@ -129,8 +129,10 @@ defmodule Igniter.Mix.Task do
 
       @impl Igniter.Mix.Task
       def parse_argv(argv) do
-        {positional, argv_flags} = positional_args!(argv)
-        options = options!(argv_flags)
+        {positional, argv_flags} =
+          Igniter.Mix.Task.__positional_args__!(__MODULE__, argv)
+
+        options = Igniter.Mix.Task.__options__!(__MODULE__, argv_flags)
         %Args{positional: positional, options: options, argv: argv, argv_flags: argv_flags}
       end
 
@@ -174,6 +176,13 @@ defmodule Igniter.Mix.Task do
   def configure_and_run(igniter, task_module, argv) do
     case task_module.parse_argv(argv) do
       %Args{} = args ->
+        args =
+          if !igniter.assigns[:test_mode?] and !Igniter.Mix.Task.tty?() do
+            %{args | options: Keyword.put(args.options, :yes, true)}
+          else
+            args
+          end
+
         igniter = %{igniter | args: args}
 
         if function_exported?(task_module, :igniter, 1) do
@@ -192,144 +201,166 @@ defmodule Igniter.Mix.Task do
 
   @doc "Parses the options for the task based on its info."
   @spec options!(argv :: term()) :: term() | no_return
+  @deprecated "use `igniter.args.options` instead"
   defmacro options!(argv) do
     quote generated: true do
       argv = unquote(argv)
-
-      task_name = Mix.Task.task_name(__MODULE__)
-
-      info = info(argv, task_name)
-
-      argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
-
-      schema =
-        Enum.map(info.schema, fn
-          {k, :csv} ->
-            {k, :keep}
-
-          {k, v} ->
-            {k, v}
-        end)
-
-      {parsed, _} = OptionParser.parse!(argv, switches: schema, aliases: info.aliases)
-
-      parsed =
-        schema
-        |> Enum.filter(fn {_, type} ->
-          type == :keep
-        end)
-        |> Enum.reduce(parsed, fn {k, _}, parsed ->
-          parsed_without = Keyword.delete(parsed, k)
-
-          values =
-            parsed
-            |> Keyword.get_values(k)
-            |> List.wrap()
-
-          Keyword.put(parsed_without, k, values)
-        end)
-
-      parsed =
-        info.schema
-        |> Enum.reduce(parsed, fn
-          {k, :csv}, parsed ->
-            case Keyword.fetch(parsed, k) do
-              {:ok, value} ->
-                value
-                |> List.wrap()
-                |> tap(fn list ->
-                  last = List.last(list)
-
-                  if last && String.ends_with?(last, ",") do
-                    arg_name = String.replace(to_string(k), "_", "-")
-
-                    Mix.shell().error("""
-                    Found trailing comma in `--#{arg_name}` at `#{last}`
-
-                    Please remove the trailing comma.
-
-                    On some platforms, argument parsing requires quotes around argument values containing commas.
-                    So instead of `--#{arg_name} foo,bar`, you may need `--#{arg_name} "foo,bar"`
-                    """)
-
-                    exit({:shutdown, 1})
-                  end
-                end)
-                |> Enum.flat_map(&String.split(&1, ",", trim: true))
-                |> then(fn v ->
-                  Keyword.put(parsed, k, v)
-                end)
-
-              :error ->
-                Keyword.put(parsed, k, [])
-            end
-
-          {k, :keep}, parsed ->
-            Keyword.put_new(parsed, k, [])
-
-          _, parsed ->
-            parsed
-        end)
-
-      with_defaults = Keyword.merge(info.defaults, parsed)
-
-      Enum.each(info.required, fn option ->
-        if !with_defaults[option] do
-          Mix.shell().error(
-            "Missing required flag #{String.replace(to_string(option), "_", "-")} "
-          )
-
-          exit({:shutdown, 1})
-        end
-      end)
-
-      with_defaults
+      Igniter.Mix.Task.__options__!(__MODULE__, argv)
     end
   end
 
+  def __options__!(mod, argv) do
+    task_name = Mix.Task.task_name(mod)
+
+    info = mod.info(argv, task_name)
+
+    argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
+
+    schema =
+      Enum.map(info.schema, fn
+        {k, :csv} ->
+          {k, :keep}
+
+        {k, v} ->
+          {k, v}
+      end)
+
+    {parsed, _} = OptionParser.parse!(argv, switches: schema, aliases: info.aliases)
+
+    parsed =
+      schema
+      |> Enum.filter(fn {_, type} ->
+        type == :keep
+      end)
+      |> Enum.reduce(parsed, fn {k, _}, parsed ->
+        parsed_without = Keyword.delete(parsed, k)
+
+        values =
+          parsed
+          |> Keyword.get_values(k)
+          |> List.wrap()
+
+        Keyword.put(parsed_without, k, values)
+      end)
+
+    parsed =
+      info.schema
+      |> Enum.reduce(parsed, fn
+        {k, :csv}, parsed ->
+          case Keyword.fetch(parsed, k) do
+            {:ok, value} ->
+              value
+              |> List.wrap()
+              |> tap(fn list ->
+                last = List.last(list)
+
+                if last && String.ends_with?(last, ",") do
+                  arg_name = String.replace(to_string(k), "_", "-")
+
+                  Mix.shell().error("""
+                  Found trailing comma in `--#{arg_name}` at `#{last}`
+
+                  Please remove the trailing comma.
+
+                  On some platforms, argument parsing requires quotes around argument values containing commas.
+                  So instead of `--#{arg_name} foo,bar`, you may need `--#{arg_name} "foo,bar"`
+                  """)
+
+                  exit({:shutdown, 1})
+                end
+              end)
+              |> Enum.flat_map(&String.split(&1, ",", trim: true))
+              |> then(fn v ->
+                Keyword.put(parsed, k, v)
+              end)
+
+            :error ->
+              Keyword.put(parsed, k, [])
+          end
+
+        {k, :keep}, parsed ->
+          Keyword.put_new(parsed, k, [])
+
+        _, parsed ->
+          parsed
+      end)
+
+    with_defaults = Keyword.merge(info.defaults, parsed)
+
+    Enum.each(info.required, fn option ->
+      if !with_defaults[option] do
+        Mix.shell().error("Missing required flag #{String.replace(to_string(option), "_", "-")} ")
+
+        exit({:shutdown, 1})
+      end
+    end)
+
+    with_defaults
+  end
+
+  @doc false
+  # assume we are in a tty if we can't tell
+  def tty? do
+    case :file.read_file_info("/dev/stdin") do
+      {:ok, info} ->
+        elem(info, 2) == :device
+
+      _ ->
+        true
+    end
+  rescue
+    _ ->
+      true
+  end
+
+  @deprecated "use `igniter.args.positional` instead"
   defmacro positional_args!(argv) do
     quote generated: true do
       argv = unquote(argv)
-      task_name = Mix.Task.task_name(__MODULE__)
-      info = info(argv, task_name)
+      Igniter.Mix.Task.__positional_args__!(__MODULE__, argv)
+    end
+  end
 
-      argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
+  def __positional_args__!(mod, argv) do
+    task_name = Mix.Task.task_name(mod)
+    info = mod.info(argv, task_name)
 
-      {argv, positional} = Igniter.Mix.Task.extract_positional_args(argv)
+    argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
 
-      desired =
-        Enum.map(info.positional, fn
-          value when is_atom(value) ->
-            {value, []}
+    {argv, positional} = Igniter.Mix.Task.extract_positional_args(argv)
 
-          other ->
-            other
-        end)
+    desired =
+      Enum.map(info.positional, fn
+        value when is_atom(value) ->
+          {value, []}
 
-      {remaining_desired, got} =
-        Igniter.Mix.Task.consume_args(positional, desired)
+        other ->
+          other
+      end)
 
-      case Enum.find(remaining_desired, fn {_arg, config} -> !config[:optional] end) do
-        {name, config} ->
-          line =
-            if config[:rest] do
-              "Must provide one or more values for positional argument `#{name}`"
-            else
-              "Required positional argument `#{name}` was not supplied."
-            end
+    {remaining_desired, got} =
+      Igniter.Mix.Task.consume_args(positional, desired)
 
-          raise ArgumentError, """
-          #{line}
+    case Enum.find(remaining_desired, fn {_arg, config} -> !config[:optional] end) do
+      {name, config} ->
+        line =
+          if config[:rest] do
+            "Must provide one or more values for positional argument `#{name}`"
+          else
+            "Required positional argument `#{name}` was not supplied."
+          end
 
-          Command: `#{Igniter.Mix.Task.call_structure(task_name, desired)}`
-          #{Igniter.Mix.Task.call_example(info)}
+        raise ArgumentError, """
+        #{line}
 
-          Run `mix help #{task_name}` for more information.
-          """
+        Command: `#{Igniter.Mix.Task.call_structure(task_name, desired)}`
+        #{Igniter.Mix.Task.call_example(info)}
 
-        _ ->
-          {Igniter.Mix.Task.add_default_values(Map.new(got), desired), argv}
-      end
+        Run `mix help #{task_name}` for more information.
+        """
+
+      _ ->
+        {Igniter.Mix.Task.add_default_values(Map.new(got), desired), argv}
     end
   end
 

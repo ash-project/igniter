@@ -36,4 +36,52 @@ defmodule Igniter.Code.KeywordTest do
              |> Sourceror.Zipper.topmost_root()
              |> Sourceror.to_string()
   end
+
+  test "set_keyword_key passes through errors from updater" do
+    zipper =
+      "[a: 1]"
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert {:error, "test error"} ==
+             Igniter.Code.Keyword.set_keyword_key(zipper, :a, 2, fn _ ->
+               {:error, "test error"}
+             end)
+  end
+
+  test "set_keyword_key passes through warnings from updater" do
+    zipper =
+      "[a: 1]"
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert {:warning, "test warning"} ==
+             Igniter.Code.Keyword.set_keyword_key(zipper, :a, 2, fn _ ->
+               {:warning, "test warning"}
+             end)
+  end
+
+  test "put_in_keyword passes through errors from updater" do
+    zipper =
+      "[a: [b: 1]]"
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert {:error, "test error"} ==
+             Igniter.Code.Keyword.put_in_keyword(zipper, [:a, :b], 2, fn _ ->
+               {:error, "test error"}
+             end)
+  end
+
+  test "put_in_keyword passes through warnings from updater" do
+    zipper =
+      "[a: [b: 1]]"
+      |> Sourceror.parse_string!()
+      |> Sourceror.Zipper.zip()
+
+    assert {:warning, "test warning"} ==
+             Igniter.Code.Keyword.put_in_keyword(zipper, [:a, :b], 2, fn _ ->
+               {:warning, "test warning"}
+             end)
+  end
 end

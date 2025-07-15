@@ -501,24 +501,35 @@ defmodule Igniter do
 
   @doc """
   Updates the source code of the given elixir file
+
+  ## Options
+
+  - `:required?` - Tracks an issue for the file missing. Defaults to `true`.
+
   """
-  @spec update_elixir_file(t(), Path.t(), zipper_updater()) :: Igniter.t()
-  def update_elixir_file(igniter, path, func) do
-    if Rewrite.has_source?(igniter.rewrite, path) do
-      igniter
-      |> apply_func_with_zipper(path, func)
-      |> format(path)
-    else
-      if exists?(igniter, path) do
+  @spec update_elixir_file(t(), Path.t(), zipper_updater(), keyword) :: Igniter.t()
+  def update_elixir_file(igniter, path, func, opts \\ []) do
+    required? = Keyword.get(opts, :required?, true)
+
+    cond do
+      Rewrite.has_source?(igniter.rewrite, path) ->
+        igniter
+        |> apply_func_with_zipper(path, func)
+        |> format(path)
+
+      exists?(igniter, path) ->
         source = read_ex_source!(igniter, path)
 
         %{igniter | rewrite: Rewrite.put!(igniter.rewrite, source)}
         |> format(path)
         |> apply_func_with_zipper(path, func)
         |> format(path)
-      else
+
+      required? ->
         add_issue(igniter, "Required #{path} but it did not exist")
-      end
+
+      true ->
+        igniter
     end
   end
 
@@ -528,14 +539,25 @@ defmodule Igniter do
     path = Igniter.Util.BackwardsCompat.relative_to_cwd(path, force: true)
 
     cond do
-      path in igniter.rms ->
+      Enum.any?(
+        igniter.rms,
+        &(&1 == path || subdirectory?(&1, path))
+      ) ->
         false
 
       Rewrite.has_source?(igniter.rewrite, path) ->
         true
 
+      Enum.any?(
+        igniter.rewrite,
+        &(&1.path == path || subdirectory?(&1.path, path))
+      ) ->
+        true
+
       igniter.assigns[:test_mode?] ->
-        Map.has_key?(igniter.assigns[:test_files], path)
+        igniter.assigns[:test_files]
+        |> Map.keys()
+        |> Enum.any?(&(&1 == path || subdirectory?(&1, path)))
 
       true ->
         File.exists?(path)
@@ -558,7 +580,7 @@ defmodule Igniter do
           {:error, error} ->
             {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
 
-          {:warn, warning} ->
+          {:warning, warning} ->
             {Igniter.add_warning(igniter, warning), source}
 
           {:notice, notice} ->
@@ -578,7 +600,7 @@ defmodule Igniter do
             {:error, error} ->
               {igniter, Rewrite.Source.add_issues(source, List.wrap(error))}
 
-            {:warn, warning} ->
+            {:warning, warning} ->
               {Igniter.add_warning(igniter, warning), source}
 
             {:notice, notice} ->
@@ -606,7 +628,14 @@ defmodule Igniter do
     include_existing_file(igniter, path, Keyword.put(opts, :source_handler, Rewrite.Source.Ex))
   end
 
-  @doc "Includes the given file in the project, expecting it to exist. Does nothing if its already been added."
+  @doc """
+  Includes the given file in the project, expecting it to exist. Does nothing if its already been added.
+
+  ## Options
+
+  - `:required?` - Tracks an issue for the file missing. Defaults to `false`.
+
+  """
   @spec include_existing_file(t(), Path.t(), opts :: Keyword.t()) :: t()
   def include_existing_file(igniter, path, opts \\ []) do
     required? = Keyword.get(opts, :required?, false)
@@ -932,7 +961,10 @@ defmodule Igniter do
             end
           else
             if opts[:error_on_abort?] do
-              raise "Aborted by the user."
+              add_issue(
+                igniter,
+                "Dependencies fetch was rejected, some installations may not have completed."
+              )
             else
               assign_private(igniter, :refused_fetch_dependencies?, true)
             end
@@ -1481,8 +1513,8 @@ defmodule Igniter do
   def format(igniter, adding_paths, reevaluate_igniter_config? \\ true) do
     igniter =
       igniter
-      |> include_existing_elixir_file("config/config.exs", require?: false)
-      |> include_existing_elixir_file("config/#{Mix.env()}.exs", require?: false)
+      |> include_existing_elixir_file("config/config.exs")
+      |> include_existing_elixir_file("config/#{Mix.env()}.exs")
 
     if adding_paths &&
          Enum.any?(List.wrap(adding_paths), &(Path.basename(&1) == ".formatter.exs")) do
@@ -1642,7 +1674,7 @@ defmodule Igniter do
               source,
               igniter,
               :quoted,
-              Sourceror.Zipper.root(zipper),
+              Sourceror.Zipper.topmost_root(zipper),
               by: :configure
             )
           )
@@ -1677,7 +1709,13 @@ defmodule Igniter do
           source_handler.from_string(content, path: path)
           |> Map.put(:from, :file)
         else
-          raise "File #{path} not found in test files."
+          raise """
+          File #{path} not found in test files.
+
+          Available Files:
+
+          #{Enum.map_join(Map.keys(igniter.assigns[:test_files]), "\n", &"  * #{&1}")}
+          """
         end
       else
         source_handler.read!(path)
@@ -1955,4 +1993,89 @@ defmodule Igniter do
     _ ->
       :unavailable
   end
+
+  def subdirectory?(path, base_path) do
+    case relative_to(path, base_path) do
+      # Same path, not a subdirectory
+      ^base_path ->
+        false
+
+      relative_path ->
+        if String.starts_with?(relative_path, ".") || String.starts_with?(relative_path, "/") do
+          # It's a parent path or an absolute path, not a subdirectory
+          false
+        else
+          # It's a relative path within the base path
+          true
+        end
+    end
+  end
+
+  defp relative_to(path, cwd, opts \\ []) when is_list(opts) do
+    os_type = :os.type() |> elem(0)
+    split_path = Path.split(path)
+    split_cwd = Path.split(cwd)
+    force = Keyword.get(opts, :force, false)
+
+    case {split_absolute?(split_path, os_type), split_absolute?(split_cwd, os_type)} do
+      {true, true} ->
+        split_path = expand_split(split_path)
+        split_cwd = expand_split(split_cwd)
+
+        case force do
+          true -> relative_to_forced(split_path, split_cwd, split_path)
+          false -> relative_to_unforced(split_path, split_cwd, split_path)
+        end
+
+      {false, false} ->
+        split_path = expand_relative(split_path, [], [])
+        split_cwd = expand_relative(split_cwd, [], [])
+        relative_to_forced(split_path, split_cwd, [])
+
+      {_, _} ->
+        Path.join(expand_relative(split_path, [], []))
+    end
+  end
+
+  defp relative_to_unforced(path, path, _original), do: "."
+
+  defp relative_to_unforced([h | t1], [h | t2], original),
+    do: relative_to_unforced(t1, t2, original)
+
+  defp relative_to_unforced([_ | _] = l1, [], _original), do: Path.join(l1)
+  defp relative_to_unforced(_, _, original), do: Path.join(original)
+
+  defp relative_to_forced(path, path, _original), do: "."
+  defp relative_to_forced(["."], _path, _original), do: "."
+  defp relative_to_forced(path, ["."], _original), do: Path.join(path)
+  defp relative_to_forced([h | t1], [h | t2], original), do: relative_to_forced(t1, t2, original)
+
+  # this should only happen if we have two paths on different drives on windows
+  defp relative_to_forced(original, _, original), do: Path.join(original)
+
+  defp relative_to_forced(l1, l2, _original) do
+    base = List.duplicate("..", length(l2))
+    Path.join(base ++ l1)
+  end
+
+  defp expand_relative([".." | t], [_ | acc], up), do: expand_relative(t, acc, up)
+  defp expand_relative([".." | t], acc, up), do: expand_relative(t, acc, [".." | up])
+  defp expand_relative(["." | t], acc, up), do: expand_relative(t, acc, up)
+  defp expand_relative([h | t], acc, up), do: expand_relative(t, [h | acc], up)
+  defp expand_relative([], [], []), do: ["."]
+  defp expand_relative([], acc, up), do: up ++ :lists.reverse(acc)
+
+  defp expand_split([head | tail]), do: expand_split(tail, [head])
+  defp expand_split([".." | t], [_, last | acc]), do: expand_split(t, [last | acc])
+  defp expand_split([".." | t], acc), do: expand_split(t, acc)
+  defp expand_split(["." | t], acc), do: expand_split(t, acc)
+  defp expand_split([h | t], acc), do: expand_split(t, [h | acc])
+  defp expand_split([], acc), do: :lists.reverse(acc)
+
+  defp split_absolute?(split, :win32), do: win32_split_absolute?(split)
+  defp split_absolute?(split, _), do: match?(["/" | _], split)
+
+  defp win32_split_absolute?(["//" | _]), do: true
+  defp win32_split_absolute?([<<_, ":/">> | _]), do: true
+  defp win32_split_absolute?(_), do: false
 end

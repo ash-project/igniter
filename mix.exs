@@ -1,7 +1,7 @@
 defmodule Igniter.MixProject do
   use Mix.Project
 
-  @version "0.6.7"
+  @version "0.6.17"
   @install_version "~> 0.6"
 
   @description """
@@ -21,7 +21,7 @@ defmodule Igniter.MixProject do
       docs: docs(),
       deps: deps(),
       dialyzer: [
-        plt_add_apps: [:mix, :hex]
+        plt_add_apps: [:mix, :hex, :ex_unit]
       ]
     ]
   end

@@ -5,6 +5,114 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.17](https://github.com/ash-project/igniter/compare/v0.6.16...v0.6.17) (2025-07-14)
+
+
+
+
+### Bug Fixes:
+
+* properly use already retrieved task name by Zach Daniel
+
+## [v0.6.16](https://github.com/ash-project/igniter/compare/v0.6.15...v0.6.16) (2025-07-14)
+
+
+
+
+### Bug Fixes:
+
+* remove all test macros by Zach Daniel
+
+### Improvements:
+
+* don't assume `--yes` with no tty when in test mode by Zach Daniel
+
+* clean up and deprecate macros in `Igniter.Mix.Task` by Zach Daniel
+
+* more granular info on the output of installers by Zach Daniel
+
+## [v0.6.15](https://github.com/ash-project/igniter/compare/v0.6.14...v0.6.15) (2025-07-13)
+
+
+
+
+### Bug Fixes:
+
+* vendor `Path.relative_to` to get 1.18.4 behavior by Zach Daniel
+
+* assume Kernel is imported in older Elixir versions by Zach Daniel
+
+## [v0.6.14](https://github.com/ash-project/igniter/compare/v0.6.13...v0.6.14) (2025-07-09)
+
+
+
+
+### Bug Fixes:
+
+* a slew of fixes for config, code modification, deps addition, keywords by Zach Daniel
+
+## [v0.6.13](https://github.com/ash-project/igniter/compare/v0.6.12...v0.6.13) (2025-07-09)
+
+
+
+
+### Bug Fixes:
+
+* handle unexpected cases around detecting tty by Zach Daniel
+
+## [v0.6.12](https://github.com/ash-project/igniter/compare/v0.6.11...v0.6.12) (2025-07-09)
+
+
+
+
+### Bug Fixes:
+
+* properly encode values added to mix project by Zach Daniel
+
+## [v0.6.11](https://github.com/ash-project/igniter/compare/v0.6.10...v0.6.11) (2025-07-06)
+
+
+
+
+### Improvements:
+
+* when stdin is not a tyy, treat that as --yes by Zach Daniel
+
+## [v0.6.10](https://github.com/ash-project/igniter/compare/v0.6.9...v0.6.10) (2025-07-02)
+
+
+
+
+### Improvements:
+
+* make `Igniter.exists?` support directories by Zach Daniel
+
+## [v0.6.9](https://github.com/ash-project/igniter/compare/v0.6.8...v0.6.9) (2025-06-25)
+
+
+
+
+### Improvements:
+
+* Implement removal of configuration (#309) by Benjamin Milde
+
+* add `required?` option to `Igniter.update_elixir_file/3` by Benjamin Milde
+
+## [v0.6.8](https://github.com/ash-project/igniter/compare/v0.6.7...v0.6.8) (2025-06-18)
+
+
+
+
+### Bug Fixes:
+
+* properly honor explicitly passed --only flag over other `only` configs by Zach Daniel
+
+* properly render the child that must be placed in the supervision tree by Zach Daniel
+
+### Improvements:
+
+* Update argument error message about apply_igniter in test (#305) by Kenneth Kostrešević
+
 ## [v0.6.7](https://github.com/ash-project/igniter/compare/v0.6.6...v0.6.7) (2025-06-08)
 
 

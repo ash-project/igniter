@@ -1,6 +1,8 @@
 defmodule Igniter.Test do
   @moduledoc "Tools for testing with igniter."
 
+  import ExUnit.Assertions
+
   @doc """
   Sets up a test igniter that has  only the files passed to it.
 
@@ -170,324 +172,305 @@ defmodule Igniter.Test do
     end
   end
 
-  defmacro assert_content_equals(igniter, path, text) do
-    quote bind_quoted: [igniter: igniter, path: path, text: text] do
-      content =
-        igniter.rewrite
-        |> Rewrite.source!(path)
-        |> Rewrite.Source.get(:content)
+  def assert_content_equals(igniter, path, text) do
+    content =
+      igniter.rewrite
+      |> Rewrite.source!(path)
+      |> Rewrite.Source.get(:content)
 
-      if content != text do
+    if content != text do
+      flunk("""
+      Expected content of `#{path}` to equal:
+
+      #{text}
+
+      Actual Content
+
+      #{content}
+
+      Diff of actual content against expected content
+
+      #{TextDiff.format(text, content, color: false)}
+      """)
+    end
+
+    igniter
+  end
+
+  def assert_rms(igniter, expected_paths) do
+    actual_rms = Enum.sort(igniter.rms)
+    expected_rms = Enum.sort(List.wrap(expected_paths))
+
+    if actual_rms != expected_rms do
+      if Enum.empty?(actual_rms) do
         flunk("""
-        Expected content of `#{path}` to equal:
+        Expected the following files to be marked for removal:
 
-        #{text}
+        #{Enum.map_join(expected_rms, "\n", &"* #{&1}")}
 
-        Actual Content
+        but no files were marked for removal.
+        """)
+      else
+        flunk("""
+        Expected the following files to be marked for removal:
 
-        #{content}
+        #{Enum.map_join(expected_rms, "\n", &"* #{&1}")}
 
-        Diff of actual content against expected content
+        But found these files marked for removal:
 
-        #{TextDiff.format(text, content, color: false)}
+        #{Enum.map_join(actual_rms, "\n", &"* #{&1}")}
         """)
       end
-
-      igniter
     end
+
+    igniter
   end
 
-  defmacro assert_rms(igniter, expected_paths) do
-    quote bind_quoted: [igniter: igniter, expected_paths: expected_paths] do
-      actual_rms = Enum.sort(igniter.rms)
-      expected_rms = Enum.sort(List.wrap(expected_paths))
-
-      if actual_rms != expected_rms do
-        if Enum.empty?(actual_rms) do
-          flunk("""
-          Expected the following files to be marked for removal:
-
-          #{Enum.map_join(expected_rms, "\n", &"* #{&1}")}
-
-          but no files were marked for removal.
-          """)
-        else
-          flunk("""
-          Expected the following files to be marked for removal:
-
-          #{Enum.map_join(expected_rms, "\n", &"* #{&1}")}
-
-          But found these files marked for removal:
-
-          #{Enum.map_join(actual_rms, "\n", &"* #{&1}")}
-          """)
-        end
-      end
-
-      igniter
-    end
-  end
-
-  defmacro assert_has_task(igniter, task, argv) do
-    quote bind_quoted: [igniter: igniter, task: task, argv: argv] do
-      if {task, argv} not in igniter.tasks do
-        if Enum.empty?(igniter.tasks) do
-          flunk("""
-          Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks,
-          but no tasks were found on the igniter.
-          """)
-        else
-          flunk("""
-          Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks.
-
-          Found tasks:
-
-          #{Enum.map_join(igniter.tasks, "\n", fn {task, argv} -> "- mix #{task} #{Enum.join(argv)}" end)}
-          """)
-        end
-      end
-
-      igniter
-    end
-  end
-
-  defmacro assert_has_notice(igniter, notice) do
-    quote bind_quoted: [igniter: igniter, notice: notice] do
-      condition =
-        if is_function(notice, 1) do
-          notice
-        else
-          &(&1 == notice)
-        end
-
-      if !Enum.any?(igniter.notices, fn found_notice ->
-           condition.(found_notice)
-         end) do
-        message =
-          if is_binary(notice) do
-            """
-            Expected to find the following notice:
-
-            #{notice}
-            """
-          else
-            """
-            Expected to find a matching notice.
-            """
-          end
-
-        if Enum.empty?(igniter.notices) do
-          flunk("""
-          #{message}
-          but no notices were found on the igniter.
-          """)
-        else
-          flunk("""
-          #{message}
-          Found notices:
-
-          #{Enum.join(igniter.notices, "\n\b")}
-          """)
-        end
-      end
-
-      igniter
-    end
-  end
-
-  defmacro assert_has_warning(igniter, warning) do
-    quote bind_quoted: [igniter: igniter, warning: warning] do
-      condition =
-        if is_function(warning, 1) do
-          warning
-        else
-          &(&1 == warning)
-        end
-
-      if !Enum.any?(igniter.warnings, fn found_warning ->
-           condition.(found_warning)
-         end) do
-        message =
-          if is_binary(warning) do
-            """
-            Expected to find the following warning:
-
-            #{warning}
-            """
-          else
-            """
-            Expected to find a matching warning.
-            """
-          end
-
-        if Enum.empty?(igniter.warnings) do
-          flunk("""
-          #{message}
-          but no warnings were found on the igniter.
-          """)
-        else
-          flunk("""
-          #{message}
-          Found warnings:
-
-          #{Enum.join(igniter.warnings, "\n\b")}
-          """)
-        end
-      end
-
-      igniter
-    end
-  end
-
-  defmacro assert_has_issue(igniter, path \\ nil, issue) do
-    quote bind_quoted: [igniter: igniter, path: path, issue: issue] do
-      condition =
-        if is_function(issue, 1) do
-          issue
-        else
-          &(&1 == issue)
-        end
-
-      if path do
-        source = Rewrite.source(igniter, path)
-
-        issues =
-          if source do
-            source.issues
-          else
-            []
-          end
-
-        if !Enum.any?(igniter.issues, fn found_issue ->
-             condition.(found_issue)
-           end) do
-          message =
-            if is_binary(issue) do
-              """
-              Expected to find the following issue at path: #{inspect(path)}
-
-              #{issue}
-              """
-            else
-              """
-              Expected to find a matching issue at path: #{inspect(path)}.
-              """
-            end
-
-          if Enum.empty?(issues) do
-            flunk("""
-            #{message}
-            but no issues were found on the igniter.
-            """)
-          else
-            flunk("""
-            #{message}
-            Found issue:
-
-            #{Enum.join(issues, "\n\b")}
-            """)
-          end
-        end
+  def assert_has_task(igniter, task, argv) do
+    if {task, argv} not in igniter.tasks do
+      if Enum.empty?(igniter.tasks) do
+        flunk("""
+        Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks,
+        but no tasks were found on the igniter.
+        """)
       else
-        if !Enum.any?(igniter.issues, fn found_issue ->
-             condition.(found_issue)
-           end) do
-          message =
-            if is_binary(issue) do
-              """
-              Expected to find the following issue:
+        flunk("""
+        Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks.
 
-              #{issue}
-              """
-            else
-              """
-              Expected to find a matching issue.
-              """
-            end
+        Found tasks:
 
-          if Enum.empty?(igniter.issues) do
-            flunk("""
-            #{message}
-            but no issues were found on the igniter.
-            """)
-          else
-            flunk("""
-            #{message}
-            Found issues:
-
-            #{Enum.join(igniter.issues, "\n\b")}
-            """)
-          end
-        end
+        #{Enum.map_join(igniter.tasks, "\n", fn {task, argv} -> "- mix #{task} #{Enum.join(argv)}" end)}
+        """)
       end
-
-      igniter
     end
+
+    igniter
   end
 
-  defmacro assert_has_patch(igniter, path, patch) do
-    quote bind_quoted: [igniter: igniter, path: path, patch: patch] do
-      diff =
-        igniter.rewrite.sources
-        |> Map.take([path])
-        |> Igniter.diff(color?: false)
+  def assert_has_notice(igniter, notice) do
+    condition =
+      if is_function(notice, 1) do
+        notice
+      else
+        &(&1 == notice)
+      end
 
-      compare_diff =
-        Igniter.Test.sanitize_diff(diff)
+    if !Enum.any?(igniter.notices, fn found_notice ->
+         condition.(found_notice)
+       end) do
+      message =
+        if is_binary(notice) do
+          """
+          Expected to find the following notice:
 
-      compare_patch =
-        Igniter.Test.sanitize_diff(patch, diff)
-
-      compare_diff =
-        if Igniter.Test.has_line_numbers?(compare_patch) do
-          compare_diff
+          #{notice}
+          """
         else
-          Igniter.Test.remove_line_numbers(compare_diff)
+          """
+          Expected to find a matching notice.
+          """
         end
 
-      assert String.contains?(compare_diff, compare_patch),
-             """
-             Expected `#{path}` to contain the following patch:
+      if Enum.empty?(igniter.notices) do
+        flunk("""
+        #{message}
+        but no notices were found on the igniter.
+        """)
+      else
+        flunk("""
+        #{message}
+        Found notices:
 
-             #{patch}
-
-             Actual diff:
-
-             #{diff}
-             """
-
-      igniter
+        #{Enum.join(igniter.notices, "\n\b")}
+        """)
+      end
     end
+
+    igniter
   end
 
-  defmacro assert_unchanged(igniter, path_or_paths) do
-    quote bind_quoted: [igniter: igniter, path_or_paths: path_or_paths] do
-      for path <- List.wrap(path_or_paths) do
-        refute Igniter.changed?(igniter, path), """
-        Expected #{inspect(path)} to be unchanged, but it was changed.
-
-        Diff:
-
-        #{igniter.rewrite.sources |> Map.take([path]) |> Igniter.diff()}
-        """
+  def assert_has_warning(igniter, warning) do
+    condition =
+      if is_function(warning, 1) do
+        warning
+      else
+        &(&1 == warning)
       end
 
-      igniter
+    if !Enum.any?(igniter.warnings, fn found_warning ->
+         condition.(found_warning)
+       end) do
+      message =
+        if is_binary(warning) do
+          """
+          Expected to find the following warning:
+
+          #{warning}
+          """
+        else
+          """
+          Expected to find a matching warning.
+          """
+        end
+
+      if Enum.empty?(igniter.warnings) do
+        flunk("""
+        #{message}
+        but no warnings were found on the igniter.
+        """)
+      else
+        flunk("""
+        #{message}
+        Found warnings:
+
+        #{Enum.join(igniter.warnings, "\n\b")}
+        """)
+      end
     end
+
+    igniter
   end
 
-  defmacro assert_unchanged(igniter) do
-    quote bind_quoted: [igniter: igniter] do
-      refute Igniter.changed?(igniter), """
-      Expected there to be no changes, but there were changes.
+  def assert_has_issue(igniter, path \\ nil, issue) do
+    condition =
+      if is_function(issue, 1) do
+        issue
+      else
+        &(&1 == issue)
+      end
+
+    if path do
+      source = Rewrite.source(igniter, path)
+
+      issues =
+        case source do
+          {:ok, source} -> source.issues
+          _ -> []
+        end
+
+      if !Enum.any?(igniter.issues, fn found_issue ->
+           condition.(found_issue)
+         end) do
+        message =
+          if is_binary(issue) do
+            """
+            Expected to find the following issue at path: #{inspect(path)}
+
+            #{issue}
+            """
+          else
+            """
+            Expected to find a matching issue at path: #{inspect(path)}.
+            """
+          end
+
+        if Enum.empty?(issues) do
+          flunk("""
+          #{message}
+          but no issues were found on the igniter.
+          """)
+        else
+          flunk("""
+          #{message}
+          Found issue:
+
+          #{Enum.join(issues, "\n\b")}
+          """)
+        end
+      end
+    else
+      if !Enum.any?(igniter.issues, fn found_issue ->
+           condition.(found_issue)
+         end) do
+        message =
+          if is_binary(issue) do
+            """
+            Expected to find the following issue:
+
+            #{issue}
+            """
+          else
+            """
+            Expected to find a matching issue.
+            """
+          end
+
+        if Enum.empty?(igniter.issues) do
+          flunk("""
+          #{message}
+          but no issues were found on the igniter.
+          """)
+        else
+          flunk("""
+          #{message}
+          Found issues:
+
+          #{Enum.join(igniter.issues, "\n\b")}
+          """)
+        end
+      end
+    end
+
+    igniter
+  end
+
+  def assert_has_patch(igniter, path, patch) do
+    diff =
+      igniter.rewrite.sources
+      |> Map.take([path])
+      |> Igniter.diff(color?: false)
+
+    compare_diff =
+      Igniter.Test.sanitize_diff(diff)
+
+    compare_patch =
+      Igniter.Test.sanitize_diff(patch, diff)
+
+    compare_diff =
+      if Igniter.Test.has_line_numbers?(compare_patch) do
+        compare_diff
+      else
+        Igniter.Test.remove_line_numbers(compare_diff)
+      end
+
+    assert String.contains?(compare_diff, compare_patch),
+           """
+           Expected `#{path}` to contain the following patch:
+
+           #{patch}
+
+           Actual diff:
+
+           #{diff}
+           """
+
+    igniter
+  end
+
+  def assert_unchanged(igniter, path_or_paths) do
+    for path <- List.wrap(path_or_paths) do
+      refute Igniter.changed?(igniter, path), """
+      Expected #{inspect(path)} to be unchanged, but it was changed.
 
       Diff:
 
-      #{Rewrite.sources(igniter.rewrite) |> Igniter.diff()}
+      #{igniter.rewrite.sources |> Map.take([path]) |> Igniter.diff()}
       """
-
-      igniter
     end
+
+    igniter
+  end
+
+  def assert_unchanged(igniter) do
+    refute Igniter.changed?(igniter), """
+    Expected there to be no changes, but there were changes.
+
+    Diff:
+
+    #{Rewrite.sources(igniter.rewrite) |> Igniter.diff()}
+    """
+
+    igniter
   end
 
   @doc false
@@ -568,42 +551,40 @@ defmodule Igniter.Test do
       |> Igniter.create_new_file("lib/example.ex", "defmodule Example, do: nil")
       |> assert_creates("lib/example.ex", "defmodule Example, do: nil")
   """
-  defmacro assert_creates(igniter, path, content \\ nil) do
-    quote bind_quoted: [igniter: igniter, path: path, content: content] do
-      assert source = igniter.rewrite.sources[path],
-             """
-             Expected #{inspect(path)} to have been created, but it was not.
-             #{Igniter.Test.created_files(igniter)}
-             """
+  def assert_creates(igniter, path, content \\ nil) do
+    assert source = igniter.rewrite.sources[path],
+           """
+           Expected #{inspect(path)} to have been created, but it was not.
+           #{Igniter.Test.created_files(igniter)}
+           """
 
-      assert source.from == :string,
-             """
-             Expected #{inspect(path)} to have been created, but it already existed.
-             #{Igniter.Test.created_files(igniter)}
-             """
+    assert source.from == :string,
+           """
+           Expected #{inspect(path)} to have been created, but it already existed.
+           #{Igniter.Test.created_files(igniter)}
+           """
 
-      if content do
-        actual_content = Rewrite.Source.get(source, :content)
+    if content do
+      actual_content = Rewrite.Source.get(source, :content)
 
-        if actual_content != content do
-          flunk("""
-          Expected created file #{inspect(path)} to have the following contents:
+      if actual_content != content do
+        flunk("""
+        Expected created file #{inspect(path)} to have the following contents:
 
-          #{content}
+        #{content}
 
-          But it actually had the following contents:
+        But it actually had the following contents:
 
-          #{actual_content}
+        #{actual_content}
 
-          Diff, showing your assertion against the actual contents:
+        Diff, showing your assertion against the actual contents:
 
-          #{TextDiff.format(actual_content, content)}
-          """)
-        end
+        #{TextDiff.format(actual_content, content)}
+        """)
       end
-
-      igniter
     end
+
+    igniter
   end
 
   @doc """
@@ -620,19 +601,17 @@ defmodule Igniter.Test do
       test_project()
       |> refute_creates("mix.exs")  # mix.exs already exists
   """
-  defmacro refute_creates(igniter, path) do
-    quote bind_quoted: [igniter: igniter, path: path] do
-      source = igniter.rewrite.sources[path]
+  def refute_creates(igniter, path) do
+    source = igniter.rewrite.sources[path]
 
-      if source && source.from == :string do
-        flunk("""
-        Expected #{inspect(path)} to not have been created, but it was.
-        #{Igniter.Test.created_files(igniter)}
-        """)
-      end
-
-      igniter
+    if source && source.from == :string do
+      flunk("""
+      Expected #{inspect(path)} to not have been created, but it was.
+      #{Igniter.Test.created_files(igniter)}
+      """)
     end
+
+    igniter
   end
 
   @doc false

@@ -330,11 +330,12 @@ defmodule Igniter.Code.CommonTest do
                )
              end) do
         assert zipper
-               |> Igniter.Project.Config.modify_configuration_code(
+               |> Igniter.Project.Config.modify_config_code(
                  [Foo, :url],
                  :app,
                  {:url, [], nil}
                )
+               |> elem(1)
                |> Sourceror.Zipper.top()
                |> Igniter.Util.Debug.code_at_node() ==
                  String.trim_trailing("""

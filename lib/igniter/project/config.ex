@@ -76,51 +76,62 @@ defmodule Igniter.Project.Config do
         |> Zipper.zip()
 
       code_with_configuration_added =
-        Enum.reduce(items, zipper, fn {path, value, opts}, zipper ->
-          modify_configuration_code(zipper, shared_prefix ++ path, app_name, value, opts)
-        end)
-        |> Zipper.topmost()
-        |> then(fn zipper ->
-          if opts[:comment] do
-            Igniter.Code.Common.add_comment(zipper, opts[:comment])
-          else
-            zipper
+        Enum.reduce_while(items, {:ok, zipper}, fn {path, value, opts}, {:ok, zipper} ->
+          case modify_config_code(zipper, shared_prefix ++ path, app_name, value, opts) do
+            {:ok, zipper} -> {:cont, {:ok, zipper}}
+            other -> {:halt, other}
           end
         end)
-        |> Zipper.topmost_root()
+        |> case do
+          {:ok, zipper} ->
+            zipper
+            |> Zipper.topmost()
+            |> then(fn zipper ->
+              if opts[:comment] do
+                Igniter.Code.Common.add_comment(zipper, opts[:comment])
+              else
+                zipper
+              end
+            end)
+            |> Zipper.topmost_root()
+            |> then(&{:ok, &1})
 
-      config_file_path = config_file_path(igniter, file_path)
-
-      file_contents = "import Config\n"
-
-      igniter
-      |> Igniter.include_or_create_file(config_file_path, file_contents)
-      |> ensure_default_configs_exist(file_path)
-      |> Igniter.update_elixir_file(config_file_path, fn zipper ->
-        case Zipper.find(zipper, fn
-               {:import, _, [Config]} ->
-                 true
-
-               {:import, _, [{:__aliases__, _, [:Config]}]} ->
-                 true
-
-               _ ->
-                 false
-             end) do
-          nil ->
-            {:warning,
-             bad_config_message(
-               app_name,
-               file_path,
-               shared_prefix,
-               Sourceror.to_string(zipper),
-               opts
-             )}
-
-          zipper ->
-            Igniter.Code.Common.add_code(zipper, code_with_configuration_added)
+          other ->
+            other
         end
-      end)
+
+      case code_with_configuration_added do
+        {:warning, warning} ->
+          Igniter.add_warning(igniter, warning)
+
+        {:error, error} ->
+          Igniter.add_issue(igniter, error)
+
+        {:ok, code_with_configuration_added} ->
+          config_file_path = config_file_path(igniter, file_path)
+
+          file_contents = "import Config\n"
+
+          igniter
+          |> Igniter.include_or_create_file(config_file_path, file_contents)
+          |> ensure_default_configs_exist(file_path)
+          |> Igniter.update_elixir_file(config_file_path, fn zipper ->
+            case find_config(zipper) do
+              nil ->
+                {:warning,
+                 bad_config_message(
+                   app_name,
+                   file_path,
+                   shared_prefix,
+                   Sourceror.to_string(zipper),
+                   opts
+                 )}
+
+              zipper ->
+                Igniter.Code.Common.add_code(zipper, code_with_configuration_added)
+            end
+          end)
+      end
     end
   end
 
@@ -170,7 +181,7 @@ defmodule Igniter.Project.Config do
       |> Igniter.Code.Common.move_to_cursor_match_in_scope(patterns)
       |> case do
         {:ok, zipper} ->
-          modify_configuration_code(
+          modify_config_code(
             zipper,
             config_path,
             app_name,
@@ -188,7 +199,7 @@ defmodule Igniter.Project.Config do
           |> Igniter.Code.Common.move_to_cursor_match_in_scope(patterns)
           |> case do
             {:ok, zipper} ->
-              modify_configuration_code(
+              modify_config_code(
                 zipper,
                 config_path,
                 app_name,
@@ -266,32 +277,71 @@ defmodule Igniter.Project.Config do
         value -> Sourceror.parse_string!(Sourceror.to_string(Macro.escape(value)))
       end
 
-    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+    updater = get_updater(opts, value)
 
     igniter
     |> ensure_default_configs_exist(file_name)
     |> Igniter.include_or_create_file(file_path, file_contents)
     |> Igniter.update_elixir_file(file_path, fn zipper ->
-      case Zipper.find(zipper, fn
-             {:import, _, [Config]} ->
-               true
-
-             {:import, _, [{:__aliases__, _, [:Config]}]} ->
-               true
-
-             _ ->
-               false
-           end) do
+      case find_config(zipper) do
         nil ->
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
         _ ->
-          modify_configuration_code(zipper, config_path, app_name, value,
+          modify_config_code(zipper, config_path, app_name, value,
             updater: updater,
             after: opts[:after]
           )
       end
     end)
+  end
+
+  def get_updater(opts, value) do
+    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+
+    fn zipper ->
+      with :error <- updater.(zipper) do
+        :halt
+      end
+    end
+  end
+
+  @doc """
+  Removes an applications config completely.
+  """
+  @spec remove_application_configuration(Igniter.t(), Path.t(), atom()) :: Igniter.t()
+  def remove_application_configuration(igniter, file_name, app_name) do
+    file_path = config_file_path(igniter, file_name)
+
+    Igniter.update_elixir_file(
+      igniter,
+      file_path,
+      fn zipper ->
+        case find_config(zipper) do
+          nil -> igniter
+          _ -> recursively_remove_configurations(zipper, app_name)
+        end
+      end,
+      required?: false
+    )
+  end
+
+  defp recursively_remove_configurations(zipper, app_name) do
+    case Igniter.Code.Function.move_to_function_call_in_current_scope(
+           zipper,
+           :config,
+           [2, 3],
+           &Igniter.Code.Function.argument_equals?(&1, 0, app_name)
+         ) do
+      :error ->
+        zipper
+
+      {:ok, zipper} ->
+        zipper
+        |> Zipper.remove()
+        |> Zipper.top()
+        |> recursively_remove_configurations(app_name)
+    end
   end
 
   defp config_file_path(igniter, file_name) do
@@ -395,6 +445,7 @@ defmodule Igniter.Project.Config do
           term(),
           opts :: Keyword.t()
         ) :: Zipper.t()
+  @deprecated "Use `modify_config_code/5`"
   def modify_configuration_code(zipper, config_path, app_name, value, opts \\ [])
 
   def modify_configuration_code(zipper, config_path, app_name, value, updater)
@@ -404,17 +455,61 @@ defmodule Igniter.Project.Config do
   end
 
   def modify_configuration_code(zipper, config_path, app_name, value, opts) do
-    updater = opts[:updater] || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
+    case modify_config_code(zipper, config_path, app_name, value, opts) do
+      {:ok, zipper} -> zipper
+      _ -> zipper
+    end
+  end
+
+  @doc """
+  Modifies elixir configuration code starting at the configured zipper.
+
+  If you want to set configuration, use `configure/6` or `configure_new/5` instead. This is a lower-level
+  tool for modifying configuration files when you need to adjust some specific part of them.
+
+  ## Options
+
+  * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
+  * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
+  """
+
+  @spec modify_configuration_code(
+          Zipper.t(),
+          list(atom),
+          atom(),
+          term(),
+          opts :: Keyword.t()
+        ) :: {:ok, Zipper.t()} | :error | {:warning, String.t()} | {:error, String.t()}
+  def modify_config_code(zipper, config_path, app_name, value, opts \\ []) do
+    updater = get_updater(opts, value)
 
     Igniter.Code.Common.within(zipper, fn zipper ->
       zipper = move_to_after(zipper, opts[:after])
 
       case try_update_three_arg(zipper, config_path, app_name, value, updater) do
+        :halt ->
+          {:ok, zipper}
+
+        {:error, error} ->
+          {:error, error}
+
+        {:warning, warning} ->
+          {:warning, warning}
+
         {:ok, zipper} ->
           {:ok, zipper}
 
         :error ->
           case try_update_two_arg(zipper, config_path, app_name, value, updater) do
+            :halt ->
+              {:ok, zipper}
+
+            {:error, error} ->
+              {:error, error}
+
+            {:warning, warning} ->
+              {:warning, warning}
+
             {:ok, zipper} ->
               {:ok, zipper}
 
@@ -467,8 +562,8 @@ defmodule Igniter.Project.Config do
       end
     end)
     |> case do
-      {:ok, zipper} -> zipper
-      :error -> zipper
+      :halt -> {:ok, zipper}
+      other -> other
     end
   end
 
@@ -683,11 +778,7 @@ defmodule Igniter.Project.Config do
           if path == [] do
             case Igniter.Code.Function.move_to_nth_argument(zipper, 2) do
               {:ok, zipper} ->
-                if updater do
-                  updater.(zipper)
-                else
-                  {:ok, Igniter.Code.Common.replace_code(zipper, value)}
-                end
+                updater.(zipper)
 
               _ ->
                 :error
@@ -698,8 +789,8 @@ defmodule Igniter.Project.Config do
                    Igniter.Code.Keyword.put_in_keyword(zipper, path, value, updater) do
               {:ok, zipper}
             else
-              _ ->
-                :error
+              other ->
+                other
             end
           end
       end
@@ -733,5 +824,18 @@ defmodule Igniter.Project.Config do
 
   defp simple_atom(value) do
     is_atom(value) and Regex.match?(~r/^[a-z_][a-zA-Z0-9_?!]*$/, to_string(value))
+  end
+
+  defp find_config(zipper) do
+    Zipper.find(zipper, fn
+      {:import, _, [Config]} ->
+        true
+
+      {:import, _, [{:__aliases__, _, [:Config]}]} ->
+        true
+
+      _ ->
+        false
+    end)
   end
 end

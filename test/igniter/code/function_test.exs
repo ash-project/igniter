@@ -335,6 +335,17 @@ defmodule Igniter.Code.FunctionTest do
 
       assert Igniter.Code.Function.function_call?(zipper, :fun, [1, 2])
     end
+
+    test "works on Kernel functions" do
+      zipper =
+        """
+        1 ++ 2
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      assert Igniter.Code.Function.function_call?(zipper, {Kernel, :++})
+    end
   end
 
   test "argument_equals?/3" do

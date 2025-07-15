@@ -45,14 +45,29 @@ defmodule Igniter.Code.Keyword do
     end
   end
 
-  @doc "Puts a value at a path into a keyword, calling `updater` on the zipper at the value if the key is already present"
+  @doc """
+  Puts a value at a path into a keyword list, calling `updater` on the zipper at the value if the key is already present.
+
+  Navigates through nested keyword lists following the given `path` (list of atoms).
+  If the full path doesn't exist, it creates the necessary nested structure.
+  If the path exists, it calls the `updater` function with the zipper at the existing value.
+
+  The `updater` function can return:
+  - `{:ok, zipper}` - Replace the existing value with the updated zipper
+  - anything else, which is returned untouched
+
+  This function preserves any errors or warnings returned by the updater function,
+  passing them through unchanged.
+  """
   @spec put_in_keyword(
           Zipper.t(),
           list(atom()),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+          (Zipper.t() ->
+             {:ok, Zipper.t()} | :error | {:error, String.t()} | {:warning, String.t()})
+          | nil
         ) ::
-          {:ok, Zipper.t()} | :error
+          {:ok, Zipper.t()} | :error | {:error, String.t()} | {:warning, String.t()}
   def put_in_keyword(zipper, path, value, updater \\ nil) do
     updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
@@ -73,18 +88,32 @@ defmodule Igniter.Code.Keyword do
       {:new, zipper} ->
         {:ok, set_keyword_value!(zipper, keywordify(rest, value))}
 
-      :error ->
-        :error
+      other ->
+        other
     end
   end
 
+  @doc """
+  Sets a key in a keyword list to a value.
+
+  If the key already exists, calls the `updater` function with the zipper at the existing value.
+  If the key doesn't exist, sets it to the given `value`.
+
+  The `updater` function can return:
+  - `{:ok, zipper}` - Replace the existing value with the updated zipper
+  - anything else - which is returned untouched
+
+  This function preserves any errors or warnings returned by the updater function,
+  passing them through unchanged.
+  """
   @spec set_keyword_key(
           Zipper.t(),
           atom(),
           term(),
-          (Zipper.t() -> {:ok, Zipper.t()} | :error) | nil
+          (Zipper.t() -> {:ok, Zipper.t()} | term)
+          | nil
         ) ::
-          {:ok, Zipper.t()} | :error
+          {:ok, Zipper.t()} | term
   def set_keyword_key(zipper, key, value, updater \\ nil) do
     updater = updater || (&{:ok, &1})
 
@@ -95,15 +124,15 @@ defmodule Igniter.Code.Keyword do
             {:ok, zipper} ->
               {:ok, %{zipper | node: {:__block__, [], [zipper.node]}}}
 
-            :error ->
-              :error
+            other ->
+              other
           end
 
         {:new, zipper} ->
           {:ok, set_keyword_value!(zipper, value)}
 
-        :error ->
-          :error
+        other ->
+          other
       end
     end)
   end
