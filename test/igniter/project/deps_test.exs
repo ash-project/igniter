@@ -144,6 +144,119 @@ defmodule Igniter.Project.DepsTest do
     end
   end
 
+  describe "get_dep/2" do
+    test "detects existing dependencies when using deps_location variable" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule Test.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: :test,
+                  version: "0.1.0",
+                  elixir: "~> 1.17",
+                  start_permanent: Mix.env() == :prod,
+                  deps: deps()
+                ]
+              end
+
+              # Run "mix help compile.app" to learn about applications.
+              def application do
+                [
+                  extra_applications: [:logger]
+                ]
+              end
+
+              # Run "mix help deps" to learn about dependencies.
+              defp deps do
+                shared_deps = [
+                  {:ash_authentication, "~> 4.0"},
+                  {:picosat_elixir, "~> 0.2"},
+                  {:ash, "~> 3.5"}
+                ]
+
+                shared_deps
+              end
+            end
+            """
+          }
+        )
+        |> Igniter.Project.IgniterConfig.configure(
+          :deps_location,
+          {:variable, :shared_deps}
+        )
+
+      # Should detect existing dependency
+      assert {:ok, "{:ash_authentication, \"~> 4.0\"}"} =
+               Igniter.Project.Deps.get_dep(igniter, :ash_authentication)
+
+      assert {:ok, "{:ash, \"~> 3.5\"}"} =
+               Igniter.Project.Deps.get_dep(igniter, :ash)
+
+      # Should return nil for non-existing dependency
+      assert {:ok, nil} =
+               Igniter.Project.Deps.get_dep(igniter, :non_existing_dep)
+    end
+
+    test "prevents duplicate dependencies when using deps_location variable" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule Test.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: :test,
+                  version: "0.1.0",
+                  elixir: "~> 1.17",
+                  start_permanent: Mix.env() == :prod,
+                  deps: deps()
+                ]
+              end
+
+              # Run "mix help compile.app" to learn about applications.
+              def application do
+                [
+                  extra_applications: [:logger]
+                ]
+              end
+
+              # Run "mix help deps" to learn about dependencies.
+              defp deps do
+                shared_deps = [
+                  {:ash_authentication, "~> 4.0"},
+                  {:picosat_elixir, "~> 0.2"},
+                  {:ash, "~> 3.5"}
+                ]
+
+                shared_deps
+              end
+            end
+            """
+          }
+        )
+        |> Igniter.Project.IgniterConfig.configure(
+          :deps_location,
+          {:variable, :shared_deps}
+        )
+
+      # Try to add an existing dependency - should not create duplicate
+      igniter = Igniter.Project.Deps.add_dep(igniter, {:ash_authentication, "~> 4.0"})
+
+      # Should still detect the existing dependency correctly
+      assert {:ok, "{:ash_authentication, \"~> 4.0\"}"} =
+               Igniter.Project.Deps.get_dep(igniter, :ash_authentication)
+
+      # Should not have failed to add the dependency (no duplicates created)
+      refute :ash_authentication in (igniter.assigns[:failed_to_add_deps] || [])
+    end
+  end
+
   describe "determine_dep_type_and_version/1" do
     test "parses to a version" do
       tests = [

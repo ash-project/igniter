@@ -218,11 +218,11 @@ defmodule Igniter.Project.Deps do
                """}
           end
 
-        {:variable, name} ->
+        {:variable, var_name} ->
           with {:ok, zipper} <-
                  Igniter.Code.Common.move_to(
                    zipper,
-                   &Igniter.Code.Common.variable_assignment?(&1, name)
+                   &Igniter.Code.Common.variable_assignment?(&1, var_name)
                  ),
                {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
                true <- Igniter.Code.List.list?(zipper) do
@@ -233,7 +233,7 @@ defmodule Igniter.Project.Deps do
                """
                Could not get dependency #{inspect(name)}
 
-               `deps/0` does not contain an assignment of the `#{name}` variable to a literal list
+               `deps/0` does not contain an assignment of the `#{var_name}` variable to a literal list
 
                Please remove the dependency manually.
                """}
@@ -305,11 +305,11 @@ defmodule Igniter.Project.Deps do
                  """}
             end
 
-          {:variable, name} ->
+          {:variable, var_name} ->
             with {:ok, zipper} <-
                    Igniter.Code.Common.move_to(
                      zipper,
-                     &Igniter.Code.Common.variable_assignment?(&1, name)
+                     &Igniter.Code.Common.variable_assignment?(&1, var_name)
                    ),
                  {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
                  true <- Igniter.Code.List.list?(zipper) do
@@ -320,7 +320,7 @@ defmodule Igniter.Project.Deps do
                  """
                  Could not remove dependency #{inspect(name)}
 
-                 `deps/0` does not contain an assignment of the `#{name}` variable to a literal list
+                 `deps/0` does not contain an assignment of the `#{var_name}` variable to a literal list
 
                  Please remove the dependency manually.
                  """}
@@ -421,11 +421,11 @@ defmodule Igniter.Project.Deps do
                  """}
             end
 
-          {:variable, name} ->
+          {:variable, var_name} ->
             with {:ok, zipper} <-
                    Igniter.Code.Common.move_to(
                      zipper,
-                     &Igniter.Code.Common.variable_assignment?(&1, name)
+                     &Igniter.Code.Common.variable_assignment?(&1, var_name)
                    ),
                  {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
                  true <- Igniter.Code.List.list?(zipper) do
@@ -436,7 +436,7 @@ defmodule Igniter.Project.Deps do
                  """
                  Could not add dependency #{inspect({name, version})}
 
-                 `deps/0` does not contain an assignment of the `#{name}` variable to a literal list
+                 `deps/0` does not contain an assignment of the `#{var_name}` variable to a literal list
 
                  Please add the dependency manually.
                  """}
