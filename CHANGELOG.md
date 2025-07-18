@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.20](https://github.com/ash-project/igniter/compare/v0.6.19...v0.6.20) (2025-07-18)
+
+
+
+
+### Bug Fixes:
+
+* handle non-tty inputs on tasks that aren't installers by Zach Daniel
+
+### Improvements:
+
+* add a nicer error on `:eof` response from `yes?` by Zach Daniel
+
 ## [v0.6.19](https://github.com/ash-project/igniter/compare/v0.6.18...v0.6.19) (2025-07-15)
 
 
