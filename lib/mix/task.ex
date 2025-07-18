@@ -109,6 +109,7 @@ defmodule Igniter.Mix.Task do
           if opts[:scribe] do
             Igniter.Scribe.write(igniter, opts[:scribe])
           else
+            opts = Keyword.put(opts, :yes, igniter.args.options[:yes])
             Igniter.do_or_dry_run(igniter, opts)
           end
         end)

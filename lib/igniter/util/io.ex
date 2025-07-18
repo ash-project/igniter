@@ -3,20 +3,26 @@ defmodule Igniter.Util.IO do
 
   @doc "Prompts the user for yes or no, repeating the prompt until a satisfactory answer is given"
   def yes?(prompt) do
-    case String.trim(Mix.shell().prompt(prompt <> " [Y/n]")) do
-      # default answer Y
-      "" ->
-        true
+    case Mix.shell().prompt(prompt <> " [Y/n]") do
+      :eof ->
+        raise "No input detected when asking for confirmation, perhaps you meant to use `--yes`?"
 
-      yes when yes in ["y", "Y", "yes", "YES"] ->
-        true
+      str ->
+        case String.trim(str) do
+          # default answer Y
+          "" ->
+            true
 
-      no when no in ["n", "N", "no", "NO"] ->
-        false
+          yes when yes in ["y", "Y", "yes", "YES"] ->
+            true
 
-      value ->
-        Mix.shell().info("Please enter one of [y/n]. Got: #{value}")
-        yes?(prompt)
+          no when no in ["n", "N", "no", "NO"] ->
+            false
+
+          value ->
+            Mix.shell().info("Please enter one of [y/n]. Got: #{value}")
+            yes?(prompt)
+        end
     end
   end
 
