@@ -549,7 +549,7 @@ defmodule Igniter do
         true
 
       Enum.any?(
-        igniter.rewrite,
+        Rewrite.sources(igniter.rewrite),
         &(&1.path == path || subdirectory?(&1.path, path))
       ) ->
         true
