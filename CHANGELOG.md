@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.21](https://github.com/ash-project/igniter/compare/v0.6.20...v0.6.21) (2025-07-19)
+
+
+
+
+### Bug Fixes:
+
+* properly detect deps location by Zach Daniel
+
+### Improvements:
+
+* don't enumerate `igniter.rewrite` by Zach Daniel
+
 ## [v0.6.20](https://github.com/ash-project/igniter/compare/v0.6.19...v0.6.20) (2025-07-18)
 
 
