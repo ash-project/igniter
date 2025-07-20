@@ -155,7 +155,10 @@ defmodule Igniter.Project.TaskAliases do
         {:ok, zipper} ->
           case Igniter.Code.Keyword.get_key(zipper, name) do
             {:ok, zipper} ->
-              updater.(zipper)
+              case updater.(zipper) do
+                :error -> zipper
+                other -> other
+              end
 
             :error ->
               zipper
