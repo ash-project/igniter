@@ -91,6 +91,9 @@ defmodule Igniter.Project.TaskAliases do
                     :ignore ->
                       {:ok, zipper}
 
+                    :error ->
+                      {:ok, zipper}
+
                     :warn ->
                       {:warning,
                        """
