@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.22](https://github.com/ash-project/igniter/compare/v0.6.21...v0.6.22) (2025-07-22)
+
+
+
+
+### Bug Fixes:
+
+* handle `:error` coming from alias updater by Zach Daniel
+
+* add :error case clause in modify_existing_alias by Zach Daniel
+
 ## [v0.6.21](https://github.com/ash-project/igniter/compare/v0.6.20...v0.6.21) (2025-07-19)
 
 
