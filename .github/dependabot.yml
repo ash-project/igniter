@@ -1,16 +1,16 @@
-version: 2
+---
 updates:
-  - package-ecosystem: mix
-    directory: "/"
-    versioning-strategy: lockfile-only
-    schedule:
-      interval: weekly
-      day: thursday
+  - directory: /
     groups:
-      production-dependencies:
-        dependency-type: production
       dev-dependencies:
         dependency-type: development
+      production-dependencies:
+        dependency-type: production
     ignore:
-      - dependency-name: "git_ops"
-
+      - dependency-name: git_ops
+    package-ecosystem: mix
+    schedule:
+      day: thursday
+      interval: monthly
+    versioning-strategy: lockfile-only
+version: 2
