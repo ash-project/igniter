@@ -1559,7 +1559,7 @@ defmodule Igniter do
       dot_formatter = Rewrite.dot_formatter(rewrite)
 
       rewrite =
-        Enum.reduce(rewrite, rewrite, fn source, rewrite ->
+        Enum.reduce(Rewrite.sources(rewrite), rewrite, fn source, rewrite ->
           path = source |> Rewrite.Source.get(:path)
 
           if is_nil(adding_paths) || path in List.wrap(adding_paths) do
