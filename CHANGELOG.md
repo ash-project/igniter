@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.25](https://github.com/ash-project/igniter/compare/v0.6.24...v0.6.25) (2025-07-23)
+
+
+
+
+### Bug Fixes:
+
+* remove another enumeration of the rewrite by Zach Daniel
+
 ## [v0.6.24](https://github.com/ash-project/igniter/compare/v0.6.23...v0.6.24) (2025-07-23)
 
 
