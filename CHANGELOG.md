@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.23](https://github.com/ash-project/igniter/compare/v0.6.22...v0.6.23) (2025-07-23)
+
+
+
+
+### Bug Fixes:
+
+* remove case where we iterate a rewrite by Zach Daniel
+
 ## [v0.6.22](https://github.com/ash-project/igniter/compare/v0.6.21...v0.6.22) (2025-07-22)
 
 
