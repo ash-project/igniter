@@ -1532,6 +1532,7 @@ defmodule Igniter do
           igniter
         else
           igniter.rewrite
+          |> Rewrite.sources()
           |> Stream.map(& &1.path)
           |> Stream.map(&Path.split/1)
           |> Stream.map(&List.first/1)
