@@ -235,8 +235,8 @@ defmodule Igniter.Project.Module do
       |> Igniter.include_all_elixir_files()
 
     matching_modules =
-      igniter
-      |> Map.get(:rewrite)
+      igniter.rewrite
+      |> Rewrite.sources()
       |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
       |> Task.async_stream(
         fn source ->
