@@ -67,6 +67,186 @@ defmodule Igniter.Libs.PhoenixTest do
     assert Igniter.Libs.Phoenix.web_module_name(test_project(), "Suffix") == TestWeb.Suffix
   end
 
+  describe "list_web_modules/1" do
+    test "finds web modules that are one level deep and end with Web" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web.ex", """
+               defmodule TestWeb do
+                 use Phoenix.Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/admin_web.ex", """
+               defmodule AdminWeb do
+                 use Phoenix.Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/foo/bar_web.ex", """
+               defmodule Foo.BarWeb do
+                 use Phoenix.Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/user_web.ex", """
+               defmodule UserWeb do
+                 # This should match - one level deep, ends with Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/not_web_module.ex", """
+               defmodule NotWebModule do
+                 # This shouldn't match - doesn't end with Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/test_controller.ex", """
+               defmodule TestController do
+                 # This shouldn't match even though it's one level deep
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, web_modules} = Igniter.Libs.Phoenix.list_web_modules(igniter)
+
+      # Should include modules that are one level deep and end with Web
+      assert TestWeb in web_modules
+      assert AdminWeb in web_modules
+      assert UserWeb in web_modules
+
+      # Should exclude modules that are two levels deep
+      refute Foo.BarWeb in web_modules
+
+      # Should exclude modules that don't end with Web
+      refute NotWebModule in web_modules
+      refute TestController in web_modules
+
+      # Verify exact count
+      assert length(web_modules) == 3
+    end
+
+    test "returns empty list when no web modules found" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/foo.ex", """
+               defmodule Foo do
+                 # Not a web module
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, web_modules} = Igniter.Libs.Phoenix.list_web_modules(igniter)
+      assert web_modules == []
+    end
+  end
+
+  describe "web_module?/1" do
+    test "returns true for valid web modules (atoms)" do
+      assert Igniter.Libs.Phoenix.web_module?(TestWeb)
+      assert Igniter.Libs.Phoenix.web_module?(AdminWeb)
+      assert Igniter.Libs.Phoenix.web_module?(MyAppWeb)
+    end
+
+    test "returns true for valid web modules (strings)" do
+      assert Igniter.Libs.Phoenix.web_module?("TestWeb")
+      assert Igniter.Libs.Phoenix.web_module?("AdminWeb")
+      assert Igniter.Libs.Phoenix.web_module?("MyAppWeb")
+    end
+
+    test "returns false for invalid web modules (atoms)" do
+      # Two levels deep
+      refute Igniter.Libs.Phoenix.web_module?(Foo.BarWeb)
+      # Doesn't end with Web
+      refute Igniter.Libs.Phoenix.web_module?(TestController)
+      # Doesn't end with Web
+      refute Igniter.Libs.Phoenix.web_module?(NotWebModule)
+      # Nil
+      refute Igniter.Libs.Phoenix.web_module?(nil)
+    end
+
+    test "returns false for invalid web modules (strings)" do
+      # Two levels deep
+      refute Igniter.Libs.Phoenix.web_module?("Foo.BarWeb")
+      # Doesn't end with Web
+      refute Igniter.Libs.Phoenix.web_module?("TestController")
+      # Doesn't end with Web
+      refute Igniter.Libs.Phoenix.web_module?("NotWebModule")
+      # Invalid string format
+      refute Igniter.Libs.Phoenix.web_module?("not.a.valid.module")
+    end
+
+    test "returns false for other types" do
+      refute Igniter.Libs.Phoenix.web_module?(123)
+      refute Igniter.Libs.Phoenix.web_module?([])
+      refute Igniter.Libs.Phoenix.web_module?(%{})
+    end
+  end
+
+  describe "list_routers/1" do
+    test "finds routers using any valid web module" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web.ex", """
+               defmodule TestWeb do
+                 use Phoenix.Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/admin_web.ex", """
+               defmodule AdminWeb do
+                 use Phoenix.Web
+               end
+               """)
+               |> Igniter.create_new_file("lib/test_web/router.ex", """
+               defmodule TestWeb.Router do
+                 use TestWeb, :router
+               end
+               """)
+               |> Igniter.create_new_file("lib/admin_web/router.ex", """
+               defmodule AdminWeb.Router do
+                 use AdminWeb, :router
+               end
+               """)
+               |> Igniter.create_new_file("lib/foo/bar_web/router.ex", """
+               defmodule Foo.BarWeb.Router do
+                 use Foo.BarWeb, :router
+               end
+               """)
+               |> Igniter.create_new_file("lib/not_a_router.ex", """
+               defmodule NotARouter do
+                 use TestWeb, :controller
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, routers} = Igniter.Libs.Phoenix.list_routers(igniter)
+
+      # Should include routers that use valid web modules
+      assert TestWeb.Router in routers
+      assert AdminWeb.Router in routers
+
+      # Should exclude router using invalid web module (two levels deep)
+      refute Foo.BarWeb.Router in routers
+
+      # Should exclude modules that aren't routers
+      refute NotARouter in routers
+
+      # Verify exact count
+      assert length(routers) == 2
+    end
+
+    test "falls back to Phoenix.Router detection when no web module match" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/plain_router.ex", """
+               defmodule PlainRouter do
+                 use Phoenix.Router
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, routers} = Igniter.Libs.Phoenix.list_routers(igniter)
+
+      assert PlainRouter in routers
+      assert length(routers) == 1
+    end
+  end
+
   describe "add_scope/4" do
     setup do
       router = """
