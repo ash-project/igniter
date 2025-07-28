@@ -589,19 +589,7 @@ defmodule Igniter.Libs.Phoenix do
       case Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
              with {:ok, arg_zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
                   true <- Igniter.Code.Module.module?(arg_zipper) do
-               # Extract module name from the zipper node 
-               module_name =
-                 case arg_zipper
-                      |> Igniter.Code.Common.maybe_move_to_single_child_block()
-                      |> Igniter.Code.Common.expand_aliases()
-                      |> Sourceror.Zipper.node() do
-                   {:__aliases__, _, parts} -> Module.concat(parts)
-                   value when is_atom(value) -> value
-                   _ -> nil
-                 end
-
-               web_module?(module_name) &&
-                 Igniter.Code.Function.argument_equals?(zipper, 1, :router)
+               Igniter.Code.Function.argument_equals?(zipper, 1, :router)
              else
                _ -> false
              end
@@ -638,19 +626,7 @@ defmodule Igniter.Libs.Phoenix do
            Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
              with {:ok, arg_zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
                   true <- Igniter.Code.Module.module?(arg_zipper) do
-               # Extract module name from the zipper node 
-               module_name =
-                 case arg_zipper
-                      |> Igniter.Code.Common.maybe_move_to_single_child_block()
-                      |> Igniter.Code.Common.expand_aliases()
-                      |> Sourceror.Zipper.node() do
-                   {:__aliases__, _, parts} -> Module.concat(parts)
-                   value when is_atom(value) -> value
-                   _ -> nil
-                 end
-
-               web_module?(module_name) &&
-                 Igniter.Code.Function.argument_equals?(zipper, 1, :router)
+               Igniter.Code.Function.argument_equals?(zipper, 1, :router)
              else
                _ -> false
              end
