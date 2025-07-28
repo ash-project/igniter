@@ -585,29 +585,104 @@ defmodule Igniter.Libs.Phoenix do
   @spec list_routers(Igniter.t()) :: {Igniter.t(), [module()]}
   def list_routers(igniter) do
     Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
-      move_to_router_use(igniter, zipper) != :error
+      # Look for `use <WebModule>, :router` or `use Phoenix.Router`
+      case Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
+             with {:ok, arg_zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
+                  true <- Igniter.Code.Module.module?(arg_zipper) do
+               # Extract module name from the zipper node 
+               module_name =
+                 case arg_zipper
+                      |> Igniter.Code.Common.maybe_move_to_single_child_block()
+                      |> Igniter.Code.Common.expand_aliases()
+                      |> Sourceror.Zipper.node() do
+                   {:__aliases__, _, parts} -> Module.concat(parts)
+                   value when is_atom(value) -> value
+                   _ -> nil
+                 end
+
+               web_module?(module_name) &&
+                 Igniter.Code.Function.argument_equals?(zipper, 1, :router)
+             else
+               _ -> false
+             end
+           end) do
+        {:ok, _} ->
+          true
+
+        :error ->
+          # Fallback: check for direct Phoenix.Router usage
+          Igniter.Code.Module.move_to_use(zipper, Phoenix.Router) != :error
+      end
     end)
   end
 
-  @doc "Moves to the use statement in a module that matches `use TheirAppWeb, :router`"
+  @doc """
+  Lists all web modules found in the project.
+
+  A web module is defined as:
+  - Only one level of namespace deep (e.g., `FooWeb` not `Foo.BarWeb`)
+  - Ends with `Web`
+  """
+  @spec list_web_modules(Igniter.t()) :: {Igniter.t(), [module()]}
+  def list_web_modules(igniter) do
+    Igniter.Project.Module.find_all_matching_modules(igniter, fn module, _zipper ->
+      web_module?(module)
+    end)
+  end
+
+  @doc "Moves to the use statement in a module that matches `use <WebModule>, :router`"
   @spec move_to_router_use(Igniter.t(), Sourceror.Zipper.t()) ::
           :error | {:ok, Sourceror.Zipper.t()}
-  def move_to_router_use(igniter, zipper) do
+  def move_to_router_use(_igniter, zipper) do
     with :error <-
            Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn zipper ->
-             Igniter.Code.Function.argument_equals?(
-               zipper,
-               0,
-               web_module(igniter)
-             ) &&
-               Igniter.Code.Function.argument_equals?(
-                 zipper,
-                 1,
-                 :router
-               )
+             with {:ok, arg_zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0),
+                  true <- Igniter.Code.Module.module?(arg_zipper) do
+               # Extract module name from the zipper node 
+               module_name =
+                 case arg_zipper
+                      |> Igniter.Code.Common.maybe_move_to_single_child_block()
+                      |> Igniter.Code.Common.expand_aliases()
+                      |> Sourceror.Zipper.node() do
+                   {:__aliases__, _, parts} -> Module.concat(parts)
+                   value when is_atom(value) -> value
+                   _ -> nil
+                 end
+
+               web_module?(module_name) &&
+                 Igniter.Code.Function.argument_equals?(zipper, 1, :router)
+             else
+               _ -> false
+             end
            end) do
       Igniter.Code.Module.move_to_use(zipper, Phoenix.Router)
     end
+  end
+
+  @doc """
+  Checks if a module is a valid web module.
+
+  A web module is defined as:
+  - Only one level of namespace deep (e.g., `FooWeb` not `Foo.BarWeb`)
+  - Ends with `Web`
+
+  Accepts both atoms and strings.
+  """
+  @spec web_module?(module() | String.t()) :: boolean()
+  def web_module?(module) do
+    # Convert string to proper module atom if needed
+    module_atom =
+      case module do
+        binary when is_binary(binary) -> Igniter.Project.Module.parse(binary)
+        atom -> atom
+      end
+
+    case Module.split(module_atom) do
+      [single_part] -> String.ends_with?(single_part, "Web")
+      _ -> false
+    end
+  rescue
+    _ -> false
   end
 
   defp move_to_pipeline_location(igniter, zipper) do
