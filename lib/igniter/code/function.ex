@@ -618,7 +618,7 @@ defmodule Igniter.Code.Function do
     function?(zipper, :any_named, arity) or function?(zipper, :anonymous, arity)
   end
 
-  def function(%Zipper{} = zipper, :any_named, arity) do
+  def function?(%Zipper{} = zipper, :any_named, arity) do
     node =
       zipper
       |> Common.maybe_move_to_single_child_block()
