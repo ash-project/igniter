@@ -8,6 +8,8 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 ## [v0.6.27](https://github.com/ash-project/igniter/compare/v0.6.26...v0.6.27) (2025-08-14)
 
 
+- releasing a new version to handle locally published version with IO.inspects left in 🤦‍♂️
+
 
 
 ## [v0.6.26](https://github.com/ash-project/igniter/compare/v0.6.25...v0.6.26) (2025-07-29)
