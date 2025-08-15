@@ -393,7 +393,7 @@ defmodule Mix.Tasks.Igniter.New do
     Igniter.Installer.Loading.with_spinner(
       "Initializing local git repository, staging all files, and committing",
       fn ->
-        case System.cmd("git", ["init"]) do
+        case maybe_init_git() do
           {_, 0} ->
             case System.cmd("git", ["add", "."]) do
               {_, 0} ->
@@ -414,6 +414,13 @@ defmodule Mix.Tasks.Igniter.New do
         end
       end
     )
+  end
+
+  defp maybe_init_git() do
+    case System.cmd("git", ["rev-parse", "--is-inside-work-tree"]) do
+      {_, 0} -> {true, 0}
+      {_, _} -> System.cmd("git", ["init"])
+    end
   end
 
   defp maybe_warn_outdated(latest_version, opts) do
