@@ -52,6 +52,7 @@ defmodule Igniter.MixProject do
       extras: [
         {"README.md", title: "Home"},
         "documentation/writing-generators.md",
+        "documentation/writing-installers.md",
         "documentation/configuring-igniter.md",
         "documentation/documenting-tasks.md",
         "documentation/upgrades.md",
