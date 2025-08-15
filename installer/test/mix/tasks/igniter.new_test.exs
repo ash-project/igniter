@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
               "mix",
               ["igniter.new", project_name, "--git", "--yes", "--no-installer-version-check"],
               stderr_to_stdout: true,
-              env: [{"MIX_ENV", "test"}]
+              env: [{"MIX_ENV", "test"}, {"IGNITER_SKIP_GIT_CHECK", "true"}]
             )
 
           if exit_code != 0 do
@@ -113,6 +113,42 @@ defmodule Mix.Tasks.Igniter.NewTest do
     end
 
     @tag :integration
+    test "does not run git init when already in git project", %{tmp_dir: tmp_dir} do
+      if !git_available?() do
+        :ok
+      else
+        project_parent = "parent_folder"
+        project_name = "child_project_with_git_parent"
+
+        original_cwd = File.cwd!()
+
+        try do
+          File.cd!(tmp_dir)
+          File.mkdir!(project_parent)
+          File.cd!(project_parent)
+          System.cmd("git", ["init", "."])
+          assert File.exists?(".git"), "Git was not successfully set up in the parent folder"
+
+          # Run igniter.new with --git flag using System.cmd
+          {_output, exit_code} =
+            System.cmd(
+              "mix",
+              ["igniter.new", project_name, "--git", "--yes", "--no-installer-version-check"],
+              stderr_to_stdout: true,
+              env: [{"MIX_ENV", "test"}]
+            )
+
+          assert exit_code == 0
+
+          File.cd!(project_name)
+          refute File.exists?(".git"), "git should not be initialized when already in git project"
+        after
+          File.cd!(original_cwd)
+        end
+      end
+    end
+
+    @tag :integration
     test "git functionality works with other flags", %{tmp_dir: tmp_dir} do
       unless git_available?() do
         :ok
@@ -137,7 +173,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
                 "--no-installer-version-check"
               ],
               stderr_to_stdout: true,
-              env: [{"MIX_ENV", "test"}]
+              env: [{"MIX_ENV", "test"}, {"IGNITER_SKIP_GIT_CHECK", "true"}]
             )
 
           assert exit_code == 0,
