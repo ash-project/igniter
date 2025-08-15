@@ -417,9 +417,15 @@ defmodule Mix.Tasks.Igniter.New do
   end
 
   defp maybe_init_git() do
-    case System.cmd("git", ["rev-parse", "--is-inside-work-tree"]) do
-      {_, 0} -> {true, 0}
-      {_, _} -> System.cmd("git", ["init"])
+    skip_git_check? = System.get_env("IGNITER_SKIP_GIT_CHECK") == "true"
+
+    if skip_git_check? do
+      System.cmd("git", ["init"])
+    else
+      case System.cmd("git", ["rev-parse", "--is-inside-work-tree"]) do
+        {_, 0} -> {true, 0}
+        {_, _} -> System.cmd("git", ["init"])
+      end
     end
   end
 

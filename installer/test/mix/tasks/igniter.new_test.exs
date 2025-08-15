@@ -24,7 +24,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
               "mix",
               ["igniter.new", project_name, "--git", "--yes", "--no-installer-version-check"],
               stderr_to_stdout: true,
-              env: [{"MIX_ENV", "test"}]
+              env: [{"MIX_ENV", "test"}, {"IGNITER_SKIP_GIT_CHECK", "true"}]
             )
 
           if exit_code != 0 do
@@ -173,7 +173,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
                 "--no-installer-version-check"
               ],
               stderr_to_stdout: true,
-              env: [{"MIX_ENV", "test"}]
+              env: [{"MIX_ENV", "test"}, {"IGNITER_SKIP_GIT_CHECK", "true"}]
             )
 
           assert exit_code == 0,
