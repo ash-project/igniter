@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.28](https://github.com/ash-project/igniter/compare/v0.6.27...v0.6.28) (2025-08-21)
+
+
+
+
+### Bug Fixes:
+
+* use appropriate function name `function` -> `function?` (#326) by Ciarán Walsh
+
+### Improvements:
+
+* `igniter.new` Don't run git init if already in git repo (#328) by Erik André Jakobsen
+
 ## [v0.6.27](https://github.com/ash-project/igniter/compare/v0.6.26...v0.6.27) (2025-08-14)
 
 
