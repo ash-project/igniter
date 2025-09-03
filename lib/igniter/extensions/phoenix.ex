@@ -20,7 +20,8 @@ defmodule Igniter.Extensions.Phoenix do
     split = Module.split(module)
 
     cond do
-      String.ends_with?(Enum.at(split, 1) || "", "Live") ->
+      String.ends_with?(List.last(split) || "", "Live") && 
+        String.ends_with?(Enum.at(split, 0) || "", "Web") ->
         [base | rest] = split
 
         {:ok,
