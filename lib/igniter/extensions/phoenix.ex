@@ -20,7 +20,10 @@ defmodule Igniter.Extensions.Phoenix do
     split = Module.split(module)
 
     cond do
-      String.ends_with?(Enum.at(split, 1) || "", "Live") ->
+      # Check if this is a LiveView/LiveComponent module but NOT if "Live" is just a namespace
+      String.ends_with?(Enum.at(split, 1) || "", "Live") && 
+        # Exclude the case where element 1 is exactly "Live" (namespace usage)
+        Enum.at(split, 1) != "Live" ->
         [base | rest] = split
 
         {:ok,
