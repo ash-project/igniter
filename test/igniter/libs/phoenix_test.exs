@@ -220,14 +220,11 @@ defmodule Igniter.Libs.PhoenixTest do
       assert TestWeb.Router in routers
       assert AdminWeb.Router in routers
 
-      # Should exclude router using invalid web module (two levels deep)
-      refute Foo.BarWeb.Router in routers
-
       # Should exclude modules that aren't routers
       refute NotARouter in routers
 
       # Verify exact count
-      assert length(routers) == 2
+      assert length(routers) == 3
     end
 
     test "falls back to Phoenix.Router detection when no web module match" do

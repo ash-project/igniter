@@ -227,7 +227,14 @@ defmodule Igniter.Test do
   end
 
   def assert_has_task(igniter, task, argv) do
-    if {task, argv} not in igniter.tasks do
+    task_found? =
+      Enum.any?(igniter.tasks, fn
+        {^task, ^argv} -> true
+        {^task, ^argv, :delayed} -> true
+        _ -> false
+      end)
+
+    if not task_found? do
       if Enum.empty?(igniter.tasks) do
         flunk("""
         Expected to find `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks,
@@ -239,7 +246,34 @@ defmodule Igniter.Test do
 
         Found tasks:
 
-        #{Enum.map_join(igniter.tasks, "\n", fn {task, argv} -> "- mix #{task} #{Enum.join(argv)}" end)}
+        #{Enum.map_join(igniter.tasks, "\n", fn
+          {task, argv} -> "- mix #{task} #{Enum.join(argv, " ")}"
+          {task, argv, :delayed} -> "- mix #{task} #{Enum.join(argv, " ")} (delayed)"
+        end)}
+        """)
+      end
+    end
+
+    igniter
+  end
+
+  def assert_has_delayed_task(igniter, task, argv) do
+    if {task, argv, :delayed} not in igniter.tasks do
+      if Enum.empty?(igniter.tasks) do
+        flunk("""
+        Expected to find delayed task `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks,
+        but no tasks were found on the igniter.
+        """)
+      else
+        flunk("""
+        Expected to find delayed task `mix #{task} #{Enum.join(argv, " ")}` in igniter tasks.
+
+        Found tasks:
+
+        #{Enum.map_join(igniter.tasks, "\n", fn
+          {task, argv} -> "- mix #{task} #{Enum.join(argv, " ")}"
+          {task, argv, :delayed} -> "- mix #{task} #{Enum.join(argv, " ")} (delayed)"
+        end)}
         """)
       end
     end

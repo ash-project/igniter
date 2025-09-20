@@ -207,5 +207,61 @@ defmodule IgniterTest do
              end) ==
                ""
     end
+
+    test "delayed tasks are printed after regular tasks" do
+      igniter =
+        test_project()
+        |> Igniter.add_task("regular.task")
+        |> Igniter.delay_task("delayed.task")
+        |> Igniter.add_task("another.regular", ["--flag"])
+        |> Igniter.delay_task("another.delayed", ["--opt", "value"])
+
+      assert capture_io(fn -> Igniter.display_tasks(igniter, :dry_run_with_changes, []) end) ==
+               """
+
+               These tasks will be run after the above changes:
+
+               * \e[31mregular.task \e[33m\e[0m
+               * \e[31manother.regular \e[33m--flag\e[0m
+               * \e[31mdelayed.task \e[33m\e[0m
+               * \e[31manother.delayed \e[33m--opt value\e[0m
+
+               """
+    end
+  end
+
+  describe "delay_task" do
+    test "adds delayed tasks correctly" do
+      igniter =
+        test_project()
+        |> Igniter.add_task("regular.task", ["arg1"])
+        |> Igniter.delay_task("delayed.task", ["arg2"])
+
+      assert_has_task(igniter, "regular.task", ["arg1"])
+      assert_has_delayed_task(igniter, "delayed.task", ["arg2"])
+
+      # Check that delayed tasks are stored with the :delayed marker
+      assert {"delayed.task", ["arg2"], :delayed} in igniter.tasks
+      assert {"regular.task", ["arg1"]} in igniter.tasks
+    end
+
+    test "delayed tasks are executed after regular tasks" do
+      igniter =
+        test_project()
+        |> Igniter.add_task("first.regular", [])
+        |> Igniter.delay_task("first.delayed", [])
+        |> Igniter.add_task("second.regular", [])
+        |> Igniter.delay_task("second.delayed", [])
+
+      # Test the internal sorting function
+      sorted = igniter.tasks |> Igniter.sort_tasks_with_delayed_last()
+
+      assert [
+               {"first.regular", []},
+               {"second.regular", []},
+               {"first.delayed", []},
+               {"second.delayed", []}
+             ] = sorted
+    end
   end
 end

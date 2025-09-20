@@ -46,7 +46,9 @@ defmodule Igniter do
   @type t :: %__MODULE__{
           rewrite: Rewrite.t(),
           issues: [String.t()],
-          tasks: [String.t() | {String.t(), list(String.t())}],
+          tasks: [
+            String.t() | {String.t(), list(String.t())} | {String.t(), list(String.t()), :delayed}
+          ],
           warnings: [String.t()],
           notices: [String.t()],
           assigns: map(),
@@ -386,6 +388,11 @@ defmodule Igniter do
   @doc "Adds a task to the tasks list. Tasks will be run after all changes have been committed"
   def add_task(igniter, task, argv \\ []) when is_binary(task) do
     %{igniter | tasks: igniter.tasks ++ [{task, argv}]}
+  end
+
+  @doc "Adds a delayed task to the tasks list. Delayed tasks will be run after all other composed tasks have been added."
+  def delay_task(igniter, task, argv \\ []) when is_binary(task) do
+    %{igniter | tasks: igniter.tasks ++ [{task, argv, :delayed}]}
   end
 
   @doc """
@@ -1208,6 +1215,7 @@ defmodule Igniter do
                   end)
 
                   igniter.tasks
+                  |> sort_tasks_with_delayed_last()
                   |> Enum.each(fn {task, args} ->
                     Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
                   end)
@@ -1962,6 +1970,7 @@ defmodule Igniter do
         end
 
       igniter.tasks
+      |> sort_tasks_with_delayed_last()
       |> Enum.map(fn {task, args} ->
         ["* ", :red, task, " ", :yellow, Enum.intersperse(args, " ")]
       end)
@@ -2085,4 +2094,16 @@ defmodule Igniter do
   defp win32_split_absolute?(["//" | _]), do: true
   defp win32_split_absolute?([<<_, ":/">> | _]), do: true
   defp win32_split_absolute?(_), do: false
+
+  @doc false
+  def sort_tasks_with_delayed_last(tasks) do
+    tasks
+    |> Enum.split_with(fn
+      {_task, _args, :delayed} -> false
+      _ -> true
+    end)
+    |> then(fn {regular_tasks, delayed_tasks} ->
+      regular_tasks ++ Enum.map(delayed_tasks, fn {task, args, :delayed} -> {task, args} end)
+    end)
+  end
 end
