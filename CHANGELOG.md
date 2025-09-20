@@ -5,6 +5,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.29](https://github.com/ash-project/igniter/compare/v0.6.28...v0.6.29) (2025-09-20)
+
+
+
+
+### Bug Fixes:
+
+* prevent duplicate 'live' directories for modules with Live namespace (#330) by Matthew Sinclair
+
+* prevent duplicate 'live' directories for modules with Live namespace by Matthew Sinclair
+
+### Improvements:
+
+* add `delay_task` to run tasks at the end by Zach Daniel
+
 ## [v0.6.28](https://github.com/ash-project/igniter/compare/v0.6.27...v0.6.28) (2025-08-21)
 
 
