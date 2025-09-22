@@ -699,6 +699,25 @@ defmodule Igniter.Project.ConfigTest do
 
       assert String.contains?(config, "config :fake, foo: [bar: true]")
     end
+
+    test "update existing config twice" do
+      zipper =
+        ~s"""
+        import Config
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      config =
+        zipper
+        |> Igniter.Project.Config.modify_config_code([:a], :app, 1)
+        |> elem(1)
+        |> Igniter.Project.Config.modify_config_code([:b], :app, 2)
+        |> elem(1)
+        |> Igniter.Util.Debug.code_at_node()
+
+      assert String.contains?(config, "config :app, a: 1, b: 2")
+    end
   end
 
   describe "configure_group" do
