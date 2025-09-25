@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.30](https://github.com/ash-project/igniter/compare/v0.6.29...v0.6.30) (2025-09-25)
+
+
+
+
+### Bug Fixes:
+
+* don't silently ignore certain errors during spinners by Zach Daniel
+
+* don't display "temporarily adding igniter" when we aren't by Zach Daniel
+
 ## [v0.6.29](https://github.com/ash-project/igniter/compare/v0.6.28...v0.6.29) (2025-09-20)
 
 
