@@ -209,7 +209,9 @@ defmodule Igniter.Util.Install do
   end
 
   def get_deps!(igniter, opts) do
-    case System.cmd("mix", ["deps.get"], stderr_to_stdout: true) do
+    case Igniter.Util.Loading.with_spinner("fetching deps", fn ->
+           raising_cmd!("mix", ["deps.get"], stderr_to_stdout: true)
+         end) do
       {_output, 0} ->
         Igniter.Util.Loading.with_spinner(
           opts[:operation] || "building deps",
@@ -220,14 +222,14 @@ defmodule Igniter.Util.Install do
                   igniter
 
                 [:all] ->
-                  System.cmd("mix", ["deps.update", "--all" | opts[:update_deps_args] || []],
+                  raising_cmd!("mix", ["deps.update", "--all" | opts[:update_deps_args] || []],
                     stderr_to_stdout: true
                   )
 
                   %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
 
                 to_update ->
-                  System.cmd(
+                  raising_cmd!(
                     "mix",
                     ["deps.update" | to_update] ++ (opts[:update_deps_args] || []),
                     stderr_to_stdout: true
@@ -251,8 +253,8 @@ defmodule Igniter.Util.Install do
 
               igniter =
                 if Keyword.get(opts, :compile_deps?, true) do
-                  System.cmd("mix", ["deps.get"], stderr_to_stdout: true)
-                  System.cmd("mix", ["deps.compile"], stderr_to_stdout: true)
+                  raising_cmd!("mix", ["deps.get"], stderr_to_stdout: true)
+                  raising_cmd!("mix", ["deps.compile"], stderr_to_stdout: true)
 
                   %{igniter | rewrite: Rewrite.drop(igniter.rewrite, ["mix.lock"])}
                 else
@@ -289,6 +291,22 @@ defmodule Igniter.Util.Install do
 
             raise output
         end
+    end
+  end
+
+  defp raising_cmd!(cmd, args, opts) do
+    case System.cmd(cmd, args, opts) do
+      {output, 0} ->
+        {output, 0}
+
+      {output, n} ->
+        raise """
+        #{cmd} #{Enum.join(args, " ")} exited with status: #{n}
+
+        Output:
+
+        #{output}
+        """
     end
   end
 

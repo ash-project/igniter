@@ -191,21 +191,21 @@ defmodule Igniter.Installer.TaskHelpers do
       |> File.read!()
 
     new_contents =
+      new_contents =
+      contents
+      |> add_igniter_dep()
+
+    if contents == new_contents do
+      contents
+    else
       Igniter.Installer.Loading.with_spinner(
         "temporarily adding igniter",
         fn ->
-          new_contents =
-            contents
-            |> add_igniter_dep()
-
-          if contents == new_contents do
-            contents
-          else
-            new_contents
-            |> Code.format_string!()
-          end
+          new_contents
+          |> Code.format_string!()
         end
       )
+    end
 
     if new_contents == contents && !String.contains?(contents, "{:igniter,") do
       Mix.shell().error("""

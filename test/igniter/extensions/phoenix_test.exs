@@ -84,23 +84,23 @@ defmodule Igniter.Extensions.PhoenixTest do
       igniter =
         test_project()
         |> Igniter.Project.IgniterConfig.add_extension(Igniter.Extensions.Phoenix)
-      
+
       module_name = MyApp.Live.Dashboard.TestLive
-      
-      igniter = 
+
+      igniter =
         Igniter.Project.Module.create_module(igniter, module_name, """
         @moduledoc "Test module"
         def hello, do: :world
         """)
-      
-      {:ok, {_igniter, source, _zipper}} = 
+
+      {:ok, {_igniter, source, _zipper}} =
         Igniter.Project.Module.find_module(igniter, module_name)
-      
+
       actual_path = Rewrite.Source.get(source, :path)
-      
+
       refute actual_path =~ ~r/live\/live/,
-        "Module path should not contain duplicate 'live/live' directories. Got: #{actual_path}"
-      
+             "Module path should not contain duplicate 'live/live' directories. Got: #{actual_path}"
+
       assert actual_path == "lib/my_app/live/dashboard/test_live.ex"
     end
 
@@ -108,23 +108,23 @@ defmodule Igniter.Extensions.PhoenixTest do
       igniter =
         test_project()
         |> Igniter.Project.IgniterConfig.add_extension(Igniter.Extensions.Phoenix)
-      
+
       module_name = TestWeb.DashboardLive
-      
-      igniter = 
+
+      igniter =
         Igniter.Project.Module.create_module(igniter, module_name, """
         use TestWeb, :live_view
-        
+
         def render(assigns) do
           ~H"<div>Test</div>"
         end
         """)
-      
-      {:ok, {_igniter, source, _zipper}} = 
+
+      {:ok, {_igniter, source, _zipper}} =
         Igniter.Project.Module.find_module(igniter, module_name)
-      
+
       actual_path = Rewrite.Source.get(source, :path)
-      
+
       assert actual_path == "lib/test_web/live/dashboard_live.ex"
     end
   end

@@ -66,15 +66,8 @@ defmodule Igniter.Util.Loading do
             |> elem(0)
           end)
           |> elem(0)
-        rescue
-          e ->
-            Process.put(:spinner_error, true)
-            Mix.shell(shell)
-            Mix.shell().info(Igniter.CaptureServer.device_output(:standard_error, ref))
-            reraise e, __STACKTRACE__
         catch
           kind, reason ->
-            File.write("catch_output", inspect({kind, reason}))
             Process.put(:spinner_error, true)
             Mix.shell(shell)
             Mix.shell().info(Igniter.CaptureServer.device_output(:standard_error, ref))
