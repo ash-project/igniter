@@ -167,11 +167,8 @@ defmodule Igniter.Code.Keyword do
                   {{:__block__, [], [key]}, {:__block__, [], [nil]}}
                 end
 
-              [] ->
-                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [nil]}}
-
               _current_node ->
-                {{:__block__, [], [key]}, {:__block__, [], [nil]}}
+                {{:__block__, [format: :keyword], [key]}, {:__block__, [], [nil]}}
             end
 
           {:ok, zipper} =
