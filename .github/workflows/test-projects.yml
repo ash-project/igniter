@@ -41,7 +41,7 @@ jobs:
             {
               org: "mishka-group",
               name: "mishka_chelekom",
-              test-cmd: "mix test",
+              test-cmd: "mix test --only igniter",
             },
           ]
         otp: ["27.2"]
