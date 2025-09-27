@@ -11,8 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project:
-          [
+        project: [
             {
               org: "ash-project",
               name: "ash",
@@ -37,6 +36,11 @@ jobs:
             {
               org: "oban-bg",
               name: "oban",
+              test-cmd: "mix test --only igniter",
+            },
+            {
+              org: "mishka-group",
+              name: "mishka_chelekom",
               test-cmd: "mix test --only igniter",
             },
           ]
