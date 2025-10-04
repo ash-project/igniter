@@ -191,7 +191,6 @@ defmodule Igniter.Installer.TaskHelpers do
       |> File.read!()
 
     new_contents =
-      new_contents =
       contents
       |> add_igniter_dep()
 

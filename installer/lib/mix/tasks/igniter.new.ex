@@ -318,7 +318,7 @@ defmodule Mix.Tasks.Igniter.New do
     end
   end
 
-  @flags ~w(example sup umbrella installer-version-check no-installer-version-check git)
+  @flags ~w(example sup umbrella installer-version-check no-installer-version-check git no-git)
   @flags_with_values ~w(install local with with-args module)
   @switches ~w(e)
   @switches_with_values ~w(i l)
