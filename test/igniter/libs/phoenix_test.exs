@@ -322,6 +322,104 @@ defmodule Igniter.Libs.PhoenixTest do
     end
   end
 
+  describe "select_endpoint/3" do
+    test "finds endpoints using Phoenix.Endpoint" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web/endpoint.ex", """
+               defmodule TestWeb.Endpoint do
+                 use Phoenix.Endpoint, otp_app: :test
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
+      assert endpoint == TestWeb.Endpoint
+    end
+
+    test "finds endpoints using SiteEncrypt.Phoenix.Endpoint" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web/endpoint.ex", """
+               defmodule TestWeb.Endpoint do
+                 use SiteEncrypt.Phoenix.Endpoint, otp_app: :test
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, endpoint} = Igniter.Libs.Phoenix.select_endpoint(igniter)
+      assert endpoint == TestWeb.Endpoint
+    end
+
+    test "finds multiple endpoints using both Phoenix.Endpoint and SiteEncrypt.Phoenix.Endpoint" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web/endpoint.ex", """
+               defmodule TestWeb.Endpoint do
+                 use Phoenix.Endpoint, otp_app: :test
+               end
+               """)
+               |> Igniter.create_new_file("lib/admin_web/endpoint.ex", """
+               defmodule AdminWeb.Endpoint do
+                 use SiteEncrypt.Phoenix.Endpoint, otp_app: :test
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, endpoints} =
+        Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
+          Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error ||
+            Igniter.Code.Module.move_to_use(zipper, SiteEncrypt.Phoenix.Endpoint) != :error
+        end)
+
+      assert TestWeb.Endpoint in endpoints
+      assert AdminWeb.Endpoint in endpoints
+      assert length(endpoints) == 2
+    end
+  end
+
+  describe "endpoints_for_router/2" do
+    test "finds Phoenix.Endpoint that uses a router" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web/router.ex", """
+               defmodule TestWeb.Router do
+                 use Phoenix.Router
+               end
+               """)
+               |> Igniter.create_new_file("lib/test_web/endpoint.ex", """
+               defmodule TestWeb.Endpoint do
+                 use Phoenix.Endpoint, otp_app: :test
+                 plug TestWeb.Router
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, endpoints} = Igniter.Libs.Phoenix.endpoints_for_router(igniter, TestWeb.Router)
+      assert TestWeb.Endpoint in endpoints
+    end
+
+    test "finds SiteEncrypt.Phoenix.Endpoint that uses a router" do
+      igniter =
+        assert test_project()
+               |> Igniter.create_new_file("lib/test_web/router.ex", """
+               defmodule TestWeb.Router do
+                 use Phoenix.Router
+               end
+               """)
+               |> Igniter.create_new_file("lib/test_web/endpoint.ex", """
+               defmodule TestWeb.Endpoint do
+                 use SiteEncrypt.Phoenix.Endpoint, otp_app: :test
+                 plug TestWeb.Router
+               end
+               """)
+               |> apply_igniter!()
+
+      {_igniter, endpoints} = Igniter.Libs.Phoenix.endpoints_for_router(igniter, TestWeb.Router)
+      assert TestWeb.Endpoint in endpoints
+    end
+  end
+
   describe "append_to_scope/4" do
     setup do
       router = """

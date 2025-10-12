@@ -91,18 +91,22 @@ defmodule Igniter.Libs.Phoenix do
           {Igniter.t(), list(module())}
   def endpoints_for_router(igniter, router) do
     Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, zipper ->
-      with {:ok, _} <- Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint),
-           {:ok, _} <-
-             Igniter.Code.Function.move_to_function_call_in_current_scope(
+      uses_endpoint? =
+        Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error ||
+          Igniter.Code.Module.move_to_use(zipper, SiteEncrypt.Phoenix.Endpoint) != :error
+
+      if uses_endpoint? do
+        case Igniter.Code.Function.move_to_function_call_in_current_scope(
                zipper,
                :plug,
                [1, 2],
                &Igniter.Code.Function.argument_equals?(&1, 0, router)
              ) do
-        true
+          {:ok, _} -> true
+          _ -> false
+        end
       else
-        _ ->
-          false
+        false
       end
     end)
   end
@@ -130,7 +134,8 @@ defmodule Igniter.Libs.Phoenix do
     else
       {igniter, endpoints} =
         Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
-          Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error
+          Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error ||
+            Igniter.Code.Module.move_to_use(zipper, SiteEncrypt.Phoenix.Endpoint) != :error
         end)
 
       case endpoints do
