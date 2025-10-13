@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.Module do
   @moduledoc "Codemods and utilities for interacting with modules"
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Util.Loading do
   @moduledoc """
   Utilities for doing operations with loading spinners.

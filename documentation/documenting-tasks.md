@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Zach Daniel
+
+SPDX-License-Identifier: MIT
+-->
+
 # Documenting Tasks
 
 Igniter.Scribe is a powerful tool that allows you to automatically generate documentation for your installers and mix tasks. Instead of writing static documentation that can quickly become outdated, you can create living documentation that shows exactly what your tasks do by running them in a test environment.

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Zach Daniel
+
+SPDX-License-Identifier: MIT
+-->
+
 # Upgrades
 
 Igniter provides a mix task `mix igniter.upgrade` that is a drop-in replacement for

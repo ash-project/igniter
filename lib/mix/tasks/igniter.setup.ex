@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Mix.Tasks.Igniter.Setup do
   @moduledoc "Creates or updates a .igniter.exs file, used to configure Igniter for end user's preferences."
 

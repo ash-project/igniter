@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Code.CommonTest do
   alias Igniter.Code.Common
   alias Sourceror.Zipper

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.Test do
   @moduledoc "Codemods and utilities for interacting with test and test support files"
   def ensure_test_support(igniter) do

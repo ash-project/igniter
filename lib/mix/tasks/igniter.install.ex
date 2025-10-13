@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
 
 Code.put_compiler_option(:ignore_module_conflict, true)

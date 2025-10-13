@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.MixProject do
   use Mix.Project
 
@@ -85,15 +89,19 @@ defmodule Igniter.MixProject do
 
   defp package do
     [
-      name: :igniter,
+      maintainers: [
+        "Zach Daniel <zach@zachdaniel.dev>"
+      ],
       licenses: ["MIT"],
       files: ~w(lib .formatter.exs mix.exs README* LICENSE*
       CHANGELOG* usage-rules.md),
       links: %{
-        GitHub: "https://github.com/ash-project/igniter",
-        Discord: "https://discord.gg/HTHRaaVPUc",
-        Website: "https://ash-hq.org",
-        Forum: "https://elixirforum.com/c/ash-framework-forum/"
+        "GitHub" => "https://github.com/ash-project/igniter",
+        "Changelog" => "https://github.com/ash-project/igniter/blob/main/CHANGELOG.md",
+        "Discord" => "https://discord.gg/HTHRaaVPUc",
+        "Website" => "https://ash-hq.org",
+        "Forum" => "https://elixirforum.com/c/ash-framework-forum/",
+        "REUSE Compliance" => "https://api.reuse.software/info/github.com/ash-project/igniter"
       }
     ]
   end

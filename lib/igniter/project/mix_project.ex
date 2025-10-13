@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.MixProject do
   @moduledoc """
   Codemods and utilities for updating project configuration in mix.exs.

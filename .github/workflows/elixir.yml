@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 name: CI
 on:
   push:
@@ -29,5 +33,6 @@ jobs:
       igniter-upgrade: false
       publish-docs: ${{ matrix.primary }}
       release: ${{ matrix.primary }}
+      reuse: true
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Mix.Tasks.Igniter.InitLibrary do
   @moduledoc """
   Set up a library to use Igniter. Adds the optional dependency

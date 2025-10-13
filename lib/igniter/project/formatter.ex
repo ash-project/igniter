@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.Formatter do
   @moduledoc "Codemods and utilities for interacting with `.formatter.exs` files"
   alias Igniter.Code.Common

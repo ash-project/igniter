@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Refactors.Rename do
   @moduledoc "Refactors for renaming things in a project"
   alias Igniter.Code.Common

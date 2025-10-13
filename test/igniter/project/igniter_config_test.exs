@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.IgniterConfigTest do
   use ExUnit.Case
   import Igniter.Test
@@ -7,8 +11,8 @@ defmodule Igniter.Project.IgniterConfigTest do
       test_project()
       |> Igniter.Project.IgniterConfig.add_extension(Foobar)
       |> assert_has_patch(".igniter.exs", """
-      9 - |  extensions: [],
-      9 + |  extensions: [{Foobar, []}],
+      13 - |  extensions: [],
+      13 + |  extensions: [{Foobar, []}],
       """)
     end
   end
@@ -18,8 +22,8 @@ defmodule Igniter.Project.IgniterConfigTest do
       test_project()
       |> Igniter.Project.IgniterConfig.dont_move_file_pattern(~r"abc")
       |> assert_has_patch(".igniter.exs", """
-      8 - |  dont_move_files: [~r"lib/mix"],
-      8 + |  dont_move_files: [~r/abc/, ~r"lib/mix"],
+      12 - |  dont_move_files: [~r"lib/mix"],
+      12 + |  dont_move_files: [~r/abc/, ~r"lib/mix"],
       """)
     end
 

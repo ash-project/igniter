@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.Deps do
   @moduledoc "Codemods and utilities for managing dependencies declared in mix.exs"
   require Igniter.Code.Common

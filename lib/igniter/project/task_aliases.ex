@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Project.TaskAliases do
   @moduledoc "Codemods and utilities for interacting with task aliases in the mix.exs file"
 

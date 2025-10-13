@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Util.BackwardsCompat do
   @moduledoc "Contains functions that we need to use that were introduced in newer Elixir versions."
 

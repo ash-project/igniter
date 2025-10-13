@@ -1,9 +1,17 @@
+<!--
+SPDX-FileCopyrightText: 2020 Zach Daniel
+
+SPDX-License-Identifier: MIT
+-->
+
 <img src="https://github.com/ash-project/igniter/blob/main/logos/igniter-logo-small.png?raw=true#gh-light-mode-only" alt="Logo Light" width="250">
 <img src="https://github.com/ash-project/igniter/blob/main/logos/igniter-logo-small.png?raw=true#gh-dark-mode-only" alt="Logo Dark" width="250">
 
 [![CI](https://github.com/ash-project/igniter/actions/workflows/elixir.yml/badge.svg)](https://github.com/ash-project/igniter/actions/workflows/elixir.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Hex version badge](https://img.shields.io/hexpm/v/igniter.svg)](https://hex.pm/packages/igniter)
 [![Hexdocs badge](https://img.shields.io/badge/docs-hexdocs-purple)](https://hexdocs.pm/igniter)
+[![REUSE status](https://api.reuse.software/badge/github.com/ash-project/igniter)](https://api.reuse.software/info/github.com/ash-project/igniter)
 
 # Igniter
 

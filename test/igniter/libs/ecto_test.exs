@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Libs.EctoTest do
   use ExUnit.Case, async: false
   import Igniter.Test

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Phoenix.Generator do
   @moduledoc false
   # Wrap Phx.New.Generator

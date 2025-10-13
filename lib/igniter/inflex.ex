@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Inflex do
   # Copy of Inflex.Pluralize, with fixes for OTP/28 from @warmwaffles
   # From https://github.com/warmwaffles/inflex/commit/cc8b7d32d2e9563d3c8ff92c4a85c8eb7c94b9d4

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 for {task_name, config} <- Igniter.Installer.TaskHelpers.tasks() do
   if !Code.ensure_loaded?(config.module) do
     defmodule config.module do
