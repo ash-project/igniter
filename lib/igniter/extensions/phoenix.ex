@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Extensions.Phoenix do
   @moduledoc """
   A phoenix extension for Igniter.

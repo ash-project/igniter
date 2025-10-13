@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Util.Debug do
   @moduledoc "Tools for debugging zippers."
   alias Sourceror.Zipper

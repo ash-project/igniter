@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Zach Daniel
+
+SPDX-License-Identifier: MIT
+-->
+
 # Releasing igniter
 
 This documents the method of releasing igniter. You first need access to both the hex package

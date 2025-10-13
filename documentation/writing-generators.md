@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Zach Daniel
+
+SPDX-License-Identifier: MIT
+-->
+
 # Writing Generators
 
 In `Igniter`, generators are done as a wrapper around `Mix.Task`, allowing them to be called individually or composed as part of a task.

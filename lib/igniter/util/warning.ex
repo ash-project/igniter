@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Util.Warning do
   @moduledoc "Utilities for emitting well formatted warnings"
   def warn_with_code_sample(igniter, message, code) do

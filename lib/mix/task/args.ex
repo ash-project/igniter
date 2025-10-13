@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Mix.Task.Args do
   @moduledoc """
   Command line arguments parsed when running an `Igniter.Mix.Task`.

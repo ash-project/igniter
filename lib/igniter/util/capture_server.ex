@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.CaptureServer do
   @moduledoc false
   @compile {:no_warn_undefined, Logger}

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Mix.Tasks.Igniter.MoveFiles do
   @moduledoc "Moves any relevant files to their 'correct' location."
   @shortdoc @moduledoc

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Mix.Task.Info do
   @moduledoc """
   Info for an `Igniter.Mix.Task`, returned from the `info/2` callback

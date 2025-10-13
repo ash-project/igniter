@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Scribe do
   @moduledoc """
   Contains functions for use with the `--scribe` option in Igniter.

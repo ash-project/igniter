@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Refactors.Elixir do
   @moduledoc "Refactors for changes in Elixir"
 

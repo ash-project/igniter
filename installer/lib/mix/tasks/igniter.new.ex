@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Mix.Tasks.Igniter.New do
   @moduledoc """
   Creates a new project using `mix new`, and adds `igniter` to the project.

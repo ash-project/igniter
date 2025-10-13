@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Installer.TaskHelpers do
   @moduledoc false
   @apps [:logger, :public_key, :ssl, :inets, :eex]

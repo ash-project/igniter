@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Mix.Task do
   @moduledoc """
   A behaviour for implementing a Mix task that is enriched to be composable with other Igniter tasks.

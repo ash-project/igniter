@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Zach Daniel
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Libs.Swoosh do
   @moduledoc "Codemods & utilities for working with Swoosh"
 

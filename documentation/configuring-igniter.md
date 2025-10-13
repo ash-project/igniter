@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2020 Zach Daniel
+
+SPDX-License-Identifier: MIT
+-->
+
 # Configuring Igniter
 
 This guide is for those who are _end-users_ of igniter, for example, using the generators provided by a library that are backed by igniter.
