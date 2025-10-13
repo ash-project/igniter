@@ -4,7 +4,7 @@ defmodule Mix.Tasks.Igniter.Phx.InstallTest do
 
   test "create files" do
     igniter = Igniter.compose_task(test_project(), "igniter.phx.install", ["my_app"])
-    assert Enum.count(igniter.rewrite.sources) == 47
+    assert Enum.count(igniter.rewrite.sources) == 49
   end
 
   test "inject config" do
