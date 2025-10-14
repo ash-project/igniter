@@ -1,6 +1,8 @@
 defmodule Igniter.Libs.Phoenix do
   @moduledoc "Codemods & utilities for working with Phoenix"
 
+  @endpoint_modules [Phoenix.Endpoint, SiteEncrypt.Phoenix.Endpoint]
+
   @doc """
   Returns the web module name for the current app
   """
@@ -92,8 +94,9 @@ defmodule Igniter.Libs.Phoenix do
   def endpoints_for_router(igniter, router) do
     Igniter.Project.Module.find_all_matching_modules(igniter, fn _module, zipper ->
       uses_endpoint? =
-        Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error ||
-          Igniter.Code.Module.move_to_use(zipper, SiteEncrypt.Phoenix.Endpoint) != :error
+        Enum.find_value(@endpoint_modules, fn endpoint_module ->
+          Igniter.Code.Module.move_to_use(zipper, endpoint_module) != :error
+        end)
 
       if uses_endpoint? do
         case Igniter.Code.Function.move_to_function_call_in_current_scope(
@@ -134,8 +137,9 @@ defmodule Igniter.Libs.Phoenix do
     else
       {igniter, endpoints} =
         Igniter.Project.Module.find_all_matching_modules(igniter, fn _mod, zipper ->
-          Igniter.Code.Module.move_to_use(zipper, Phoenix.Endpoint) != :error ||
-            Igniter.Code.Module.move_to_use(zipper, SiteEncrypt.Phoenix.Endpoint) != :error
+          Enum.find_value(@endpoint_modules, fn endpoint_module ->
+            Igniter.Code.Module.move_to_use(zipper, endpoint_module) != :error
+          end)
         end)
 
       case endpoints do
