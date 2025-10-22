@@ -211,7 +211,7 @@ defmodule Igniter.Code.List do
     end
   end
 
-  @doc "Moves to the list item matching the given predicate"
+  @doc "Applies the given function to every element of the list. The passed function must return `{:ok, zipper}` or `:error` When `map` returns, the Zipper will point to the final element of the list."
   @spec map(Zipper.t(), (Zipper.t() -> {:ok, Zipper.t()})) :: {:ok, Zipper.t()} | :error
   def map(zipper, fun) do
     # go into first list item
