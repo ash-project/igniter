@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 igniter contributors <https://github.com/ash-project/igniter/graphs.contributors>
+#
+# SPDX-License-Identifier: MIT
+
 defmodule Igniter.Code.ListTest do
   alias Igniter.Code
   alias Sourceror.Zipper
