@@ -53,6 +53,8 @@ In addition to providing tools for library authors to patch your code, common op
 
 ### Installation
 
+Igniter requires Elixir 1.15+, but 1.17+ is recommended for full compatibility.
+
 #### Standard Installation for end-users
 
 Add Igniter to an existing elixir project by adding it to your dependencies in `mix.exs`:
