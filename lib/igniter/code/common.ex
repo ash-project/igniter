@@ -310,7 +310,7 @@ defmodule Igniter.Code.Common do
   ## Options
 
   - `:placement` - `:after` | `:before`. Determines if the code goes `:after` or `:before` the current node. Defaults to `:after`.
-  - `:expand_env?` - boolean. Whether or not to read the current file to use it's aliases for added code. Defaults to `false`.
+  - `:expand_env?` - boolean. Whether or not to read the current file to use it's aliases for added code. Defaults to `true`. This option is a no-op on Elixir < 1.17.
 
   ## Example:
 
@@ -771,6 +771,8 @@ defmodule Igniter.Code.Common do
   @doc """
   Replaces full module names in `new_code` with any aliases for that
   module found in the `current_code` environment.
+
+  This function is a no-op on Elixir < 1.17.
   """
   def use_aliases(new_code, current_code) do
     case current_env(current_code) do
