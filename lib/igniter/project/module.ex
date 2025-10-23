@@ -147,7 +147,7 @@ defmodule Igniter.Project.Module do
 
   ## Options
 
-  - `:location` - A location type. See `t:location_type` for more.
+  - `:location` - A location type. See `t:location_type/0` for more.
   """
   def create_module(igniter, module_name, contents, opts \\ []) do
     contents =
