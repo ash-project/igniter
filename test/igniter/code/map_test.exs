@@ -55,5 +55,35 @@ defmodule Igniter.Code.Map.Test do
 
       assert {:ok, %{alpha: %{beta: %{gamma: :abc}}}} == Code.Common.expand_literal(zipper)
     end
+
+    test "inserts value into map if not present" do
+      {:ok, zipper} =
+        "%{hello: :world}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.put_in_map([:foo], :bar, fn _valuex -> flunk() end)
+
+      assert {:ok, %{hello: :world, foo: :bar}} ==
+               Code.Common.expand_literal(zipper)
+    end
+
+    test "inserts nested value into map if not present" do
+      {:ok, zipper} =
+        "%{hello: :world}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.put_in_map([:foo, :bar], :baz, fn _valuex -> flunk() end)
+
+      assert {:ok, %{hello: :world, foo: %{bar: :baz}}} ==
+               Code.Common.expand_literal(zipper)
+    end
+
+    test "inserts value into map if not present at nested position" do
+      {:ok, zipper} =
+        "%{alpha: %{beta: %{delta: :abd}}}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.put_in_map([:alpha, :beta, :gamma], :abc, fn _valuex -> flunk() end)
+
+      assert {:ok, %{alpha: %{beta: %{delta: :abd, gamma: :abc}}}} ==
+               Code.Common.expand_literal(zipper)
+    end
   end
 end
