@@ -98,42 +98,44 @@ defmodule Igniter.Code.Map do
          )}
 
       Common.node_matches_pattern?(zipper, {:%{}, _, _}) ->
-        zipper
-        |> Zipper.down()
-        |> Common.move_right(fn item ->
-          if Igniter.Code.Tuple.tuple?(item) do
-            case Igniter.Code.Tuple.tuple_elem(item, 0) do
-              {:ok, first_elem} ->
-                Common.nodes_equal?(first_elem, key)
+        Common.within(zipper, fn zipper ->
+          zipper
+          |> Zipper.down()
+          |> Common.move_right(fn item ->
+            if Igniter.Code.Tuple.tuple?(item) do
+              case Igniter.Code.Tuple.tuple_elem(item, 0) do
+                {:ok, first_elem} ->
+                  Common.nodes_equal?(first_elem, key)
 
-              :error ->
-                false
+                :error ->
+                  false
+              end
             end
+          end)
+          |> case do
+            :error ->
+              value = Common.use_aliases(value, zipper)
+
+              format = map_keys_format(zipper)
+
+              {:ok,
+               Zipper.append_child(
+                 zipper,
+                 {{:__block__, [format: format], [key]}, {:__block__, [], [value]}}
+               )}
+
+            {:ok, zipper} ->
+              zipper
+              |> Igniter.Code.Tuple.tuple_elem(1)
+              |> case do
+                {:ok, zipper} ->
+                  {:ok, updater.(zipper)}
+
+                :error ->
+                  :error
+              end
           end
         end)
-        |> case do
-          :error ->
-            value = Common.use_aliases(value, zipper)
-
-            format = map_keys_format(zipper)
-
-            {:ok,
-             Zipper.append_child(
-               zipper,
-               {{:__block__, [format: format], [key]}, {:__block__, [], [value]}}
-             )}
-
-          {:ok, zipper} ->
-            zipper
-            |> Igniter.Code.Tuple.tuple_elem(1)
-            |> case do
-              {:ok, zipper} ->
-                updater.(zipper)
-
-              :error ->
-                :error
-            end
-        end
 
       true ->
         :error

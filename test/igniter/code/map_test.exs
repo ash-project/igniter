@@ -24,5 +24,16 @@ defmodule Igniter.Code.Map.Test do
 
       assert {:ok, %{foo: :bar, hello: :world}} == Code.Common.expand_literal(zipper)
     end
+
+    test "replaces keys in map with the updater rather than the passed value" do
+      {:ok, zipper} =
+        "%{hello: :world}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.set_map_key(:hello, :this_value_is_ignored, fn %Zipper{node: :world} = zipper ->
+          Zipper.replace(zipper, :baz)
+        end)
+
+      assert {:ok, %{hello: :baz}} == Code.Common.expand_literal(zipper)
+    end
   end
 end
