@@ -35,7 +35,7 @@ defmodule Igniter.Code.Map do
         value = Common.use_aliases(value, zipper)
 
         {:ok,
-         Zipper.append_child(
+         Zipper.replace(
            zipper,
            mappify([key | rest], value)
          )}
