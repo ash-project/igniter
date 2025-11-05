@@ -12,6 +12,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.0](https://github.com/ash-project/igniter/compare/v0.6.30...v0.7.0) (2025-11-05)
+
+
+
+
+### Features:
+
+* Add support for SiteEncrypt.Phoenix.Endpoint detection (#339) by Herman verschooten
+
+### Bug Fixes:
+
+* `put_in_map`/`set_map_key` not setting keys properly (#348) by Nick Krichevsky
+
+* don't pass `--no-git` onto installers by Zach Daniel
+
+* `modify_config_code` twice with keyword values (#332) by grzuy
+
 ## [v0.6.30](https://github.com/ash-project/igniter/compare/v0.6.29...v0.6.30) (2025-09-25)
 
 
