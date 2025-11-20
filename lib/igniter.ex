@@ -156,7 +156,7 @@ defmodule Igniter do
     |> parse_igniter_config()
   end
 
-  def move_file(igniter, from, from, opts \\ [])
+  def move_file(igniter, from, to, opts \\ [])
   def move_file(igniter, from, from, _opts), do: igniter
 
   def move_file(igniter, from, to, opts) do
