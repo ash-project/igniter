@@ -78,4 +78,41 @@ defmodule Igniter.TestTest do
                    end
     end
   end
+
+  describe "assert_moves/3" do
+    test "passes when file is moved" do
+      test_project(files: %{"old.exs" => "content"})
+      |> Igniter.move_file("old.exs", "new.exs")
+      |> assert_moves("old.exs", "new.exs")
+    end
+
+    test "fails when file is not moved" do
+      assert_raise ExUnit.AssertionError,
+                   ~r/Expected \"old.exs\" to have been moved, but it was not.\n\n     No files were moved./,
+                   fn ->
+                     test_project(files: %{"old.exs" => "content"})
+                     |> assert_moves("old.exs", "new.exs")
+                   end
+    end
+
+    test "fails when different file is moved" do
+      assert_raise ExUnit.AssertionError,
+                   ~r/Expected \"one.exs\" to have been moved, but it was not.\n\n     The following files were moved:\n\n     \* two.exs\n         ↳ three.exs/,
+                   fn ->
+                     test_project(files: %{"one.exs" => "content", "two.exs" => "content"})
+                     |> Igniter.move_file("two.exs", "three.exs")
+                     |> assert_moves("one.exs", "three.exs")
+                   end
+    end
+
+    test "fails when file is not moved to a different location" do
+      assert_raise ExUnit.AssertionError,
+                   ~r/Expected \"old.exs\" to have been moved to:\n\n         new.exs\n\n     But it was moved to:\n\n         mature.exs/,
+                   fn ->
+                     test_project(files: %{"old.exs" => "content"})
+                     |> Igniter.move_file("old.exs", "mature.exs")
+                     |> assert_moves("old.exs", "new.exs")
+                   end
+    end
+  end
 end

@@ -201,6 +201,52 @@ defmodule Igniter.Test do
     igniter
   end
 
+  @doc """
+  Asserts that a file was moved to a specific location.
+
+  ## Example
+
+      test_project()
+      |> Igniter.move_file("lib/old_location.ex", "lib/new_location.ex")
+      |> assert_moves("lib/old_location.ex", "lib/new_location.ex")
+  """
+  @spec assert_moves(Igniter.t(), from :: String.t(), to: String.t()) :: Igniter.t()
+  def assert_moves(igniter, from, to) do
+    if Map.has_key?(igniter.moves, from) do
+      actual_to = Map.get(igniter.moves, from)
+
+      assert actual_to == to, """
+      Expected #{inspect(from)} to have been moved to:
+
+          #{to}
+
+      But it was moved to:
+
+          #{actual_to}
+      """
+    else
+      flunk("""
+      Expected #{inspect(from)} to have been moved, but it was not.
+      #{moved_files(igniter)}
+      """)
+    end
+
+    igniter
+  end
+
+  defp moved_files(igniter) do
+    if igniter.moves == %{} do
+      "\nNo files were moved."
+    else
+      files =
+        Enum.map_join(igniter.moves, "\n", fn {from, to} ->
+          "* #{from}\n    ↳ #{to}"
+        end)
+
+      "\nThe following files were moved:\n\n#{files}"
+    end
+  end
+
   def assert_rms(igniter, expected_paths) do
     actual_rms = Enum.sort(igniter.rms)
     expected_rms = Enum.sort(List.wrap(expected_paths))
