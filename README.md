@@ -13,6 +13,7 @@ SPDX-License-Identifier: MIT
 [![Hex version badge](https://img.shields.io/hexpm/v/igniter.svg)](https://hex.pm/packages/igniter)
 [![Hexdocs badge](https://img.shields.io/badge/docs-hexdocs-purple)](https://hexdocs.pm/igniter)
 [![REUSE status](https://api.reuse.software/badge/github.com/ash-project/igniter)](https://api.reuse.software/info/github.com/ash-project/igniter)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ash-project/igniter)
 
 # Igniter
 
