@@ -5,7 +5,6 @@
 defmodule Igniter.Project.Application do
   @moduledoc "Codemods and tools for working with Application modules."
 
-  require Igniter.Code.Common
   require Igniter.Code.Function
 
   alias Igniter.Code.Common

@@ -4,7 +4,6 @@
 
 defmodule Igniter.Project.Deps do
   @moduledoc "Codemods and utilities for managing dependencies declared in mix.exs"
-  require Igniter.Code.Common
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 

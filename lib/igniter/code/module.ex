@@ -8,8 +8,6 @@ defmodule Igniter.Code.Module do
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 
-  require Logger
-
   @doc "The module name prefix based on the mix project's module name"
   @deprecated "Use `Igniter.Project.Module.module_name_prefix/1` instead"
   @spec module_name_prefix() :: module()

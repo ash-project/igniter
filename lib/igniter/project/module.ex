@@ -5,7 +5,6 @@
 defmodule Igniter.Project.Module do
   @moduledoc "Codemods and utilities for interacting with modules"
 
-  require Igniter.Code.Common
   alias Igniter.Code.Common
   alias Sourceror.Zipper
   require Logger

@@ -6,7 +6,6 @@ defmodule Igniter.Code.Keyword do
   @moduledoc """
   Utilities for working with keyword.
   """
-  require Igniter.Code.Common
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 

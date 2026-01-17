@@ -21,8 +21,6 @@ defmodule Igniter.Mix.Task do
   alias Igniter.Mix.Task.Args
   alias Igniter.Mix.Task.Info
 
-  require Logger
-
   @doc """
   Whether or not it supports being run in the root of an umbrella project
 

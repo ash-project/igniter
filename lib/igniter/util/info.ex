@@ -25,7 +25,6 @@ defmodule Igniter.Util.Info do
 
   @known_only_keys Keyword.keys(@known_only_options)
 
-  require Logger
   alias Igniter.Mix.Task.Info
 
   def compose_install_and_validate!(
