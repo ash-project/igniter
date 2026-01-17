@@ -109,7 +109,7 @@ defmodule Igniter.RmTest do
 
       # File should still be in rms and should have an issue
       assert "lib/example.ex" in igniter.rms
-      assert length(igniter.issues) > 0
+      refute Enum.empty?(igniter.issues)
       assert Enum.any?(igniter.issues, &String.contains?(&1, "lib/example.ex"))
     end
 

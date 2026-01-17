@@ -278,7 +278,7 @@ defmodule Igniter.Project.MixProject do
   end
 
   defp ensure_path!(path) do
-    non_empty? = Enum.count(path) <= 0
+    non_empty? = Enum.empty?(path)
     all_atoms? = Enum.all?(path, &is_atom(&1))
 
     if non_empty? or not all_atoms? do
