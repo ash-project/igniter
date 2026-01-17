@@ -7,8 +7,6 @@ defmodule Igniter.Code.Function do
   Utilities for working with functions.
   """
 
-  require Igniter.Code.Common
-
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 

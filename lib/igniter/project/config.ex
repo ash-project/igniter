@@ -5,7 +5,6 @@
 defmodule Igniter.Project.Config do
   @moduledoc "Codemods and utilities for modifying Elixir config files."
 
-  require Igniter.Code.Function
   alias Igniter.Code.Common
   alias Sourceror.Zipper
 

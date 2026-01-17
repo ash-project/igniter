@@ -6,12 +6,10 @@ defmodule Igniter.Upgrades.Igniter do
   @moduledoc false
 
   alias Igniter.Code.Common
-  alias Igniter.Code.Function
   alias Igniter.Code.Module
   alias Sourceror.Zipper
 
   require Common
-  require Function
 
   @doc """
   Rewrites deprecated `igniter/2` callback to `igniter/1` if the module
