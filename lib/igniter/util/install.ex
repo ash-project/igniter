@@ -177,7 +177,8 @@ defmodule Igniter.Util.Install do
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
         Igniter.add_issue(
           igniter,
-          "Cannot run #{Mix.Task.task_name(task)} in an umbrella project."
+          "Cannot run #{Mix.Task.task_name(task)} in an umbrella project. " <>
+            "Please run the installer from within one of the sub-application folders instead."
         )
       else
         igniter
