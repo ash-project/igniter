@@ -453,7 +453,11 @@ defmodule Igniter do
 
     if Igniter.Mix.Task.igniter_task?(task) do
       if !task.supports_umbrella?() && Mix.Project.umbrella?() do
-        add_issue(igniter, "Cannot run #{inspect(task)} in an umbrella project.")
+        Igniter.add_issue(
+          igniter,
+          "Cannot run #{Mix.Task.task_name(task)} in an umbrella project. " <>
+            "Please run the installer from within one of the sub-application folders instead."
+        )
       else
         igniter
         |> Map.put(:task, Mix.Task.task_name(task))
