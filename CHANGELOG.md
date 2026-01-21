@@ -12,6 +12,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.1](https://github.com/ash-project/igniter/compare/v0.7.0...v0.7.1) (2026-01-21)
+
+
+
+
+### Improvements:
+
+* Add more context to umbrella error message (#358) by José Valim
+
 ## [v0.7.0](https://github.com/ash-project/igniter/compare/v0.6.30...v0.7.0) (2025-11-05)
 
 
