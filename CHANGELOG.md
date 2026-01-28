@@ -12,6 +12,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.2](https://github.com/ash-project/igniter/compare/v0.7.1...v0.7.2) (2026-01-28)
+
+
+
+
+### Bug Fixes:
+
+* don't fail on missing `.formatter.exs` by Zach Daniel
+
 ## [v0.7.1](https://github.com/ash-project/igniter/compare/v0.7.0...v0.7.1) (2026-01-21)
 
 
