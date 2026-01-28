@@ -234,6 +234,85 @@ defmodule IgniterTest do
     end
   end
 
+  describe "Igniter.new/0" do
+    test "does not crash when .formatter.exs is missing (issue #359)" do
+      tmp_dir = Path.join(System.tmp_dir!(), "igniter_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+
+      try do
+        # Create a minimal mix.exs without a .formatter.exs
+        File.write!(Path.join(tmp_dir, "mix.exs"), """
+        defmodule Test.MixProject do
+          use Mix.Project
+
+          def project do
+            [
+              app: :test,
+              version: "0.1.0",
+              elixir: "~> 1.17",
+              deps: []
+            ]
+          end
+        end
+        """)
+
+        File.mkdir_p!(Path.join(tmp_dir, "lib"))
+
+        File.write!(Path.join(tmp_dir, "lib/test.ex"), """
+        defmodule Test do
+        end
+        """)
+
+        # Change to the temp directory and try to create an Igniter
+        original_dir = File.cwd!()
+
+        try do
+          File.cd!(tmp_dir)
+
+          # This should not raise - it's the bug from issue #359
+          igniter = Igniter.new()
+          assert %Igniter{} = igniter
+
+          # Also verify we can make and apply changes
+          igniter =
+            igniter
+            |> Igniter.update_elixir_file("lib/test.ex", fn zipper ->
+              {:ok, Igniter.Code.Common.add_code(zipper, "def hello, do: :world")}
+            end)
+            |> Igniter.create_new_file("lib/test/new_file.ex", """
+            defmodule Test.NewFile do
+              def greet, do: "hello"
+            end
+            """)
+
+          # Verify the igniter has changes
+          assert Igniter.changed?(igniter)
+
+          # Verify we can prepare for write without crashing
+          prepared = Igniter.prepare_for_write(igniter)
+          assert prepared.issues == []
+
+          # Actually write the files and verify they were written
+          assert {:ok, _rewrite} = Rewrite.write_all(prepared.rewrite)
+
+          # Verify the files were written correctly
+          assert File.exists?(Path.join(tmp_dir, "lib/test/new_file.ex"))
+
+          updated_test_ex = File.read!(Path.join(tmp_dir, "lib/test.ex"))
+          assert updated_test_ex =~ "def hello, do: :world"
+
+          new_file_content = File.read!(Path.join(tmp_dir, "lib/test/new_file.ex"))
+          assert new_file_content =~ "defmodule Test.NewFile"
+          assert new_file_content =~ "def greet, do: \"hello\""
+        after
+          File.cd!(original_dir)
+        end
+      after
+        File.rm_rf!(tmp_dir)
+      end
+    end
+  end
+
   describe "delay_task" do
     test "adds delayed tasks correctly" do
       igniter =

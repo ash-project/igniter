@@ -141,15 +141,23 @@ defmodule Igniter do
   @doc "Returns a new igniter"
   @spec new() :: t()
   def new do
+    dot_formatter =
+      case Rewrite.DotFormatter.read(nil,
+             ignore_unknown_deps: true,
+             ignore_missing_sub_formatters: true
+           ) do
+        {:ok, dot_formatter} ->
+          dot_formatter
+
+        _ ->
+          Rewrite.DotFormatter.default()
+      end
+
     %__MODULE__{
       rewrite:
         Rewrite.new(
           hooks: [Igniter.Rewrite.DotFormatterUpdater],
-          dot_formatter:
-            Rewrite.DotFormatter.read!(nil,
-              ignore_unknown_deps: true,
-              ignore_missing_sub_formatters: true
-            )
+          dot_formatter: dot_formatter
         )
     }
     |> include_existing_elixir_file(".igniter.exs", required?: false)
