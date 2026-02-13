@@ -23,12 +23,12 @@ defmodule Mix.Tasks.YourLib.Gen.YourThing do
   def igniter(igniter) do
     [module_name | _] = igniter.args.argv
 
-    module_name = Igniter.Code.Module.parse(module_name)
-    path = Igniter.Code.Module.proper_location(module_name)
+    module_name = Igniter.Project.Module.parse(module_name)
+    path = Igniter.Project.Module.proper_location(igniter, module_name)
     app_name = Igniter.Project.Application.app_name(igniter)
 
     igniter
-    |> Igniter.create_new_elixir_file(path, """
+    |> Igniter.create_new_file(path, """
     defmodule #{inspect(module_name)} do
       use YourLib.Thing
 
