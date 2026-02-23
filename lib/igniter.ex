@@ -1230,11 +1230,7 @@ defmodule Igniter do
                     File.rm!(path)
                   end)
 
-                  igniter.tasks
-                  |> sort_tasks_with_delayed_last()
-                  |> Enum.each(fn {task, args} ->
-                    Mix.shell().cmd("mix #{task} #{Enum.join(args, " ")}")
-                  end)
+                  run_queued_tasks_with_tracking(igniter.tasks)
 
                   display_notices(igniter)
 
@@ -2121,5 +2117,51 @@ defmodule Igniter do
     |> then(fn {regular_tasks, delayed_tasks} ->
       regular_tasks ++ Enum.map(delayed_tasks, fn {task, args, :delayed} -> {task, args} end)
     end)
+  end
+
+  # Runs queued tasks with tracking. Builds a list of all tasks to run; as each
+  # completes successfully it is removed from the pending list. On compile or
+  # runtime failure, writes a concise error log (reason + tasks that did not run)
+  # and re-raises.
+  @doc false
+  def run_queued_tasks_with_tracking(tasks) when is_list(tasks) do
+    sort_tasks_with_delayed_last(tasks) |> run_next()
+  end
+
+  defp run_next([]), do: :ok
+
+  defp run_next([{task_name, args} | rest]) do
+    Mix.Task.reenable(task_name)
+    Mix.Task.run(task_name, args)
+    run_next(rest)
+  rescue
+    e ->
+      tasks_not_run = Enum.map([{task_name, args} | rest], &format_task_for_log/1)
+      error_log = format_task_failure_log(e, task_name, args, tasks_not_run)
+      Mix.shell().error("\n" <> error_log <> "\n")
+      reraise e, __STACKTRACE__
+  end
+
+  defp format_task_for_log({task_name, []}), do: "mix #{task_name}"
+  defp format_task_for_log({task_name, args}), do: "mix #{task_name} #{Enum.join(args, " ")}"
+
+  defp format_task_failure_log(exception, task_name, args, tasks_not_run) do
+    kind = failure_kind(exception)
+    task_invocation = format_task_for_log({task_name, args})
+    reason = Exception.message(exception)
+    lines = [
+      "Task failed (#{kind}): #{task_invocation}",
+      "Reason: #{reason}",
+      "",
+      "Tasks that did not run:",
+      Enum.map_join(tasks_not_run, "\n", fn t -> "  • " <> t end)
+    ]
+    Enum.join(lines, "\n")
+  end
+
+  defp failure_kind(%CompileError{}), do: "compile error"
+  defp failure_kind(%Mix.Error{}), do: "mix error"
+  defp failure_kind(_) do
+    "runtime error"
   end
 end
