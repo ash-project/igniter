@@ -20,16 +20,19 @@ defmodule IgniterTest do
   # Display functions use Mix.shell().info(). Use Process shell so output is sent to the process.
   defp assert_display_output(expected, fun) do
     Mix.shell(Mix.Shell.Process)
+
     try do
       fun.()
       # Collect all info messages (shell may send one or more chunks)
       payloads = collect_mix_shell_info([])
       assert payloads != [], "expected at least one Mix.shell().info message"
+
       formatted =
         payloads
         |> Enum.map(fn p -> Enum.map_join(List.wrap(p), "", &IO.ANSI.format/1) end)
         |> Enum.reject(&(&1 == ""))
         |> Enum.join("")
+
       assert formatted == expected
     after
       Mix.shell(Mix.Shell.IO)
@@ -172,15 +175,18 @@ defmodule IgniterTest do
 
       # display_notices sends two info() calls: list (display_list) then reminder line (info)
       Mix.shell(Mix.Shell.Process)
+
       try do
         Igniter.display_notices(igniter)
         payloads = collect_mix_shell_info([])
         assert payloads != []
+
         formatted =
           payloads
           |> Enum.map(fn p -> Enum.map_join(List.wrap(p), "", &IO.ANSI.format/1) end)
           |> Enum.reject(&(&1 == ""))
           |> Enum.join("")
+
         assert formatted =~ "Notices:"
         assert formatted =~ "notice 1"
         assert formatted =~ "notice 2"
@@ -383,6 +389,7 @@ defmodule IgniterTest do
         {"help", ["format"], :delayed},
         {"help", ["compile"]}
       ]
+
       assert :ok == Igniter.run_queued_tasks_with_tracking(tasks_with_delayed)
     end
 

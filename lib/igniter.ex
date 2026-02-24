@@ -2149,6 +2149,7 @@ defmodule Igniter do
     kind = failure_kind(exception)
     task_invocation = format_task_for_log({task_name, args})
     reason = Exception.message(exception)
+
     lines = [
       "Task failed (#{kind}): #{task_invocation}",
       "Reason: #{reason}",
@@ -2156,11 +2157,13 @@ defmodule Igniter do
       "Tasks that did not run:",
       Enum.map_join(tasks_not_run, "\n", fn t -> "  • " <> t end)
     ]
+
     Enum.join(lines, "\n")
   end
 
   defp failure_kind(%CompileError{}), do: "compile error"
   defp failure_kind(%Mix.Error{}), do: "mix error"
+
   defp failure_kind(_) do
     "runtime error"
   end
