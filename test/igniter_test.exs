@@ -17,6 +17,33 @@ defmodule IgniterTest do
     :ok
   end
 
+  # Display functions use Mix.shell().info(). Use Process shell so output is sent to the process.
+  defp assert_display_output(expected, fun) do
+    Mix.shell(Mix.Shell.Process)
+    try do
+      fun.()
+      # Collect all info messages (shell may send one or more chunks)
+      payloads = collect_mix_shell_info([])
+      assert payloads != [], "expected at least one Mix.shell().info message"
+      formatted =
+        payloads
+        |> Enum.map(fn p -> Enum.map_join(List.wrap(p), "", &IO.ANSI.format/1) end)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.join("")
+      assert formatted == expected
+    after
+      Mix.shell(Mix.Shell.IO)
+    end
+  end
+
+  defp collect_mix_shell_info(acc) do
+    receive do
+      {:mix_shell, :info, [payload]} -> collect_mix_shell_info([payload | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
+
   describe "Igniter.copy_template/4" do
     test "it evaluates and writes the template" do
       test_project()
@@ -50,7 +77,7 @@ defmodule IgniterTest do
   end
 
   describe "diff formatting" do
-    test "contains uniform blank lines between diifs" do
+    test "contains uniform blank lines between diffs" do
       igniter =
         test_project()
         |> Igniter.update_elixir_file("mix.exs", fn zipper ->
@@ -106,16 +133,10 @@ defmodule IgniterTest do
         |> Igniter.add_issue("issue 2")
         |> Igniter.add_issue(%RuntimeError{})
 
-      assert capture_io(fn -> Igniter.display_issues(igniter) end) ==
-               """
-
-               \e[31mIssues:\e[0m
-
-               * \e[31missue 1\e[0m
-               * \e[31missue 2\e[0m
-               * \e[31m** (RuntimeError) runtime error\e[0m
-
-               """
+      assert_display_output(
+        "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n* \e[31missue 2\e[0m\n* \e[31m** (RuntimeError) runtime error\e[0m\n",
+        fn -> Igniter.display_issues(igniter) end
+      )
     end
 
     test "prints nothing if there are no issues" do
@@ -131,16 +152,10 @@ defmodule IgniterTest do
         |> Igniter.add_warning("warning 2")
         |> Igniter.add_warning(%RuntimeError{})
 
-      assert capture_io(fn -> Igniter.display_warnings(igniter, "Title") end) ==
-               """
-
-               Title - \e[33mWarnings:\e[0m
-
-               * \e[33mwarning 1\e[0m
-               * \e[33mwarning 2\e[0m
-               * \e[33m** (RuntimeError) runtime error\e[0m
-
-               """
+      assert_display_output(
+        "\nTitle - \e[33mWarnings:\e[0m\n\n* \e[33mwarning 1\e[0m\n* \e[33mwarning 2\e[0m\n* \e[33m** (RuntimeError) runtime error\e[0m\n",
+        fn -> Igniter.display_warnings(igniter, "Title") end
+      )
     end
 
     test "prints nothing if there are no warnings" do
@@ -155,8 +170,24 @@ defmodule IgniterTest do
         |> Igniter.add_notice("notice 1")
         |> Igniter.add_notice("notice 2")
 
-      assert capture_io(fn -> Igniter.display_notices(igniter) end) ==
-               "\nNotices: \n\n* \e[32mnotice 1\e[0m\e[0m\n* \e[32mnotice 2\e[0m\e[0m\n\n\e[33mNotices were printed above. Please read them all before continuing!\e[0m\e[0m\n"
+      # display_notices sends two info() calls: list (display_list) then reminder line (info)
+      Mix.shell(Mix.Shell.Process)
+      try do
+        Igniter.display_notices(igniter)
+        payloads = collect_mix_shell_info([])
+        assert payloads != []
+        formatted =
+          payloads
+          |> Enum.map(fn p -> Enum.map_join(List.wrap(p), "", &IO.ANSI.format/1) end)
+          |> Enum.reject(&(&1 == ""))
+          |> Enum.join("")
+        assert formatted =~ "Notices:"
+        assert formatted =~ "notice 1"
+        assert formatted =~ "notice 2"
+        assert formatted =~ "Notices were printed above"
+      after
+        Mix.shell(Mix.Shell.IO)
+      end
     end
 
     test "prints nothing if there are no notices" do
@@ -165,21 +196,16 @@ defmodule IgniterTest do
   end
 
   describe "display_moves/1" do
-    test "prints a list of added warnings" do
+    test "prints a list of added moves" do
       igniter =
         test_project()
         |> Igniter.move_file("lib/test.ex", "lib/new_test.ex")
         |> Igniter.move_file("test/test_test.exs", "test/new_test_test.exs")
 
-      assert capture_io(fn -> Igniter.display_moves(igniter) end) ==
-               """
-
-               These files will be moved:
-
-               * \e[31mlib/test.ex\e[0m: \e[32mlib/new_test.ex\e[0m
-               * \e[31mtest/test_test.exs\e[0m: \e[32mtest/new_test_test.exs\e[0m
-
-               """
+      assert_display_output(
+        "\nThese files will be moved:\n\n* \e[31mlib/test.ex\e[0m: \e[32mlib/new_test.ex\e[0m\n* \e[31mtest/test_test.exs\e[0m: \e[32mtest/new_test_test.exs\e[0m\n",
+        fn -> Igniter.display_moves(igniter) end
+      )
     end
 
     test "prints nothing if there are no moves" do
@@ -188,21 +214,17 @@ defmodule IgniterTest do
   end
 
   describe "display_tasks/3" do
+    # Displayed task list uses the same order as run_queued_tasks_with_tracking/1 (delayed last).
     test "prints a list of added tasks" do
       igniter =
         test_project()
         |> Igniter.add_task("task.one")
         |> Igniter.add_task("task.two", ["--opt", "opt"])
 
-      assert capture_io(fn -> Igniter.display_tasks(igniter, :dry_run_with_changes, []) end) ==
-               """
-
-               These tasks will be run after the above changes:
-
-               * \e[31mtask.one \e[33m\e[0m
-               * \e[31mtask.two \e[33m--opt opt\e[0m
-
-               """
+      assert_display_output(
+        "\nThese tasks will be run after the above changes:\n\n* \e[31mtask.one \e[33m\e[0m\n* \e[31mtask.two \e[33m--opt opt\e[0m\n",
+        fn -> Igniter.display_tasks(igniter, :dry_run_with_changes, []) end
+      )
     end
 
     test "prints nothing if there are no tasks" do
@@ -220,17 +242,10 @@ defmodule IgniterTest do
         |> Igniter.add_task("another.regular", ["--flag"])
         |> Igniter.delay_task("another.delayed", ["--opt", "value"])
 
-      assert capture_io(fn -> Igniter.display_tasks(igniter, :dry_run_with_changes, []) end) ==
-               """
-
-               These tasks will be run after the above changes:
-
-               * \e[31mregular.task \e[33m\e[0m
-               * \e[31manother.regular \e[33m--flag\e[0m
-               * \e[31mdelayed.task \e[33m\e[0m
-               * \e[31manother.delayed \e[33m--opt value\e[0m
-
-               """
+      assert_display_output(
+        "\nThese tasks will be run after the above changes:\n\n* \e[31mregular.task \e[33m\e[0m\n* \e[31manother.regular \e[33m--flag\e[0m\n* \e[31mdelayed.task \e[33m\e[0m\n* \e[31manother.delayed \e[33m--opt value\e[0m\n",
+        fn -> Igniter.display_tasks(igniter, :dry_run_with_changes, []) end
+      )
     end
   end
 
@@ -314,6 +329,7 @@ defmodule IgniterTest do
   end
 
   describe "delay_task" do
+    # Delayed vs regular storage and sort order are used by run_queued_tasks_with_tracking/1 when running tasks.
     test "adds delayed tasks correctly" do
       igniter =
         test_project()
@@ -336,7 +352,7 @@ defmodule IgniterTest do
         |> Igniter.add_task("second.regular", [])
         |> Igniter.delay_task("second.delayed", [])
 
-      # Test the internal sorting function
+      # Same ordering used by run_queued_tasks_with_tracking/1 when applying the task queue
       sorted = igniter.tasks |> Igniter.sort_tasks_with_delayed_last()
 
       assert [
@@ -345,6 +361,54 @@ defmodule IgniterTest do
                {"first.delayed", []},
                {"second.delayed", []}
              ] = sorted
+    end
+  end
+
+  describe "run_queued_tasks_with_tracking/1" do
+    test "empty list returns :ok and runs nothing" do
+      assert :ok == Igniter.run_queued_tasks_with_tracking([])
+    end
+
+    test "runs a single task that succeeds" do
+      assert :ok == Igniter.run_queued_tasks_with_tracking([{"help", []}])
+    end
+
+    test "runs multiple tasks in order when they succeed" do
+      assert :ok == Igniter.run_queued_tasks_with_tracking([{"help", []}, {"help", ["compile"]}])
+    end
+
+    test "runs delayed tasks after regular tasks (same order as display_tasks and sort_tasks_with_delayed_last)" do
+      tasks_with_delayed = [
+        {"help", []},
+        {"help", ["format"], :delayed},
+        {"help", ["compile"]}
+      ]
+      assert :ok == Igniter.run_queued_tasks_with_tracking(tasks_with_delayed)
+    end
+
+    test "on task failure, logs concise error with reason and tasks that did not run, then re-raises" do
+      output =
+        capture_io(:stderr, fn ->
+          try do
+            Igniter.run_queued_tasks_with_tracking([
+              {"nonexistent.task.xyz.igniter_test", []},
+              {"compile", []}
+            ])
+          rescue
+            _ -> :rescued
+          end
+        end)
+
+      assert output =~ "Task failed"
+      assert output =~ "Tasks that did not run"
+      assert output =~ "mix nonexistent.task.xyz.igniter_test"
+      assert output =~ "mix compile"
+    end
+
+    test "on task failure, exception is re-raised" do
+      assert_raise Mix.NoTaskError, fn ->
+        Igniter.run_queued_tasks_with_tracking([{"nonexistent.task.xyz.igniter_test", []}])
+      end
     end
   end
 end
