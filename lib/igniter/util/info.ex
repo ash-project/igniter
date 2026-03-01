@@ -14,13 +14,14 @@ defmodule Igniter.Util.Info do
   # I don't have time to fix this right now, nor can I think of a good way to actually
   # do it. So for now, this ridiculous hack will have to do :)
   @known_only_options [
-    smokestack: [:test],
-    mishka_chelekom: [:dev],
-    mneme: [:dev, :test],
-    usage_rules: [:dev],
     git_ops: [:dev],
     live_debugger: [:dev],
-    tidewave: [:dev]
+    mishka_chelekom: [:dev],
+    mneme: [:dev, :test],
+    phx_install: [:dev],
+    smokestack: [:test],
+    tidewave: [:dev],
+    usage_rules: [:dev]
   ]
 
   @known_only_keys Keyword.keys(@known_only_options)
