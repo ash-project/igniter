@@ -12,6 +12,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.4](https://github.com/ash-project/igniter/compare/v0.7.3...v0.7.4) (2026-03-10)
+
+
+
+
+### Improvements:
+
+* error messages for task compilation (#364) by celeste-wahlquist
+
 ## [v0.7.3](https://github.com/ash-project/igniter/compare/v0.7.2...v0.7.3) (2026-03-04)
 
 
