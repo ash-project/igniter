@@ -131,7 +131,11 @@ defmodule Igniter.Code.Map do
               |> Igniter.Code.Tuple.tuple_elem(1)
               |> case do
                 {:ok, zipper} ->
-                  {:ok, updater.(zipper)}
+                  case updater.(zipper) do
+                    {:ok, zipper} -> {:ok, zipper}
+                    %Zipper{} = zipper -> {:ok, zipper}
+                    other -> other
+                  end
 
                 :error ->
                   :error
