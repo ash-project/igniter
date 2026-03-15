@@ -371,6 +371,11 @@ defmodule IgniterTest do
   end
 
   describe "run_queued_tasks_with_tracking/1" do
+    setup do
+      Mix.shell(Mix.Shell.Process)
+      on_exit(fn -> Mix.shell(Mix.Shell.IO) end)
+    end
+
     test "empty list returns :ok and runs nothing" do
       assert :ok == Igniter.run_queued_tasks_with_tracking([])
     end
@@ -393,29 +398,19 @@ defmodule IgniterTest do
       assert :ok == Igniter.run_queued_tasks_with_tracking(tasks_with_delayed)
     end
 
-    test "on task failure, logs concise error with reason and tasks that did not run, then re-raises" do
-      output =
-        capture_io(:stderr, fn ->
-          try do
-            Igniter.run_queued_tasks_with_tracking([
-              {"nonexistent.task.xyz.igniter_test", []},
-              {"compile", []}
-            ])
-          rescue
-            _ -> :rescued
-          end
-        end)
+    test "on task failure, logs error with task info and tasks that did not run, then raises" do
+      assert_raise Mix.Error, fn ->
+        Igniter.run_queued_tasks_with_tracking([
+          {"nonexistent.task.xyz.igniter_test", []},
+          {"compile", []}
+        ])
+      end
 
+      assert_received {:mix_shell, :error, [output]}
       assert output =~ "Task failed"
       assert output =~ "Tasks that did not run"
       assert output =~ "mix nonexistent.task.xyz.igniter_test"
       assert output =~ "mix compile"
-    end
-
-    test "on task failure, exception is re-raised" do
-      assert_raise Mix.NoTaskError, fn ->
-        Igniter.run_queued_tasks_with_tracking([{"nonexistent.task.xyz.igniter_test", []}])
-      end
     end
   end
 end
