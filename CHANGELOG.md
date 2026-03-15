@@ -12,6 +12,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.6](https://github.com/ash-project/igniter/compare/v0.7.5...v0.7.6) (2026-03-15)
+
+
+
+
+### Bug Fixes:
+
+* run tasks with `Mix.shell().cmd/1` to avoid state issues by Zach Daniel
+
 ## [v0.7.5](https://github.com/ash-project/igniter/compare/v0.7.4...v0.7.5) (2026-03-15)
 
 
