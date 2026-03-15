@@ -2132,14 +2132,7 @@ defmodule Igniter do
 
   defp run_next([{task_name, args} | rest]) do
     Mix.Task.reenable(task_name)
-
-    # Re-enable compile and related tasks so that queued tasks which
-    # invoke `Mix.Task.run("compile")` (e.g. `ash.codegen`) actually
-    # trigger a fresh compilation of newly written source files.
-    # Without this, compile is a no-op because it already ran earlier
-    # in the igniter pipeline before the new files were written to disk.
     Enum.each(["compile", "app.config", "loadpaths"], &Mix.Task.reenable/1)
-
     Mix.Task.run(task_name, args)
     run_next(rest)
   rescue
