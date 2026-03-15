@@ -698,6 +698,49 @@ defmodule Igniter.Test do
     igniter
   end
 
+  @doc """
+  Asserts that a file has been created and allows testing its contents using a function.
+
+  The function will be called with the file contents as its argument, allowing you
+  to make assertions about the file's content using pattern matching or other tests.
+
+  ## Examples
+
+      igniter
+      |> assert_creates_file("mix.exs", fn file ->
+        assert file =~ ~r/def name.*"Test Project"/s
+        assert file =~ ~r/def description.*"TODO: write a proper description"/s
+        assert file =~ ~r/def docs.*main: "readme", extras: \\["README.md"\\]/s
+      end)
+
+  """
+  defmacro assert_creates_file(igniter, path, fun) do
+    quote bind_quoted: [igniter: igniter, path: path, fun: fun] do
+      assert source = igniter.rewrite.sources[path],
+             """
+             Expected #{inspect(path)} to have been created, but it was not.
+             #{Igniter.Test.created_files(igniter)}
+             """
+
+      assert source.from == :string,
+             """
+             Expected #{inspect(path)} to have been created, but it already existed.
+             #{Igniter.Test.created_files(igniter)}
+             """
+
+      actual_content = Rewrite.Source.get(source, :content)
+      
+      try do
+        fun.(actual_content)
+      rescue
+        error ->
+          reraise error, __STACKTRACE__
+      end
+
+      igniter
+    end
+  end
+
   @doc false
   def created_files(igniter) do
     igniter.rewrite
