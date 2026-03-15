@@ -2132,6 +2132,7 @@ defmodule Igniter do
 
   defp run_next([{task_name, args} | rest]) do
     Mix.Task.reenable(task_name)
+    Enum.each(["compile", "app.config", "loadpaths"], &Mix.Task.reenable/1)
     Mix.Task.run(task_name, args)
     run_next(rest)
   rescue
