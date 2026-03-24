@@ -306,50 +306,79 @@ defmodule Igniter.Project.Application do
                end
              ),
            {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1) do
-        if opts[:force?] do
-          insert_child(zipper, to_supervise, opts)
-        else
-          case Igniter.Code.List.move_to_list_item(zipper, fn item ->
-                 case extract_child_module(item) do
-                   {:ok, module} -> Igniter.Code.Common.nodes_equal?(module, to_supervise_module)
-                   :error -> false
-                 end
-               end) do
-            {:ok, zipper} ->
-              if updater = opts[:opts_updater] do
-                zipper =
-                  if Igniter.Code.Tuple.tuple?(zipper) do
-                    zipper
-                  else
-                    Zipper.replace(zipper, {zipper.node, []})
-                  end
-
-                {:ok, zipper} = Igniter.Code.Tuple.tuple_elem(zipper, 1)
-
-                updater.(zipper)
-              else
-                {:ok, zipper}
-              end
-
-            :error ->
-              insert_child(zipper, to_supervise, opts)
-          end
-        end
+        add_child_to_list(zipper, to_supervise, to_supervise_module, opts)
       else
         _ ->
-          to_supervise =
-            case to_supervise do
-              module when is_atom(module) -> inspect(module)
-              {module, opts} -> "{#{inspect(module)}, #{Macro.to_string(opts)}}"
-            end
+          with {:ok, zipper} <- Igniter.Code.Function.move_to_def(zipper, :start, 2),
+               {:ok, zipper} <-
+                 Igniter.Code.Function.move_to_function_call_in_current_scope(
+                   zipper,
+                   :=,
+                   [2],
+                   fn call ->
+                     Igniter.Code.Function.argument_matches_pattern?(
+                       call,
+                       0,
+                       {:children, _, context} when is_atom(context)
+                     ) &&
+                       Igniter.Code.Function.argument_matches_pattern?(
+                         call,
+                         1,
+                         {:++, _, [{:__block__, _, [v]}, _]} when is_list(v)
+                       )
+                   end
+                 ),
+               {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 1),
+               {:ok, zipper} <- Igniter.Code.Function.move_to_nth_argument(zipper, 0) do
+            add_child_to_list(zipper, to_supervise, to_supervise_module, opts)
+          else
+            _ ->
+              to_supervise =
+                case to_supervise do
+                  module when is_atom(module) -> inspect(module)
+                  {module, opts} -> "{#{inspect(module)}, #{Macro.to_string(opts)}}"
+                end
 
-          {:warning,
-           """
-           Could not find a `children = [...]` assignment in the `start` function of the `#{inspect(application)}` module.
-           Please ensure that #{to_supervise} is added started by the application `#{inspect(application)}` manually.
-           """}
+              {:warning,
+               """
+               Could not find a `children = [...]` assignment in the `start` function of the `#{inspect(application)}` module.
+               Please ensure that #{to_supervise} is added started by the application `#{inspect(application)}` manually.
+               """}
+          end
       end
     end)
+  end
+
+  defp add_child_to_list(zipper, to_supervise, to_supervise_module, opts) do
+    if opts[:force?] do
+      insert_child(zipper, to_supervise, opts)
+    else
+      case Igniter.Code.List.move_to_list_item(zipper, fn item ->
+             case extract_child_module(item) do
+               {:ok, module} -> Igniter.Code.Common.nodes_equal?(module, to_supervise_module)
+               :error -> false
+             end
+           end) do
+        {:ok, zipper} ->
+          if updater = opts[:opts_updater] do
+            zipper =
+              if Igniter.Code.Tuple.tuple?(zipper) do
+                zipper
+              else
+                Zipper.replace(zipper, {zipper.node, []})
+              end
+
+            {:ok, zipper} = Igniter.Code.Tuple.tuple_elem(zipper, 1)
+
+            updater.(zipper)
+          else
+            {:ok, zipper}
+          end
+
+        :error ->
+          insert_child(zipper, to_supervise, opts)
+      end
+    end
   end
 
   defp insert_child(zipper, child, opts) do

@@ -225,6 +225,77 @@ defmodule Igniter.Project.ApplicationTest do
       + |    children = [{Foo, [name: Foo.One]}, {Foo, [name: Foo.Two]}]
       """)
     end
+
+    test "adds a child when children list uses ++ concatenation" do
+      test_project(
+        files: %{
+          "lib/test/application.ex" => """
+          defmodule Test.Application do
+            use Application
+
+            @impl true
+            def start(_type, _args) do
+              children =
+                [
+                ] ++ target_children()
+
+              opts = [strategy: :one_for_one, name: Test.Supervisor]
+              Supervisor.start_link(children, opts)
+            end
+
+            if Mix.target() == :host do
+              defp target_children do
+                []
+              end
+            else
+              defp target_children do
+                []
+              end
+            end
+          end
+          """
+        }
+      )
+      |> Igniter.Project.MixProject.update(:application, [:mod], fn _zipper ->
+        {:ok, {:code, "{Test.Application, []}"}}
+      end)
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> assert_has_patch("lib/test/application.ex", """
+      7  7   |      [
+         8 + |        Foo
+      8  9   |      ] ++ target_children()
+      """)
+    end
+
+    test "doesn't add a duplicate when children list uses ++ concatenation" do
+      test_project(
+        files: %{
+          "lib/test/application.ex" => """
+          defmodule Test.Application do
+            use Application
+
+            @impl true
+            def start(_type, _args) do
+              children =
+                [
+                  Foo
+                ] ++ target_children()
+
+              opts = [strategy: :one_for_one, name: Test.Supervisor]
+              Supervisor.start_link(children, opts)
+            end
+          end
+          """
+        }
+      )
+      |> Igniter.Project.MixProject.update(:application, [:mod], fn _zipper ->
+        {:ok, {:code, "{Test.Application, []}"}}
+      end)
+      |> apply_igniter!()
+      |> Igniter.Project.Application.add_new_child(Foo)
+      |> assert_unchanged()
+    end
   end
 
   describe "app_name/1" do
