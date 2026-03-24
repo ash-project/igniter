@@ -12,6 +12,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.7](https://github.com/ash-project/igniter/compare/v0.7.6...v0.7.7) (2026-03-24)
+
+
+
+
+### Bug Fixes:
+
+* handle `children = [...] ++ expr` in `add_new_child` (#368) by James Harton
+
 ## [v0.7.6](https://github.com/ash-project/igniter/compare/v0.7.5...v0.7.6) (2026-03-15)
 
 
