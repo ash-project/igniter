@@ -318,7 +318,8 @@ defmodule Igniter.Project.Module do
     with {:miss, igniter} <- check_module_index(igniter, module_name),
          {:miss, igniter} <- try_compiled_source(igniter, module_name),
          {:miss, igniter} <- try_conventional_path(igniter, module_name),
-         {:miss, igniter, searched} <- try_filename_match(igniter, module_name, manifest_searched),
+         {:miss, igniter, searched} <-
+           try_filename_match(igniter, module_name, manifest_searched),
          {:miss, igniter, searched} <- try_directory_search(igniter, module_name, searched),
          {:miss, igniter} <- try_full_scan(igniter, module_name, searched) do
       {:error, igniter}
@@ -711,7 +712,9 @@ defmodule Igniter.Project.Module do
   defp evict_module_index(igniter, module_name) do
     case get_in(igniter.assigns, [:private, :module_index]) do
       index when is_map(index) ->
-        private = Map.put(igniter.assigns[:private], :module_index, Map.delete(index, module_name))
+        private =
+          Map.put(igniter.assigns[:private], :module_index, Map.delete(index, module_name))
+
         %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
 
       _ ->
