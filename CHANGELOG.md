@@ -12,6 +12,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.7.9](https://github.com/ash-project/igniter/compare/v0.7.8...v0.7.9) (2026-04-11)
+
+
+
+
+### Bug Fixes:
+
+* use beam index not private manifest to initialize module index by Zach Daniel
+
 ## [v0.7.8](https://github.com/ash-project/igniter/compare/v0.7.7...v0.7.8) (2026-04-11)
 
 
