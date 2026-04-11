@@ -165,7 +165,12 @@ defmodule Igniter.Project.Module do
           path
       end
 
-    Igniter.create_new_file(igniter, location, contents)
+    igniter
+    |> Igniter.create_new_file(location, contents)
+    |> put_module_index(
+      module_name,
+      Igniter.Util.BackwardsCompat.relative_to_cwd(location, force: true)
+    )
   end
 
   @doc "Checks if a module is defined somewhere in the project. The returned igniter should not be discarded."
@@ -291,7 +296,37 @@ defmodule Igniter.Project.Module do
   @spec find_module(Igniter.t(), module()) ::
           {:ok, {Igniter.t(), Rewrite.Source.t(), Zipper.t()}} | {:error, Igniter.t()}
   def find_module(igniter, module_name) do
-    check_first =
+    with {:miss, igniter} <- check_module_index(igniter, module_name),
+         {:miss, igniter} <- try_compiled_source(igniter, module_name),
+         {:miss, igniter} <- try_conventional_path(igniter, module_name),
+         {:miss, igniter, searched} <- try_filename_match(igniter, module_name),
+         {:miss, igniter, searched} <- try_directory_search(igniter, module_name, searched),
+         {:miss, igniter} <- try_full_scan(igniter, module_name, searched) do
+      {:error, igniter}
+    else
+      {:ok, {igniter, source, zipper}} ->
+        {:ok, {put_module_index(igniter, module_name, source.path), source, zipper}}
+    end
+  end
+
+  defp check_module_index(igniter, module_name) do
+    case get_in(igniter.assigns, [:private, :module_index, module_name]) do
+      path when is_binary(path) ->
+        case check_file_for_module(igniter, path, module_name) do
+          {:ok, {igniter, source, zipper}} ->
+            {:ok, {log_find_module_strategy(igniter, module_name, :module_index), source, zipper}}
+
+          _ ->
+            {:miss, igniter}
+        end
+
+      _ ->
+        {:miss, igniter}
+    end
+  end
+
+  defp try_compiled_source(igniter, module_name) do
+    path =
       with true <- Code.ensure_loaded?(module_name),
            source when not is_nil(source) <- module_name.module_info()[:compile][:source],
            path =
@@ -302,38 +337,226 @@ defmodule Igniter.Project.Module do
         _ -> nil
       end
 
-    with check_first when not is_nil(check_first) <- check_first,
-         igniter <- Igniter.include_existing_file(igniter, check_first),
-         {:ok, source} <- Rewrite.source(igniter.rewrite, check_first),
-         {:ok, zipper} <-
-           source
+    case path do
+      nil ->
+        {:miss, igniter}
+
+      path ->
+        case check_file_for_module(igniter, path, module_name) do
+          {:ok, {igniter, source, zipper}} ->
+            {:ok,
+             {log_find_module_strategy(igniter, module_name, :compiled_source), source, zipper}}
+
+          _ ->
+            {:miss, igniter}
+        end
+    end
+  end
+
+  defp try_conventional_path(igniter, module_name) do
+    paths = conventional_paths(igniter, module_name)
+
+    Enum.reduce_while(paths, {:miss, igniter}, fn path, {:miss, igniter} ->
+      case check_file_for_module(igniter, path, module_name) do
+        {:ok, {igniter, source, zipper}} ->
+          {:halt,
+           {:ok,
+            {log_find_module_strategy(igniter, module_name, :conventional_path), source, zipper}}}
+
+        {:miss, igniter} ->
+          {:cont, {:miss, igniter}}
+      end
+    end)
+  end
+
+  defp try_filename_match(igniter, module_name) do
+    last_segment =
+      module_name
+      |> Module.split()
+      |> List.last()
+      |> to_string()
+      |> Macro.underscore()
+
+    source_folders = Igniter.Project.IgniterConfig.get(igniter, :source_folders)
+
+    igniter =
+      Enum.reduce(source_folders, igniter, fn source_folder, igniter ->
+        Igniter.include_glob(igniter, Path.join(source_folder, "**/#{last_segment}.{ex,exs}"))
+      end)
+
+    igniter = Igniter.include_glob(igniter, "test/**/#{last_segment}.{ex,exs}")
+
+    igniter.rewrite
+    |> Enum.filter(fn source ->
+      match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
+        Path.basename(source.path, Path.extname(source.path)) == last_segment
+    end)
+    |> search_sources_for_module(igniter, module_name)
+    |> case do
+      {:ok, {igniter, source, zipper}} ->
+        {:ok, {log_find_module_strategy(igniter, module_name, :filename_match), source, zipper}}
+
+      miss ->
+        miss
+    end
+  end
+
+  defp try_directory_search(igniter, module_name, searched) do
+    segments =
+      module_name
+      |> Module.split()
+      |> Enum.map(fn s -> s |> to_string() |> Macro.underscore() end)
+      |> Enum.reverse()
+      |> Enum.drop(1)
+
+    source_folders = Igniter.Project.IgniterConfig.get(igniter, :source_folders)
+
+    Enum.reduce_while(segments, {:miss, igniter, searched}, fn segment,
+                                                               {:miss, igniter, searched} ->
+      igniter =
+        Enum.reduce(source_folders, igniter, fn source_folder, igniter ->
+          Igniter.include_glob(
+            igniter,
+            Path.join(source_folder, "**/#{segment}/**/*.{ex,exs}")
+          )
+        end)
+
+      igniter.rewrite
+      |> Enum.filter(fn source ->
+        match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
+          not MapSet.member?(searched, source.path) and
+          String.contains?(source.path, "/#{segment}/")
+      end)
+      |> search_sources_for_module(igniter, module_name, searched)
+      |> case do
+        {:ok, {igniter, source, zipper}} ->
+          {:halt,
+           {:ok,
+            {log_find_module_strategy(igniter, module_name, :directory_search), source, zipper}}}
+
+        {:miss, igniter, searched} ->
+          {:cont, {:miss, igniter, searched}}
+      end
+    end)
+  end
+
+  defp try_full_scan(igniter, module_name, searched) do
+    igniter = Igniter.include_all_elixir_files(igniter)
+
+    igniter
+    |> Map.get(:rewrite)
+    |> Enum.filter(fn source ->
+      match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
+        not MapSet.member?(searched, source.path)
+    end)
+    |> Task.async_stream(
+      fn source ->
+        {source
+         |> Rewrite.Source.get(:quoted)
+         |> Zipper.zip()
+         |> Igniter.Code.Module.move_to_defmodule(module_name), source}
+      end,
+      timeout: :infinity
+    )
+    |> Enum.find_value(fn
+      {:ok, {{:ok, zipper}, source}} ->
+        {:ok, {igniter, source, zipper}}
+
+      _other ->
+        false
+    end)
+    |> case do
+      {:ok, {igniter, source, zipper}} ->
+        {:ok, {log_find_module_strategy(igniter, module_name, :full_scan), source, zipper}}
+
+      nil ->
+        {:miss, igniter}
+    end
+  end
+
+  defp check_file_for_module(igniter, path, module_name) do
+    igniter = Igniter.include_existing_file(igniter, path)
+
+    case Rewrite.source(igniter.rewrite, path) do
+      {:ok, source} ->
+        case source
+             |> Rewrite.Source.get(:quoted)
+             |> Zipper.zip()
+             |> Igniter.Code.Module.move_to_defmodule(module_name) do
+          {:ok, zipper} -> {:ok, {igniter, source, zipper}}
+          _ -> {:miss, igniter}
+        end
+
+      _ ->
+        {:miss, igniter}
+    end
+  end
+
+  defp search_sources_for_module(sources, igniter, module_name, searched \\ MapSet.new()) do
+    Enum.reduce_while(sources, {:miss, igniter, searched}, fn source,
+                                                              {:miss, igniter, searched} ->
+      searched = MapSet.put(searched, source.path)
+
+      case source
            |> Rewrite.Source.get(:quoted)
            |> Zipper.zip()
            |> Igniter.Code.Module.move_to_defmodule(module_name) do
-      {:ok, {igniter, source, zipper}}
+        {:ok, zipper} ->
+          {:halt, {:ok, {igniter, source, zipper}}}
+
+        _ ->
+          {:cont, {:miss, igniter, searched}}
+      end
+    end)
+  end
+
+  defp conventional_paths(igniter, module_name) do
+    segments =
+      case Module.split(module_name) do
+        ["Mix", "Tasks" | rest] ->
+          suffix =
+            rest
+            |> Enum.map(&to_string/1)
+            |> Enum.map_join(".", &Macro.underscore/1)
+
+          ["mix", "tasks", suffix]
+
+        _other ->
+          module_name
+          |> Module.split()
+          |> Enum.map(&to_string/1)
+          |> Enum.map(&Macro.underscore/1)
+      end
+
+    last = List.last(segments)
+    leading = :lists.droplast(segments)
+
+    source_folders = Igniter.Project.IgniterConfig.get(igniter, :source_folders)
+
+    standard = for sf <- source_folders, do: Path.join([sf | leading] ++ ["#{last}.ex"])
+
+    inside_folder =
+      for sf <- source_folders, do: Path.join([sf | leading] ++ [last, "#{last}.ex"])
+
+    standard ++ inside_folder
+  end
+
+  defp put_module_index(igniter, module_name, path) do
+    private = igniter.assigns[:private] || %{}
+    module_index = Map.get(private, :module_index, %{})
+    module_index = Map.put(module_index, module_name, path)
+    private = Map.put(private, :module_index, module_index)
+    %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
+  end
+
+  defp log_find_module_strategy(igniter, module_name, strategy) do
+    if igniter.assigns[:test_mode?] do
+      private = igniter.assigns[:private] || %{}
+      log = Map.get(private, :find_module_log, [])
+      private = Map.put(private, :find_module_log, log ++ [{module_name, strategy}])
+      %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
     else
-      _ ->
-        igniter = Igniter.include_all_elixir_files(igniter)
-
-        igniter
-        |> Map.get(:rewrite)
-        |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
-        |> Task.async_stream(
-          fn source ->
-            {source
-             |> Rewrite.Source.get(:quoted)
-             |> Zipper.zip()
-             |> Igniter.Code.Module.move_to_defmodule(module_name), source}
-          end,
-          timeout: :infinity
-        )
-        |> Enum.find_value({:error, igniter}, fn
-          {:ok, {{:ok, zipper}, source}} ->
-            {:ok, {igniter, source, zipper}}
-
-          _other ->
-            false
-        end)
+      igniter
     end
   end
 

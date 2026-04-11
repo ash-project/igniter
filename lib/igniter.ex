@@ -184,17 +184,41 @@ defmodule Igniter do
 
           source = Rewrite.source!(igniter.rewrite, from)
 
-          if Rewrite.Source.from?(source, :string) do
-            rewrite =
-              igniter.rewrite
-              |> Rewrite.drop([source.path])
-              |> Rewrite.put!(%{source | path: to})
+          igniter =
+            if Rewrite.Source.from?(source, :string) do
+              rewrite =
+                igniter.rewrite
+                |> Rewrite.drop([source.path])
+                |> Rewrite.put!(%{source | path: to})
 
-            %{igniter | rewrite: rewrite}
-          else
-            %{igniter | moves: Map.put(igniter.moves, from, to)}
-          end
+              %{igniter | rewrite: rewrite}
+            else
+              %{igniter | moves: Map.put(igniter.moves, from, to)}
+            end
+
+          update_module_index_path(igniter, from, to)
         end
+    end
+  end
+
+  defp update_module_index_path(igniter, from, to) do
+    case get_in(igniter.assigns, [:private, :module_index]) do
+      index when is_map(index) and map_size(index) > 0 ->
+        updated =
+          Map.new(index, fn
+            {mod, ^from} -> {mod, to}
+            entry -> entry
+          end)
+
+        if updated == index do
+          igniter
+        else
+          private = Map.put(igniter.assigns[:private] || %{}, :module_index, updated)
+          %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
+        end
+
+      _ ->
+        igniter
     end
   end
 
