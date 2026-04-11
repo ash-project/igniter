@@ -643,7 +643,7 @@ defmodule Igniter.Project.Module do
          get_in(igniter.assigns, [:private, :module_index_initialized?]) do
       igniter
     else
-      {module_to_file, known_files} = read_manifest_index()
+      {module_to_file, known_files} = read_beam_index()
       private = igniter.assigns[:private] || %{}
 
       private =
@@ -656,47 +656,37 @@ defmodule Igniter.Project.Module do
     end
   end
 
-  # Mix.Compilers.Elixir.read_manifest/1 is semi-public API ("for external consumption").
-  # Returns {%{module => info}, %{path => source_info}} when manifest exists,
-  # or {[], []} when it doesn't.
+  # Reads beam files from the compile path to build a module-to-file index.
+  # Uses :beam_lib.chunks/2 to read compile info without loading modules.
+  # A source file is "known" (non-stale) if its mtime <= its beam's mtime.
   #
-  # Returns {module_to_file, known_files} where known_files is a MapSet of non-stale
-  # source paths whose module mappings are authoritative and don't need to be searched.
-  defp read_manifest_index do
-    manifest_path = Path.join(Mix.Project.manifest_path(), "compile.elixir")
+  # Returns {module_to_file, known_files} where:
+  # - module_to_file: %{module => relative_source_path} for non-stale modules
+  # - known_files: MapSet of non-stale source paths that don't need to be searched
+  defp read_beam_index do
+    compile_path = Mix.Project.compile_path()
+    beams = Path.wildcard(Path.join(compile_path, "*.beam"))
 
-    case Mix.Compilers.Elixir.read_manifest(manifest_path) do
-      {modules, sources} when is_map(modules) and is_map(sources) ->
-        stale_files =
-          sources
-          |> Enum.filter(fn {path, {:source, size, mtime, _, _, _, _, _, _, _, _, _}} ->
-            case File.stat(path, time: :posix) do
-              {:ok, %{size: ^size, mtime: ^mtime}} -> false
-              _ -> true
-            end
-          end)
-          |> MapSet.new(fn {path, _} -> path end)
+    {module_to_file, known_files} =
+      Enum.reduce(beams, {%{}, MapSet.new()}, fn beam_path, {mod_index, known} ->
+        with {:ok, {mod, chunks}} <-
+               :beam_lib.chunks(String.to_charlist(beam_path), [:compile_info]),
+             compile_info when is_list(compile_info) <- chunks[:compile_info],
+             source_charlist when is_list(source_charlist) <- compile_info[:source],
+             source_path = List.to_string(source_charlist),
+             rel_path =
+               Igniter.Util.BackwardsCompat.relative_to_cwd(source_path, force: true),
+             false <- String.starts_with?(rel_path, ".."),
+             {:ok, beam_stat} <- File.stat(beam_path, time: :posix),
+             {:ok, source_stat} <- File.stat(source_path, time: :posix),
+             true <- source_stat.mtime <= beam_stat.mtime do
+          {Map.put(mod_index, mod, rel_path), MapSet.put(known, rel_path)}
+        else
+          _ -> {mod_index, known}
+        end
+      end)
 
-        known_files =
-          sources
-          |> Map.keys()
-          |> Enum.reject(&MapSet.member?(stale_files, &1))
-          |> MapSet.new()
-
-        module_to_file =
-          modules
-          |> Enum.reject(fn {_mod, {:module, _kind, [file | _], _, _, _}} ->
-            MapSet.member?(stale_files, file)
-          end)
-          |> Map.new(fn {mod, {:module, _kind, [file | _], _, _, _}} ->
-            {mod, file}
-          end)
-
-        {module_to_file, known_files}
-
-      _ ->
-        {%{}, MapSet.new()}
-    end
+    {module_to_file, known_files}
   rescue
     _ -> {%{}, MapSet.new()}
   end
