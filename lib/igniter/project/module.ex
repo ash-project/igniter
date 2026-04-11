@@ -296,10 +296,29 @@ defmodule Igniter.Project.Module do
   @spec find_module(Igniter.t(), module()) ::
           {:ok, {Igniter.t(), Rewrite.Source.t(), Zipper.t()}} | {:error, Igniter.t()}
   def find_module(igniter, module_name) do
+    igniter = ensure_module_index_initialized(igniter)
+
+    manifest_known = get_in(igniter.assigns, [:private, :manifest_known_files]) || MapSet.new()
+
+    manifest_searched =
+      if MapSet.size(manifest_known) == 0 do
+        manifest_known
+      else
+        modified_paths =
+          igniter.rewrite
+          |> Enum.filter(fn source ->
+            MapSet.member?(manifest_known, source.path) and
+              (Rewrite.Source.updated?(source) or Rewrite.Source.from?(source, :string))
+          end)
+          |> MapSet.new(& &1.path)
+
+        MapSet.difference(manifest_known, modified_paths)
+      end
+
     with {:miss, igniter} <- check_module_index(igniter, module_name),
          {:miss, igniter} <- try_compiled_source(igniter, module_name),
          {:miss, igniter} <- try_conventional_path(igniter, module_name),
-         {:miss, igniter, searched} <- try_filename_match(igniter, module_name),
+         {:miss, igniter, searched} <- try_filename_match(igniter, module_name, manifest_searched),
          {:miss, igniter, searched} <- try_directory_search(igniter, module_name, searched),
          {:miss, igniter} <- try_full_scan(igniter, module_name, searched) do
       {:error, igniter}
@@ -312,12 +331,24 @@ defmodule Igniter.Project.Module do
   defp check_module_index(igniter, module_name) do
     case get_in(igniter.assigns, [:private, :module_index, module_name]) do
       path when is_binary(path) ->
-        case check_file_for_module(igniter, path, module_name) do
-          {:ok, {igniter, source, zipper}} ->
-            {:ok, {log_find_module_strategy(igniter, module_name, :module_index), source, zipper}}
+        igniter = Igniter.include_existing_file(igniter, path)
+
+        case Rewrite.source(igniter.rewrite, path) do
+          {:ok, source} ->
+            case source
+                 |> Rewrite.Source.get(:quoted)
+                 |> Zipper.zip()
+                 |> Igniter.Code.Module.move_to_defmodule(module_name) do
+              {:ok, zipper} ->
+                {:ok,
+                 {log_find_module_strategy(igniter, module_name, :module_index), source, zipper}}
+
+              _ ->
+                {:miss, evict_module_index(igniter, module_name)}
+            end
 
           _ ->
-            {:miss, igniter}
+            {:miss, evict_module_index(igniter, module_name)}
         end
 
       _ ->
@@ -369,7 +400,7 @@ defmodule Igniter.Project.Module do
     end)
   end
 
-  defp try_filename_match(igniter, module_name) do
+  defp try_filename_match(igniter, module_name, searched) do
     last_segment =
       module_name
       |> Module.split()
@@ -388,10 +419,10 @@ defmodule Igniter.Project.Module do
 
     igniter.rewrite
     |> Enum.filter(fn source ->
-      match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
+      searchable_source?(source, module_name, searched) and
         Path.basename(source.path, Path.extname(source.path)) == last_segment
     end)
-    |> search_sources_for_module(igniter, module_name)
+    |> search_sources_for_module(igniter, module_name, searched)
     |> case do
       {:ok, {igniter, source, zipper}} ->
         {:ok, {log_find_module_strategy(igniter, module_name, :filename_match), source, zipper}}
@@ -423,8 +454,7 @@ defmodule Igniter.Project.Module do
 
       igniter.rewrite
       |> Enum.filter(fn source ->
-        match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
-          not MapSet.member?(searched, source.path) and
+        searchable_source?(source, module_name, searched) and
           String.contains?(source.path, "/#{segment}/")
       end)
       |> search_sources_for_module(igniter, module_name, searched)
@@ -443,35 +473,86 @@ defmodule Igniter.Project.Module do
   defp try_full_scan(igniter, module_name, searched) do
     igniter = Igniter.include_all_elixir_files(igniter)
 
-    igniter
-    |> Map.get(:rewrite)
-    |> Enum.filter(fn source ->
-      match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
-        not MapSet.member?(searched, source.path)
-    end)
-    |> Task.async_stream(
-      fn source ->
-        {source
-         |> Rewrite.Source.get(:quoted)
-         |> Zipper.zip()
-         |> Igniter.Code.Module.move_to_defmodule(module_name), source}
-      end,
-      timeout: :infinity
-    )
-    |> Enum.find_value(fn
-      {:ok, {{:ok, zipper}, source}} ->
-        {:ok, {igniter, source, zipper}}
+    to_search =
+      igniter
+      |> Map.get(:rewrite)
+      |> Enum.filter(&searchable_source?(&1, module_name, searched))
 
-      _other ->
-        false
-    end)
-    |> case do
+    {string_matches, rest} =
+      Enum.split_with(to_search, &source_might_define_module?(&1, module_name))
+
+    result =
+      string_matches
+      |> Task.async_stream(
+        fn source ->
+          {source
+           |> Rewrite.Source.get(:quoted)
+           |> Zipper.zip()
+           |> Igniter.Code.Module.move_to_defmodule(module_name), source}
+        end,
+        timeout: :infinity
+      )
+      |> Enum.find_value(fn
+        {:ok, {{:ok, zipper}, source}} ->
+          {:ok, {igniter, source, zipper}}
+
+        _other ->
+          false
+      end)
+
+    result =
+      result ||
+        rest
+        |> Enum.filter(&multiple_defmodules?/1)
+        |> Task.async_stream(
+          fn source ->
+            {source
+             |> Rewrite.Source.get(:quoted)
+             |> Zipper.zip()
+             |> Igniter.Code.Module.move_to_defmodule(module_name), source}
+          end,
+          timeout: :infinity
+        )
+        |> Enum.find_value(fn
+          {:ok, {{:ok, zipper}, source}} ->
+            {:ok, {igniter, source, zipper}}
+
+          _other ->
+            false
+        end)
+
+    case result do
       {:ok, {igniter, source, zipper}} ->
         {:ok, {log_find_module_strategy(igniter, module_name, :full_scan), source, zipper}}
 
       nil ->
         {:miss, igniter}
     end
+  end
+
+  defp source_might_define_module?(source, module_name) do
+    content = Rewrite.Source.get(source, :content)
+    String.contains?(content, "defmodule #{inspect(module_name)} do")
+  end
+
+  defp multiple_defmodules?(source) do
+    content = Rewrite.Source.get(source, :content)
+
+    case :binary.match(content, "defmodule ") do
+      :nomatch ->
+        false
+
+      {pos, len} ->
+        :binary.match(content, "defmodule ", scope: {pos + len, byte_size(content) - pos - len}) !=
+          :nomatch
+    end
+  end
+
+  defp searchable_source?(source, module_name, searched) do
+    match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source) and
+      not MapSet.member?(searched, source.path) and
+      (not String.ends_with?(source.path, "_test.exs") or
+         String.ends_with?(inspect(module_name), "Test"))
   end
 
   defp check_file_for_module(igniter, path, module_name) do
@@ -492,20 +573,35 @@ defmodule Igniter.Project.Module do
     end
   end
 
-  defp search_sources_for_module(sources, igniter, module_name, searched \\ MapSet.new()) do
-    Enum.reduce_while(sources, {:miss, igniter, searched}, fn source,
-                                                              {:miss, igniter, searched} ->
-      searched = MapSet.put(searched, source.path)
+  defp search_sources_for_module(sources, igniter, module_name, searched) do
+    searched = Enum.reduce(sources, searched, fn source, acc -> MapSet.put(acc, source.path) end)
 
+    {string_matches, rest} =
+      Enum.split_with(sources, &source_might_define_module?(&1, module_name))
+
+    case zipper_search(string_matches, module_name) do
+      {:ok, {source, zipper}} ->
+        {:ok, {igniter, source, zipper}}
+
+      nil ->
+        case zipper_search(Enum.filter(rest, &multiple_defmodules?/1), module_name) do
+          {:ok, {source, zipper}} ->
+            {:ok, {igniter, source, zipper}}
+
+          nil ->
+            {:miss, igniter, searched}
+        end
+    end
+  end
+
+  defp zipper_search(sources, module_name) do
+    Enum.find_value(sources, fn source ->
       case source
            |> Rewrite.Source.get(:quoted)
            |> Zipper.zip()
            |> Igniter.Code.Module.move_to_defmodule(module_name) do
-        {:ok, zipper} ->
-          {:halt, {:ok, {igniter, source, zipper}}}
-
-        _ ->
-          {:cont, {:miss, igniter, searched}}
+        {:ok, zipper} -> {:ok, {source, zipper}}
+        _ -> nil
       end
     end)
   end
@@ -541,12 +637,86 @@ defmodule Igniter.Project.Module do
     standard ++ inside_folder
   end
 
+  defp ensure_module_index_initialized(igniter) do
+    if igniter.assigns[:test_mode?] ||
+         get_in(igniter.assigns, [:private, :module_index_initialized?]) do
+      igniter
+    else
+      {module_to_file, known_files} = read_manifest_index()
+      private = igniter.assigns[:private] || %{}
+
+      private =
+        private
+        |> Map.put(:module_index, module_to_file)
+        |> Map.put(:manifest_known_files, known_files)
+        |> Map.put(:module_index_initialized?, true)
+
+      %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
+    end
+  end
+
+  # Mix.Compilers.Elixir.read_manifest/1 is semi-public API ("for external consumption").
+  # Returns {%{module => info}, %{path => source_info}} when manifest exists,
+  # or {[], []} when it doesn't.
+  #
+  # Returns {module_to_file, known_files} where known_files is a MapSet of non-stale
+  # source paths whose module mappings are authoritative and don't need to be searched.
+  defp read_manifest_index do
+    manifest_path = Path.join(Mix.Project.manifest_path(), "compile.elixir")
+
+    case Mix.Compilers.Elixir.read_manifest(manifest_path) do
+      {modules, sources} when is_map(modules) and is_map(sources) ->
+        stale_files =
+          sources
+          |> Enum.filter(fn {path, {:source, size, mtime, _, _, _, _, _, _, _, _, _}} ->
+            case File.stat(path, time: :posix) do
+              {:ok, %{size: ^size, mtime: ^mtime}} -> false
+              _ -> true
+            end
+          end)
+          |> MapSet.new(fn {path, _} -> path end)
+
+        known_files =
+          sources
+          |> Map.keys()
+          |> Enum.reject(&MapSet.member?(stale_files, &1))
+          |> MapSet.new()
+
+        module_to_file =
+          modules
+          |> Enum.reject(fn {_mod, {:module, _kind, [file | _], _, _, _}} ->
+            MapSet.member?(stale_files, file)
+          end)
+          |> Map.new(fn {mod, {:module, _kind, [file | _], _, _, _}} ->
+            {mod, file}
+          end)
+
+        {module_to_file, known_files}
+
+      _ ->
+        {%{}, MapSet.new()}
+    end
+  rescue
+    _ -> {%{}, MapSet.new()}
+  end
+
   defp put_module_index(igniter, module_name, path) do
     private = igniter.assigns[:private] || %{}
     module_index = Map.get(private, :module_index, %{})
     module_index = Map.put(module_index, module_name, path)
     private = Map.put(private, :module_index, module_index)
     %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
+  end
+
+  defp evict_module_index(igniter, module_name) do
+    case get_in(igniter.assigns, [:private, :module_index]) do
+      index when is_map(index) ->
+        private = Map.put(igniter.assigns[:private], :module_index, Map.delete(index, module_name))
+        %{igniter | assigns: Map.put(igniter.assigns, :private, private)}
+
+      _ ->
+        igniter
+    end
   end
 
   defp log_find_module_strategy(igniter, module_name, strategy) do
