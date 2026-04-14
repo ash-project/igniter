@@ -481,8 +481,8 @@ defmodule Igniter.Util.Info do
             alias_conflicts: alias_conflicts(schema, composing_schema, composing_task_name),
             composes: rest,
             extra_args?: schema.extra_args? || composing_schema.extra_args?,
-            installs: Keyword.merge(composing_schema.installs, schema.installs),
-            adds_deps: Keyword.merge(composing_schema.adds_deps, schema.adds_deps)
+            installs: merge_deps(composing_schema.installs, schema.installs),
+            adds_deps: merge_deps(composing_schema.adds_deps, schema.adds_deps)
         },
         argv,
         parent,
@@ -499,6 +499,11 @@ defmodule Igniter.Util.Info do
           Keyword.delete(opts, :only)
         )
     end
+  end
+
+  defp merge_deps(composed, parent) do
+    names = MapSet.new(parent, &elem(&1, 0))
+    Enum.reject(composed, fn entry -> elem(entry, 0) in names end) ++ parent
   end
 
   defp flag_conflicts(schema, composing_schema, composing_task_name) do
