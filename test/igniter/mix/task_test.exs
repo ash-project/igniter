@@ -293,6 +293,100 @@ defmodule Igniter.Mix.TaskTest do
     end
   end
 
+  describe "composed schema dep merging" do
+    # Covers every form in the `Igniter.Mix.Task.Info.dep` type:
+    #   {name, version}
+    #   {name, opts}
+    #   {name, version, opts}
+
+    defmodule Elixir.Mix.Tasks.ParentAddsDepsAllFormats do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          composes: ["child_adds_deps_all_formats"],
+          adds_deps: [
+            {:boundary, "~> 0.10", runtime: false},
+            {:parent_git_dep, git: "https://example.com/parent.git"},
+            {:parent_versioned, "~> 1.0"}
+          ]
+        }
+      end
+
+      def igniter(igniter), do: igniter
+    end
+
+    defmodule Elixir.Mix.Tasks.ChildAddsDepsAllFormats do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          adds_deps: [
+            {:cloak, "~> 1.1"},
+            {:child_git_dep, git: "https://example.com/child.git"},
+            {:child_with_opts, "~> 2.0", only: :test}
+          ]
+        }
+      end
+
+      def igniter(igniter), do: igniter
+    end
+
+    defmodule Elixir.Mix.Tasks.ParentInstallsAllFormats do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          composes: ["child_installs_all_formats"],
+          installs: [
+            {:boundary, "~> 0.10", runtime: false},
+            {:parent_git_install, git: "https://example.com/parent.git"},
+            {:parent_versioned_install, "~> 1.0"}
+          ]
+        }
+      end
+
+      def igniter(igniter), do: igniter
+    end
+
+    defmodule Elixir.Mix.Tasks.ChildInstallsAllFormats do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          installs: [
+            {:credo, "~> 1.7", only: [:dev, :test]},
+            {:child_git_install, git: "https://example.com/child.git"},
+            {:child_versioned_install, "~> 2.0"}
+          ]
+        }
+      end
+
+      def igniter(igniter), do: igniter
+    end
+
+    setup do
+      Elixir.Mix.Task.load_all()
+      :ok
+    end
+
+    test "adds_deps merges cleanly across every supported mix dep format" do
+      Igniter.Util.Info.validate!(
+        [],
+        Mix.Tasks.ParentAddsDepsAllFormats.info(nil, nil),
+        "parent_adds_deps_all_formats"
+      )
+    end
+
+    test "installs merges cleanly across every supported mix dep format" do
+      Igniter.Util.Info.validate!(
+        [],
+        Mix.Tasks.ParentInstallsAllFormats.info(nil, nil),
+        "parent_installs_all_formats"
+      )
+    end
+  end
+
   describe "parse_argv/1" do
     defmodule ExampleTaskWithOverriddenParseArgv do
       use Igniter.Mix.Task
