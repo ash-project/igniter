@@ -357,6 +357,32 @@ defmodule Igniter.Refactors.RenameTest do
       |> assert_has_patch("lib/consumer.ex", "+ |  use NewExample")
     end
 
+    test "updates import in another file" do
+      test_project()
+      |> Igniter.create_new_file("lib/example.ex", "defmodule Example do\nend\n")
+      |> Igniter.create_new_file("lib/consumer.ex", """
+      defmodule Consumer do
+        import Example
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Refactors.Rename.rename_module(Example, NewExample)
+      |> assert_has_patch("lib/consumer.ex", "+ |  import NewExample")
+    end
+
+    test "updates require in another file" do
+      test_project()
+      |> Igniter.create_new_file("lib/example.ex", "defmodule Example do\nend\n")
+      |> Igniter.create_new_file("lib/consumer.ex", """
+      defmodule Consumer do
+        require Example
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Refactors.Rename.rename_module(Example, NewExample)
+      |> assert_has_patch("lib/consumer.ex", "+ |  require NewExample")
+    end
+
     test "renames a submodule along with the parent" do
       test_project()
       |> Igniter.create_new_file("lib/example.ex", "defmodule Example do\nend\n")

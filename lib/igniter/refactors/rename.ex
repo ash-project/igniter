@@ -60,12 +60,17 @@ defmodule Igniter.Refactors.Rename do
 
     igniter = Igniter.include_all_elixir_files(igniter)
 
-    old_path =
-      find_module_file(igniter, old_module_str) ||
-        Igniter.Project.Module.proper_location(igniter, old_module)
+    {old_path, igniter} =
+      case Igniter.Project.Module.find_module(igniter, old_module) do
+        {:ok, {igniter, source, _zipper}} ->
+          {Rewrite.Source.get(source, :path), igniter}
+
+        {:error, igniter} ->
+          {Igniter.Project.Module.proper_location(igniter, old_module), igniter}
+      end
 
     new_path = Igniter.Project.Module.proper_location(igniter, new_module)
-    affected_files = find_affected_files(igniter, old_module_str, old_parts)
+    affected_files = find_affected_files(igniter, old_module_str, old_aliases, old_short)
 
     igniter
     |> rewrite_affected_files(
@@ -935,20 +940,12 @@ defmodule Igniter.Refactors.Rename do
 
   ## rename_module helpers
 
-  defp find_module_file(igniter, module_str) do
-    igniter.rewrite
-    |> Rewrite.sources()
-    |> Enum.find_value(fn source ->
-      path = Rewrite.Source.get(source, :path)
-      content = Rewrite.Source.get(source, :content)
+  # Substring check catches most references; AST fallback catches
+  # `alias Ns.{..., Short, ...}` where the full name never appears literally.
+  defp find_affected_files(igniter, old_module_str, old_aliases, old_short) do
+    namespace_segs = Enum.drop(old_aliases, -1)
+    multi_alias_prefix = Enum.join(namespace_segs, ".") <> ".{"
 
-      if String.ends_with?(path, [".ex", ".exs"]) &&
-           String.contains?(content, "defmodule #{module_str}"),
-         do: path
-    end)
-  end
-
-  defp find_affected_files(igniter, module_str, old_parts) do
     igniter.rewrite
     |> Rewrite.sources()
     |> Enum.filter(fn source ->
@@ -956,28 +953,14 @@ defmodule Igniter.Refactors.Rename do
       content = Rewrite.Source.get(source, :content)
 
       String.ends_with?(path, [".ex", ".exs"]) &&
-        (String.contains?(content, module_str) ||
-           multi_alias_in_content?(content, old_parts))
+        (String.contains?(content, old_module_str) ||
+           (namespace_segs != [] && String.contains?(content, multi_alias_prefix) &&
+              source
+              |> Rewrite.Source.get(:quoted)
+              |> Zipper.zip()
+              |> has_multi_alias_for?(namespace_segs, old_short)))
     end)
     |> Enum.map(&Rewrite.Source.get(&1, :path))
-  end
-
-  # Detects `alias Foo.{Bar, Baz}` style references where the full module name
-  # (e.g. "Foo.Bar") is not present as a substring. Checks for the namespace
-  # prefix followed by ".{" and the short segment name anywhere in the content.
-  # This is a heuristic and may include false positives, but the subsequent AST
-  # passes are no-ops when nothing actually matches.
-  defp multi_alias_in_content?(content, old_parts) do
-    case Enum.split(old_parts, -1) do
-      {[], _} ->
-        false
-
-      {namespace_parts, [short]} ->
-        namespace_str = Enum.join(namespace_parts, ".")
-
-        String.contains?(content, "#{namespace_str}.{") &&
-          String.contains?(content, short)
-    end
   end
 
   defp rewrite_affected_files(
@@ -991,31 +974,22 @@ defmodule Igniter.Refactors.Rename do
          new_str
        ) do
     Enum.reduce(files, igniter, fn path, igniter ->
+      # String replace must run before the AST pass, or "Example" inside
+      # a freshly-rendered "NewExample" gets replaced again → "NewNewExample".
       igniter
+      |> replace_module_strings_in_file(path, old_str, new_str)
       |> Igniter.update_elixir_file(path, fn zipper ->
         zipper
-        # Short-form rename must run first: expand_alias reads the original
-        # alias declarations, which apply_module_renames would overwrite afterward.
         |> rename_aliased_short_forms(old_aliases, old_short, new_short)
         |> apply_module_renames(renames)
         |> then(&{:ok, &1})
       end)
-      |> replace_module_strings_in_file(path, old_str, new_str)
     end)
   end
 
-  # Renames short-form call sites (e.g. Bar.foo()) that resolve to old_aliases
-  # via an alias declaration. Uses Igniter's expand_alias, which delegates to
-  # Macro.Env.expand_alias/3 — the Elixir compiler itself. This correctly
-  # handles plain `alias Foo.Bar` and `alias Foo.Bar, as: B` (the last form is
-  # deliberately excluded: B.foo() stays B.foo() since the as: clause is
-  # preserved by apply_module_renames).
-  #
-  # For multi-alias (`alias Foo.{Bar, Baz}`): Spitfire does not macro-expand
-  # this form, so expand_alias cannot resolve the short name. We fall back to
-  # an explicit AST scan via has_multi_alias_for?. The fallback also renames the
-  # short name inside the declaration itself ([:Bar] → [:Baz] inside the braces),
-  # which is correct because apply_module_renames only matches full alias lists.
+  # Renames short-form call sites that resolve via `alias Foo.Bar` (plain or
+  # multi-alias). `alias Foo.Bar, as: B` is intentionally left alone — the
+  # as: clause keeps resolving after apply_module_renames updates the target.
   defp rename_aliased_short_forms(zipper, old_aliases, old_short, new_short) do
     namespace_segs = Enum.drop(old_aliases, -1)
     has_multi = has_multi_alias_for?(Zipper.top(zipper), namespace_segs, old_short)
@@ -1029,8 +1003,6 @@ defmodule Igniter.Refactors.Rename do
                    true
 
                  _ ->
-                   # Fallback for multi-alias: if the file declares
-                   # alias Ns.{..., OldShort, ...} we rename by convention.
                    has_multi
                end
 
@@ -1046,8 +1018,7 @@ defmodule Igniter.Refactors.Rename do
     end
   end
 
-  # Returns true when the zipper contains a multi-alias declaration of the form
-  #   alias <namespace_segs>.{..., <old_short>, ...}
+  # Matches `alias <namespace_segs>.{..., <old_short>, ...}`.
   defp has_multi_alias_for?(zipper, namespace_segs, old_short) do
     Zipper.find(zipper, fn
       {:alias, _, [{{:., _, [{:__aliases__, _, ^namespace_segs}, :{}]}, _, short_nodes}]} ->
@@ -1089,8 +1060,8 @@ defmodule Igniter.Refactors.Rename do
   end
 
   defp move_submodule_files(igniter, old_path, new_path) do
-    old_dir = module_file_dir(old_path)
-    new_dir = module_file_dir(new_path)
+    old_dir = Path.rootname(old_path) <> "/"
+    new_dir = Path.rootname(new_path) <> "/"
 
     igniter.rewrite
     |> Rewrite.sources()
@@ -1102,17 +1073,13 @@ defmodule Igniter.Refactors.Rename do
     end)
   end
 
-  defp module_file_dir(path) do
-    path
-    |> String.replace_suffix(".exs", "")
-    |> String.replace_suffix(".ex", "")
-    |> Kernel.<>("/")
-  end
-
   defp move_module_file(igniter, same, same), do: igniter
 
   defp move_module_file(igniter, old_path, new_path) do
-    Igniter.move_file(igniter, old_path, new_path)
+    case Rewrite.source(igniter.rewrite, old_path) do
+      {:ok, _} -> Igniter.move_file(igniter, old_path, new_path)
+      {:error, _} -> igniter
+    end
   end
 
   defp module_aliases_node_matches?({:__aliases__, _meta, aliases}, target_aliases) do
