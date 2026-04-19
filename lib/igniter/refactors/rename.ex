@@ -979,8 +979,10 @@ defmodule Igniter.Refactors.Rename do
       igniter
       |> replace_module_strings_in_file(path, old_str, new_str)
       |> Igniter.update_elixir_file(path, fn zipper ->
+        {_, new_aliases} = hd(renames)
+
         zipper
-        |> rename_aliased_short_forms(old_aliases, old_short, new_short)
+        |> rename_aliased_short_forms(old_aliases, new_aliases, old_short, new_short)
         |> apply_module_renames(renames)
         |> then(&{:ok, &1})
       end)
@@ -990,31 +992,132 @@ defmodule Igniter.Refactors.Rename do
   # Renames short-form call sites that resolve via `alias Foo.Bar` (plain or
   # multi-alias). `alias Foo.Bar, as: B` is intentionally left alone — the
   # as: clause keeps resolving after apply_module_renames updates the target.
-  defp rename_aliased_short_forms(zipper, old_aliases, old_short, new_short) do
-    namespace_segs = Enum.drop(old_aliases, -1)
-    has_multi = has_multi_alias_for?(Zipper.top(zipper), namespace_segs, old_short)
+  #
+  # When the rename moves a module to a different namespace (e.g. Ns.FooPage →
+  # Ns.Foo.IndexLive), a multi-alias entry can no longer represent the new
+  # module — `alias Ns.{IndexLive}` ≠ `Ns.Foo.IndexLive`. In that case the
+  # entry is removed from the braces and a separate alias line is inserted.
+  defp rename_aliased_short_forms(zipper, old_aliases, new_aliases, old_short, new_short) do
+    old_namespace = Enum.drop(old_aliases, -1)
+    new_namespace = Enum.drop(new_aliases, -1)
+    has_multi = has_multi_alias_for?(Zipper.top(zipper), old_namespace, old_short)
+
+    if has_multi and old_namespace != new_namespace do
+      expand_multi_alias_member(zipper, old_namespace, new_aliases, old_short, new_short)
+    else
+      # When the namespace changed, the string replace step may have already
+      # renamed the alias declaration (e.g. `alias Ns.BarPage` → `alias
+      # Ns.Bar.IndexLive`). expand_alias then can't resolve the short form, so
+      # we fall back to renaming it unconditionally — same as the has_multi path.
+      use_fallback = has_multi or old_namespace != new_namespace
+
+      case Common.update_all_matches(
+             zipper,
+             fn
+               %Zipper{node: {:__aliases__, _, ^old_short}} = z ->
+                 case Common.expand_alias(z) |> Zipper.node() do
+                   {:__aliases__, _, ^old_aliases} ->
+                     true
+
+                   _ ->
+                     use_fallback
+                 end
+
+               _ ->
+                 false
+             end,
+             fn %Zipper{node: {:__aliases__, meta, _}} = z ->
+               {:ok, Zipper.replace(z, {:__aliases__, meta, new_short})}
+             end
+           ) do
+        {:ok, updated} -> updated
+        _ -> zipper
+      end
+    end
+  end
+
+  # Removes a member from a multi-alias when its new module is in a different
+  # namespace, inserts a separate alias statement, and renames call sites.
+  # Uses {:code, block} return in update_all_matches so that replace_code
+  # can split the block into multiple sibling statements.
+  defp expand_multi_alias_member(zipper, namespace_segs, new_aliases, old_short, new_short) do
+    new_alias_node = {:alias, [], [{:__aliases__, [], new_aliases}]}
+
+    with_expanded =
+      case Common.update_all_matches(
+             zipper,
+             fn
+               %Zipper{
+                 node:
+                   {:alias, _,
+                    [{{:., _, [{:__aliases__, _, ^namespace_segs}, :{}]}, _, members}]}
+               } ->
+                 Enum.any?(members, fn
+                   {:__aliases__, _, ^old_short} -> true
+                   _ -> false
+                 end)
+
+               _ ->
+                 false
+             end,
+             fn %Zipper{
+                  node:
+                    {:alias, alias_meta,
+                     [
+                       {{:., dot_meta, [{:__aliases__, ns_meta, _}, :{}]}, brace_meta,
+                        members}
+                     ]}
+                } ->
+               remaining =
+                 Enum.reject(members, fn
+                   {:__aliases__, _, ^old_short} -> true
+                   _ -> false
+                 end)
+
+               replacement =
+                 case remaining do
+                   [] ->
+                     new_alias_node
+
+                   [single] ->
+                     {:__aliases__, single_meta, single_segs} = single
+
+                     simplified =
+                       {:alias, alias_meta,
+                        [{:__aliases__, single_meta, namespace_segs ++ single_segs}]}
+
+                     {:__block__, [], [simplified, new_alias_node]}
+
+                   _ ->
+                     updated_multi =
+                       {:alias, alias_meta,
+                        [
+                          {{:., dot_meta, [{:__aliases__, ns_meta, namespace_segs}, :{}]},
+                           brace_meta, remaining}
+                        ]}
+
+                     {:__block__, [], [updated_multi, new_alias_node]}
+                 end
+
+               {:code, replacement}
+             end
+           ) do
+        {:ok, updated} -> updated
+        _ -> zipper
+      end
 
     case Common.update_all_matches(
-           zipper,
+           with_expanded,
            fn
-             %Zipper{node: {:__aliases__, _, ^old_short}} = z ->
-               case Common.expand_alias(z) |> Zipper.node() do
-                 {:__aliases__, _, ^old_aliases} ->
-                   true
-
-                 _ ->
-                   has_multi
-               end
-
-             _ ->
-               false
+             %Zipper{node: {:__aliases__, _, ^old_short}} -> true
+             _ -> false
            end,
            fn %Zipper{node: {:__aliases__, meta, _}} = z ->
              {:ok, Zipper.replace(z, {:__aliases__, meta, new_short})}
            end
          ) do
       {:ok, updated} -> updated
-      _ -> zipper
+      _ -> with_expanded
     end
   end
 

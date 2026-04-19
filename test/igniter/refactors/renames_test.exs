@@ -491,6 +491,24 @@ defmodule Igniter.Refactors.RenameTest do
       )
     end
 
+    test "expands multi-alias when multiple members rename to the same short name" do
+      test_project()
+      |> Igniter.create_new_file("lib/ns/foo_page.ex", "defmodule Ns.FooPage do\nend\n")
+      |> Igniter.create_new_file("lib/ns/bar_page.ex", "defmodule Ns.BarPage do\nend\n")
+      |> Igniter.create_new_file("lib/example.ex", """
+      defmodule Example do
+        alias Ns.{FooPage, BarPage}
+
+        def run, do: {FooPage.hello(), BarPage.hello()}
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Refactors.Rename.rename_module(Ns.FooPage, Ns.Foo.IndexLive)
+      |> Igniter.Refactors.Rename.rename_module(Ns.BarPage, Ns.Bar.IndexLive)
+      |> assert_has_patch("lib/example.ex", "+ |  alias Ns.Foo.IndexLive")
+      |> assert_has_patch("lib/example.ex", "+ |  alias Ns.Bar.IndexLive")
+    end
+
     test "does not rename custom as: alias call sites" do
       test_project()
       |> Igniter.create_new_file("lib/some_module.ex", "defmodule SomeModule do\nend\n")
