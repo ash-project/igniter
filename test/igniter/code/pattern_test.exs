@@ -15,12 +15,6 @@ defmodule Igniter.Code.PatternTest do
 
   defp code_at(zipper), do: Igniter.Util.Debug.code_at_node(zipper)
 
-  describe "available?/0" do
-    test "returns true when ExAST is loaded" do
-      assert Pattern.available?()
-    end
-  end
-
   describe "move_to/3" do
     test "moves to first matching node" do
       assert {:ok, zipper} =

@@ -6,8 +6,7 @@ defmodule Igniter.Code.Pattern do
   @moduledoc """
   Pattern-based AST navigation and rewriting powered by ExAST.
 
-  Requires `{:ex_ast, "~> 0.5"}` as an optional dependency.
-  Functions return `:error` when ExAST is not available.
+  Requires `{:ex_ast, "~> 0.5"}` (included as a dependency of Igniter).
 
   ## Pattern syntax
 
@@ -68,14 +67,6 @@ defmodule Igniter.Code.Pattern do
   @type pattern :: String.t() | Macro.t()
 
   @doc """
-  Returns `true` if ExAST is available.
-  """
-  @spec available?() :: boolean()
-  def available? do
-    Code.ensure_loaded?(ExAST.Pattern) and Code.ensure_loaded?(ExAST.Patcher)
-  end
-
-  @doc """
   Parses a pattern string into AST at compile time.
 
   Avoids runtime string parsing. The result can be passed
@@ -89,12 +80,8 @@ defmodule Igniter.Code.Pattern do
       Pattern.replace_all(zipper, ~p"dbg(expr)", ~p"expr")
   """
   defmacro sigil_p({:<<>>, _, [string]}, _modifiers) when is_binary(string) do
-    if Code.ensure_loaded?(ExAST.Sigil) do
-      pattern = Code.string_to_quoted!(string)
-      Macro.escape(pattern)
-    else
-      raise ArgumentError, "~p sigil requires {:ex_ast, \"~> 0.5\"} as a dependency"
-    end
+    pattern = Code.string_to_quoted!(string)
+    Macro.escape(pattern)
   end
 
   @doc """
@@ -111,7 +98,7 @@ defmodule Igniter.Code.Pattern do
   """
   @spec matches?(Zipper.t(), pattern()) :: boolean()
   def matches?(%Zipper{} = zipper, pattern) do
-    available?() and ExAST.Pattern.match(Zipper.node(zipper), pattern) != :error
+    ExAST.Pattern.match(Zipper.node(zipper), pattern) != :error
   end
 
   @doc """
@@ -126,18 +113,15 @@ defmodule Igniter.Code.Pattern do
   """
   @spec move_to(Zipper.t(), pattern(), keyword()) :: {:ok, Zipper.t()} | :error
   def move_to(%Zipper{} = zipper, pattern, opts \\ []) do
-    with :ok <- require_ex_ast() do
-      case do_find_all(zipper, pattern, opts) do
-        [first | _] -> navigate_to(zipper, first.node)
-        [] -> :error
-      end
+    case do_find_all(zipper, pattern, opts) do
+      [first | _] -> navigate_to(zipper, first.node)
+      [] -> :error
     end
   end
 
   @doc """
   Returns a list of zippers, one for each node matching `pattern`.
 
-  Returns an empty list if ExAST is not available.
 
   ## Options
 
@@ -146,19 +130,15 @@ defmodule Igniter.Code.Pattern do
   """
   @spec find_all(Zipper.t(), pattern(), keyword()) :: [Zipper.t()]
   def find_all(%Zipper{} = zipper, pattern, opts \\ []) do
-    if available?() do
-      zipper
-      |> do_find_all(pattern, opts)
-      |> Enum.reduce([], fn match, acc ->
-        case navigate_to(zipper, match.node) do
-          {:ok, z} -> [z | acc]
-          :error -> acc
-        end
-      end)
-      |> Enum.reverse()
-    else
-      []
-    end
+    zipper
+    |> do_find_all(pattern, opts)
+    |> Enum.reduce([], fn match, acc ->
+      case navigate_to(zipper, match.node) do
+        {:ok, z} -> [z | acc]
+        :error -> acc
+      end
+    end)
+    |> Enum.reverse()
   end
 
   @doc """
@@ -175,14 +155,9 @@ defmodule Igniter.Code.Pattern do
   @spec replace(Zipper.t(), pattern(), pattern(), keyword()) ::
           {:ok, Zipper.t()} | :error
   def replace(%Zipper{} = zipper, pattern, replacement, opts \\ []) do
-    with :ok <- require_ex_ast() do
-      case do_find_all(zipper, pattern, opts) do
-        [first | _] ->
-          do_replace_node(zipper, first.node, pattern, replacement)
-
-        [] ->
-          :error
-      end
+    case do_find_all(zipper, pattern, opts) do
+      [first | _] -> do_replace_node(zipper, first.node, pattern, replacement)
+      [] -> :error
     end
   end
 
@@ -200,11 +175,9 @@ defmodule Igniter.Code.Pattern do
   @spec replace_all(Zipper.t(), pattern(), pattern(), keyword()) ::
           {:ok, Zipper.t()} | :error
   def replace_all(%Zipper{} = zipper, pattern, replacement, opts \\ []) do
-    with :ok <- require_ex_ast() do
-      root = Zipper.topmost_root(zipper)
-      new_ast = ExAST.Patcher.replace_all(root, pattern, replacement, opts)
-      {:ok, Zipper.zip(new_ast)}
-    end
+    root = Zipper.topmost_root(zipper)
+    new_ast = ExAST.Patcher.replace_all(root, pattern, replacement, opts)
+    {:ok, Zipper.zip(new_ast)}
   end
 
   @doc """
@@ -247,10 +220,6 @@ defmodule Igniter.Code.Pattern do
   end
 
   # --- Private ---
-
-  defp require_ex_ast do
-    if available?(), do: :ok, else: :error
-  end
 
   defp do_find_all(zipper, pattern, opts) do
     ExAST.Patcher.find_all(zipper, pattern, opts)
