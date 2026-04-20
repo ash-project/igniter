@@ -10,6 +10,83 @@ defmodule Igniter.Refactors.Rename do
   @function_module_attrs [:doc, :spec, :decorate]
 
   @doc """
+  Renames a module globally across a project.
+
+  Renames the module everywhere it appears: `defmodule`, `alias`, `use`,
+  `import`, `require`, and all call sites. Also handles submodules, the
+  corresponding test module, string literals mentioning the module name, and
+  moves the file(s) to match the new module's proper location.
+
+  ## Alias handling
+
+  - `alias Foo.Bar` — the alias declaration and all `Bar.*` call sites are renamed.
+  - `alias Foo.{Bar, Other}` — the declaration and call sites are renamed.
+    Spitfire does not macro-expand the brace form, so resolution falls back to
+    an explicit AST scan.
+  - `alias Foo.Bar, as: B` — only the declaration is updated (`alias Foo.Baz, as: B`).
+    `B.*` call sites are left untouched because the `as:` clause still resolves correctly.
+
+  ## Limitations
+
+  - Dynamic references (e.g. `apply/3`, `Module.concat/2` with variables) are not rewritten.
+  - String-literal replacement is a plain substring replace over the raw file content,
+    so it also rewrites occurrences in comments and unrelated strings. Grep after.
+  """
+  @spec rename_module(Igniter.t(), module(), module(), Keyword.t()) :: Igniter.t()
+  def rename_module(igniter, old_module, new_module, _opts \\ [])
+      when is_atom(old_module) and is_atom(new_module) do
+    old_parts = Module.split(old_module)
+    new_parts = Module.split(new_module)
+
+    old_aliases = Enum.map(old_parts, &String.to_atom/1)
+    new_aliases = Enum.map(new_parts, &String.to_atom/1)
+
+    old_test_aliases =
+      List.update_at(old_parts, -1, &(&1 <> "Test")) |> Enum.map(&String.to_atom/1)
+
+    new_test_aliases =
+      List.update_at(new_parts, -1, &(&1 <> "Test")) |> Enum.map(&String.to_atom/1)
+
+    old_short = [List.last(old_aliases)]
+    new_short = [List.last(new_aliases)]
+
+    old_module_str = Enum.join(old_parts, ".")
+    new_module_str = Enum.join(new_parts, ".")
+
+    renames = [
+      {old_aliases, new_aliases},
+      {old_test_aliases, new_test_aliases}
+    ]
+
+    igniter = Igniter.include_all_elixir_files(igniter)
+
+    {old_path, igniter} =
+      case Igniter.Project.Module.find_module(igniter, old_module) do
+        {:ok, {igniter, source, _zipper}} ->
+          {Rewrite.Source.get(source, :path), igniter}
+
+        {:error, igniter} ->
+          {Igniter.Project.Module.proper_location(igniter, old_module), igniter}
+      end
+
+    new_path = Igniter.Project.Module.proper_location(igniter, new_module)
+    affected_files = find_affected_files(igniter, old_module_str, old_aliases, old_short)
+
+    igniter
+    |> rewrite_affected_files(
+      affected_files,
+      renames,
+      old_aliases,
+      old_short,
+      new_short,
+      old_module_str,
+      new_module_str
+    )
+    |> move_submodule_files(old_path, new_path)
+    |> move_module_file(old_path, new_path)
+  end
+
+  @doc """
   Renames a function globally across a project.
 
   ## Options
@@ -859,5 +936,260 @@ defmodule Igniter.Refactors.Rename do
     value
     |> Module.split()
     |> Enum.map(&String.to_atom/1)
+  end
+
+  ## rename_module helpers
+
+  # Substring check catches most references; AST fallback catches
+  # `alias Ns.{..., Short, ...}` where the full name never appears literally.
+  defp find_affected_files(igniter, old_module_str, old_aliases, old_short) do
+    namespace_segs = Enum.drop(old_aliases, -1)
+    multi_alias_prefix = Enum.join(namespace_segs, ".") <> ".{"
+
+    igniter.rewrite
+    |> Rewrite.sources()
+    |> Enum.filter(fn source ->
+      path = Rewrite.Source.get(source, :path)
+      content = Rewrite.Source.get(source, :content)
+
+      String.ends_with?(path, [".ex", ".exs"]) &&
+        (String.contains?(content, old_module_str) ||
+           (namespace_segs != [] && String.contains?(content, multi_alias_prefix) &&
+              source
+              |> Rewrite.Source.get(:quoted)
+              |> Zipper.zip()
+              |> has_multi_alias_for?(namespace_segs, old_short)))
+    end)
+    |> Enum.map(&Rewrite.Source.get(&1, :path))
+  end
+
+  defp rewrite_affected_files(
+         igniter,
+         files,
+         renames,
+         old_aliases,
+         old_short,
+         new_short,
+         old_str,
+         new_str
+       ) do
+    Enum.reduce(files, igniter, fn path, igniter ->
+      # String replace must run before the AST pass, or "Example" inside
+      # a freshly-rendered "NewExample" gets replaced again → "NewNewExample".
+      igniter
+      |> replace_module_strings_in_file(path, old_str, new_str)
+      |> Igniter.update_elixir_file(path, fn zipper ->
+        {_, new_aliases} = hd(renames)
+
+        zipper
+        |> rename_aliased_short_forms(old_aliases, new_aliases, old_short, new_short)
+        |> apply_module_renames(renames)
+        |> then(&{:ok, &1})
+      end)
+    end)
+  end
+
+  # Renames short-form call sites that resolve via `alias Foo.Bar` (plain or
+  # multi-alias). `alias Foo.Bar, as: B` is intentionally left alone — the
+  # as: clause keeps resolving after apply_module_renames updates the target.
+  #
+  # When the rename moves a module to a different namespace (e.g. Ns.FooPage →
+  # Ns.Foo.IndexLive), a multi-alias entry can no longer represent the new
+  # module — `alias Ns.{IndexLive}` ≠ `Ns.Foo.IndexLive`. In that case the
+  # entry is removed from the braces and a separate alias line is inserted.
+  defp rename_aliased_short_forms(zipper, old_aliases, new_aliases, old_short, new_short) do
+    old_namespace = Enum.drop(old_aliases, -1)
+    new_namespace = Enum.drop(new_aliases, -1)
+    has_multi = has_multi_alias_for?(Zipper.top(zipper), old_namespace, old_short)
+
+    if has_multi and old_namespace != new_namespace do
+      expand_multi_alias_member(zipper, old_namespace, new_aliases, old_short, new_short)
+    else
+      # When the namespace changed, the string replace step may have already
+      # renamed the alias declaration (e.g. `alias Ns.BarPage` → `alias
+      # Ns.Bar.IndexLive`). expand_alias then can't resolve the short form, so
+      # we fall back to renaming it unconditionally — same as the has_multi path.
+      use_fallback = has_multi or old_namespace != new_namespace
+
+      case Common.update_all_matches(
+             zipper,
+             fn
+               %Zipper{node: {:__aliases__, _, ^old_short}} = z ->
+                 case Common.expand_alias(z) |> Zipper.node() do
+                   {:__aliases__, _, ^old_aliases} ->
+                     true
+
+                   _ ->
+                     use_fallback
+                 end
+
+               _ ->
+                 false
+             end,
+             fn %Zipper{node: {:__aliases__, meta, _}} = z ->
+               {:ok, Zipper.replace(z, {:__aliases__, meta, new_short})}
+             end
+           ) do
+        {:ok, updated} -> updated
+        _ -> zipper
+      end
+    end
+  end
+
+  # Removes a member from a multi-alias when its new module is in a different
+  # namespace, inserts a separate alias statement, and renames call sites.
+  # Uses {:code, block} return in update_all_matches so that replace_code
+  # can split the block into multiple sibling statements.
+  defp expand_multi_alias_member(zipper, namespace_segs, new_aliases, old_short, new_short) do
+    new_alias_node = {:alias, [], [{:__aliases__, [], new_aliases}]}
+
+    with_expanded =
+      case Common.update_all_matches(
+             zipper,
+             fn
+               %Zipper{
+                 node:
+                   {:alias, _, [{{:., _, [{:__aliases__, _, ^namespace_segs}, :{}]}, _, members}]}
+               } ->
+                 Enum.any?(members, fn
+                   {:__aliases__, _, ^old_short} -> true
+                   _ -> false
+                 end)
+
+               _ ->
+                 false
+             end,
+             fn %Zipper{
+                  node:
+                    {:alias, alias_meta,
+                     [
+                       {{:., dot_meta, [{:__aliases__, ns_meta, _}, :{}]}, brace_meta, members}
+                     ]}
+                } ->
+               remaining =
+                 Enum.reject(members, fn
+                   {:__aliases__, _, ^old_short} -> true
+                   _ -> false
+                 end)
+
+               replacement =
+                 case remaining do
+                   [] ->
+                     new_alias_node
+
+                   [single] ->
+                     {:__aliases__, single_meta, single_segs} = single
+
+                     simplified =
+                       {:alias, alias_meta,
+                        [{:__aliases__, single_meta, namespace_segs ++ single_segs}]}
+
+                     {:__block__, [], [simplified, new_alias_node]}
+
+                   _ ->
+                     updated_multi =
+                       {:alias, alias_meta,
+                        [
+                          {{:., dot_meta, [{:__aliases__, ns_meta, namespace_segs}, :{}]},
+                           brace_meta, remaining}
+                        ]}
+
+                     {:__block__, [], [updated_multi, new_alias_node]}
+                 end
+
+               {:code, replacement}
+             end
+           ) do
+        {:ok, updated} -> updated
+        _ -> zipper
+      end
+
+    case Common.update_all_matches(
+           with_expanded,
+           fn
+             %Zipper{node: {:__aliases__, _, ^old_short}} -> true
+             _ -> false
+           end,
+           fn %Zipper{node: {:__aliases__, meta, _}} = z ->
+             {:ok, Zipper.replace(z, {:__aliases__, meta, new_short})}
+           end
+         ) do
+      {:ok, updated} -> updated
+      _ -> with_expanded
+    end
+  end
+
+  # Matches `alias <namespace_segs>.{..., <old_short>, ...}`.
+  defp has_multi_alias_for?(zipper, namespace_segs, old_short) do
+    Zipper.find(zipper, fn
+      {:alias, _, [{{:., _, [{:__aliases__, _, ^namespace_segs}, :{}]}, _, short_nodes}]} ->
+        Enum.any?(short_nodes, fn
+          {:__aliases__, _, ^old_short} -> true
+          _ -> false
+        end)
+
+      _ ->
+        false
+    end) != nil
+  end
+
+  defp apply_module_renames(zipper, renames) do
+    Enum.reduce(renames, zipper, fn {old_aliases, new_aliases}, zipper ->
+      case Common.update_all_matches(
+             zipper,
+             fn %Zipper{node: node} -> module_aliases_node_matches?(node, old_aliases) end,
+             fn %Zipper{node: {:__aliases__, meta, aliases}} = z ->
+               {:ok,
+                Zipper.replace(
+                  z,
+                  {:__aliases__, meta, replace_module_prefix(aliases, old_aliases, new_aliases)}
+                )}
+             end
+           ) do
+        {:ok, updated} -> updated
+        _ -> zipper
+      end
+    end)
+  end
+
+  defp replace_module_strings_in_file(igniter, path, old_str, new_str) do
+    Igniter.update_file(igniter, path, fn source ->
+      Rewrite.Source.update(source, :content, fn content ->
+        String.replace(content, old_str, new_str)
+      end)
+    end)
+  end
+
+  defp move_submodule_files(igniter, old_path, new_path) do
+    old_dir = Path.rootname(old_path) <> "/"
+    new_dir = Path.rootname(new_path) <> "/"
+
+    igniter.rewrite
+    |> Rewrite.sources()
+    |> Enum.map(&Rewrite.Source.get(&1, :path))
+    |> Enum.filter(&String.starts_with?(&1, old_dir))
+    |> Enum.reduce(igniter, fn sub_path, igniter ->
+      new_sub_path = new_dir <> String.trim_leading(sub_path, old_dir)
+      move_module_file(igniter, sub_path, new_sub_path)
+    end)
+  end
+
+  defp move_module_file(igniter, same, same), do: igniter
+
+  defp move_module_file(igniter, old_path, new_path) do
+    case Rewrite.source(igniter.rewrite, old_path) do
+      {:ok, _} -> Igniter.move_file(igniter, old_path, new_path)
+      {:error, _} -> igniter
+    end
+  end
+
+  defp module_aliases_node_matches?({:__aliases__, _meta, aliases}, target_aliases) do
+    List.starts_with?(aliases, target_aliases)
+  end
+
+  defp module_aliases_node_matches?(_, _), do: false
+
+  defp replace_module_prefix(aliases, old_prefix, new_prefix) do
+    new_prefix ++ Enum.drop(aliases, length(old_prefix))
   end
 end
