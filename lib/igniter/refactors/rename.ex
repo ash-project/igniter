@@ -1049,8 +1049,7 @@ defmodule Igniter.Refactors.Rename do
              fn
                %Zipper{
                  node:
-                   {:alias, _,
-                    [{{:., _, [{:__aliases__, _, ^namespace_segs}, :{}]}, _, members}]}
+                   {:alias, _, [{{:., _, [{:__aliases__, _, ^namespace_segs}, :{}]}, _, members}]}
                } ->
                  Enum.any?(members, fn
                    {:__aliases__, _, ^old_short} -> true
@@ -1064,8 +1063,7 @@ defmodule Igniter.Refactors.Rename do
                   node:
                     {:alias, alias_meta,
                      [
-                       {{:., dot_meta, [{:__aliases__, ns_meta, _}, :{}]}, brace_meta,
-                        members}
+                       {{:., dot_meta, [{:__aliases__, ns_meta, _}, :{}]}, brace_meta, members}
                      ]}
                 } ->
                remaining =
