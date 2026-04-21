@@ -251,10 +251,7 @@ defmodule Igniter.Code.Pattern do
     |> Igniter.Code.Common.move_to(&(&1.node == target_node))
   end
 
-  defp elixir_source?(source) do
-    path = Rewrite.Source.get(source, :path)
-    String.ends_with?(path, ".ex") or String.ends_with?(path, ".exs")
-  end
+  defp elixir_source?(source), do: match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source)
 
   defp to_quoted(pattern) when is_binary(pattern), do: Code.string_to_quoted!(pattern)
   defp to_quoted(pattern), do: pattern
