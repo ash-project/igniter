@@ -467,4 +467,173 @@ defmodule Igniter.Mix.TaskTest do
       end
     end
   end
+
+  describe "args_for_group/2" do
+    alias Igniter.Util.Info
+
+    test "passes through flags that don't belong to another group" do
+      assert Info.args_for_group(["--option", "foo"], "my_group") == ["--option", "foo"]
+    end
+
+    test "passes through positional args" do
+      assert Info.args_for_group(["positional", "--option", "foo"], "my_group") ==
+               ["positional", "--option", "foo"]
+    end
+
+    test "strips this group's prefix from --my_group.option" do
+      assert Info.args_for_group(["--my_group.option", "foo"], "my_group") ==
+               ["--option", "foo"]
+    end
+
+    test "strips this group's prefix from --my_group.option=value" do
+      assert Info.args_for_group(["--my_group.option=foo"], "my_group") == ["--option=foo"]
+    end
+
+    test "strips this group's prefix from short alias -my_group.o" do
+      assert Info.args_for_group(["-my_group.o", "foo"], "my_group") == ["-o", "foo"]
+    end
+
+    test "drops other-group namespaced flags" do
+      assert Info.args_for_group(["--other_group.option", "foo"], "my_group") == ["foo"]
+    end
+
+    test "drops other-group namespaced flags with =value" do
+      assert Info.args_for_group(["--other_group.option=foo"], "my_group") == []
+    end
+
+    test "keeps --key=value when value contains a dot" do
+      assert Info.args_for_group(["--out=priv/schema.json"], "my_group") ==
+               ["--out=priv/schema.json"]
+    end
+
+    test "keeps --key=value when value is a module name with dots" do
+      assert Info.args_for_group(["--module=My.App.Mod"], "my_group") == ["--module=My.App.Mod"]
+    end
+
+    test "keeps -k=value when value contains a dot" do
+      assert Info.args_for_group(["-o=priv/schema.json"], "my_group") == ["-o=priv/schema.json"]
+    end
+
+    test "keeps two-arg form regardless of dots in value" do
+      assert Info.args_for_group(["--out", "priv/schema.json"], "my_group") ==
+               ["--out", "priv/schema.json"]
+    end
+
+    test "keeps a flag adjacent to another flag when neither is namespaced" do
+      assert Info.args_for_group(["--out=priv/foo.json", "--format=json"], "my_group") ==
+               ["--out=priv/foo.json", "--format=json"]
+    end
+
+    test "keeps the value of a stripped group prefix even when it contains dots" do
+      assert Info.args_for_group(["--my_group.out=priv/foo.json"], "my_group") ==
+               ["--out=priv/foo.json"]
+    end
+
+    test "returns empty for empty input" do
+      assert Info.args_for_group([], "my_group") == []
+    end
+  end
+
+  describe "schema type coverage with dotted values" do
+    defmodule Elixir.Mix.Tasks.AllTypesTask do
+      use Igniter.Mix.Task
+
+      def info(_argv, _parent) do
+        %Igniter.Mix.Task.Info{
+          schema: [
+            path: :string,
+            module: :string,
+            rate: :float,
+            port: :integer,
+            verbose: :boolean,
+            tag: :keep,
+            items: :csv
+          ],
+          aliases: [
+            p: :path,
+            r: :rate
+          ]
+        }
+      end
+
+      def igniter(igniter) do
+        send(self(), {:options, igniter.args.options})
+        igniter
+      end
+    end
+
+    test ":string with dot in value" do
+      Mix.Tasks.AllTypesTask.run(["--path=priv/schema.json"])
+      assert_received {:options, options}
+      assert options[:path] == "priv/schema.json"
+    end
+
+    test ":string module name with multiple dots" do
+      Mix.Tasks.AllTypesTask.run(["--module=My.App.Mod"])
+      assert_received {:options, options}
+      assert options[:module] == "My.App.Mod"
+    end
+
+    test ":string short alias with dotted value" do
+      Mix.Tasks.AllTypesTask.run(["-p=priv/foo.json"])
+      assert_received {:options, options}
+      assert options[:path] == "priv/foo.json"
+    end
+
+    test ":float survives parsing" do
+      Mix.Tasks.AllTypesTask.run(["--rate=1.5"])
+      assert_received {:options, options}
+      assert options[:rate] == 1.5
+    end
+
+    test ":float via short alias" do
+      Mix.Tasks.AllTypesTask.run(["-r=2.75"])
+      assert_received {:options, options}
+      assert options[:rate] == 2.75
+    end
+
+    test ":integer (no dot, sanity check)" do
+      Mix.Tasks.AllTypesTask.run(["--port=8080"])
+      assert_received {:options, options}
+      assert options[:port] == 8080
+    end
+
+    test ":boolean (no value, sanity check)" do
+      Mix.Tasks.AllTypesTask.run(["--verbose"])
+      assert_received {:options, options}
+      assert options[:verbose] == true
+    end
+
+    test ":keep accumulates values where some contain dots" do
+      Mix.Tasks.AllTypesTask.run(["--tag=plain", "--tag=value.with.dots", "--tag=other"])
+      assert_received {:options, options}
+      assert options[:tag] == ["plain", "value.with.dots", "other"]
+    end
+
+    test ":csv splits while preserving dots inside items" do
+      Mix.Tasks.AllTypesTask.run(["--items=a,b.x,c"])
+      assert_received {:options, options}
+      assert options[:items] == ["a", "b.x", "c"]
+    end
+
+    test "mixed types in a single invocation all survive" do
+      Mix.Tasks.AllTypesTask.run([
+        "--path=priv/schema.json",
+        "--rate=0.95",
+        "--port=4000",
+        "--verbose",
+        "--tag=v1.0",
+        "--tag=v1.1",
+        "--items=foo.json,bar.csv"
+      ])
+
+      assert_received {:options, options}
+      assert options[:path] == "priv/schema.json"
+      assert options[:rate] == 0.95
+      assert options[:port] == 4000
+      assert options[:verbose] == true
+      assert options[:tag] == ["v1.0", "v1.1"]
+      assert options[:items] == ["foo.json", "bar.csv"]
+    end
+  end
 end

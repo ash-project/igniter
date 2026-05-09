@@ -389,7 +389,7 @@ defmodule Igniter.Util.Info do
           _ ->
             rest_args = args_for_group(["-" <> v2 | rest], group)
 
-            if String.contains?(arg, ".") do
+            if flag_namespaced?(arg) do
               rest_args
             else
               ["--#{arg}"] ++ rest_args
@@ -404,7 +404,7 @@ defmodule Igniter.Util.Info do
           _ ->
             rest_args = args_for_group(["-" <> v2 | rest], group)
 
-            if String.contains?(arg, ".") do
+            if flag_namespaced?(arg) do
               rest_args
             else
               ["-#{arg}"] ++ rest_args
@@ -419,7 +419,7 @@ defmodule Igniter.Util.Info do
           _ ->
             rest_args = args_for_group(rest, group)
 
-            if String.contains?(arg, ".") do
+            if flag_namespaced?(arg) do
               rest_args
             else
               ["--#{arg}"] ++ rest_args
@@ -434,7 +434,7 @@ defmodule Igniter.Util.Info do
           _ ->
             rest_args = args_for_group(rest, group)
 
-            if String.contains?(arg, ".") do
+            if flag_namespaced?(arg) do
               rest_args
             else
               ["-#{arg}"] ++ rest_args
@@ -447,6 +447,11 @@ defmodule Igniter.Util.Info do
       [] ->
         []
     end
+  end
+
+  defp flag_namespaced?(arg) do
+    [name | _] = String.split(arg, "=", parts: 2)
+    String.contains?(name, ".")
   end
 
   defp recursively_compose_schema(%Info{composes: []} = schema, _argv, _parent, _opts), do: schema
