@@ -45,6 +45,16 @@ defmodule Igniter.Project.IgniterConfig do
       type: {:list, :any},
       doc:
         "A list of strings or regexes. Any files that equal (in the case of strings) or match (in the case of regexes) will not be moved."
+    ],
+    module_names: [
+      type: {:list, :any},
+      default: [],
+      doc: """
+      A list of `{match, destination}` tuples used to override module destination paths.
+
+      - `match` can be an exact module name string (for example, `"MyApp.Foo"`) or a regex.
+      - `destination` is currently a destination path string.
+      """
     ]
   ]
 

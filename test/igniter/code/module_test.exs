@@ -28,6 +28,60 @@ defmodule Igniter.Code.ModuleTest do
     assert "lib/foo/bar/baz.ex" in paths
   end
 
+  test "module_names exact match mapping is used for destination path" do
+    igniter =
+      Igniter.new()
+      |> Igniter.assign(:igniter_exs,
+        module_location: :outside_matching_folder,
+        module_names: [{"FooWeb.UserController", "lib/foo_web/controllers"}]
+      )
+
+    assert Igniter.Project.Module.proper_location(igniter, FooWeb.UserController) ==
+             "lib/foo_web/controllers/user_controller.ex"
+  end
+
+  test "module_names regex mapping is used when exact mapping does not match" do
+    igniter =
+      Igniter.new()
+      |> Igniter.assign(:igniter_exs,
+        module_names: [{~r/^Foo\.Admin\./, "lib/foo_web/admin"}]
+      )
+
+    assert Igniter.Project.Module.proper_location(igniter, Foo.Admin.UsersController) ==
+             "lib/foo_web/admin/users_controller.ex"
+  end
+
+  test "module_names exact mapping takes precedence over regex mapping" do
+    igniter =
+      Igniter.new()
+      |> Igniter.assign(:igniter_exs,
+        module_names: [
+          {~r/^Foo\./, "lib/foo_web/default"},
+          {"Foo.SpecialController", "lib/foo_web/controllers"}
+        ]
+      )
+
+    assert Igniter.Project.Module.proper_location(igniter, Foo.SpecialController) ==
+             "lib/foo_web/controllers/special_controller.ex"
+  end
+
+  test "proper_location falls back to module_location when no module_names entry matches" do
+    igniter =
+      Igniter.new()
+      |> Igniter.assign(:igniter_exs,
+        module_location: :outside_matching_folder,
+        module_names: [{~r/^Other\./, "lib/other"}]
+      )
+
+    assert Igniter.Project.Module.proper_location(igniter, Foo.Bar.Baz) == "lib/foo/bar/baz.ex"
+  end
+
+  test "proper_location remains backwards compatible when module_names is not configured" do
+    igniter = Igniter.new()
+
+    assert Igniter.Project.Module.proper_location(igniter, Foo.Bar.Baz) == "lib/foo/bar/baz.ex"
+  end
+
   test "modules can be found anywhere across the project" do
     %{rewrite: rewrite} =
       Igniter.new()
