@@ -12,6 +12,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.0](https://github.com/ash-project/igniter/compare/v0.7.9...v0.8.0) (2026-05-09)
+
+
+
+
+### Features:
+
+* add Igniter.Code.Pattern for ExAST-powered pattern matching (#375) by Danila Poyarkov
+
+### Bug Fixes:
+
+* tolerate 3-tuple dep entries in recursively_compose_schema (#372) by Matt Pruitt
+
 ## [v0.7.9](https://github.com/ash-project/igniter/compare/v0.7.8...v0.7.9) (2026-04-11)
 
 
