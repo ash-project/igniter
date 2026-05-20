@@ -77,6 +77,46 @@ defmodule Igniter.TestTest do
                      |> assert_creates("lib/new_file.ex", "expected content\n")
                    end
     end
+
+    test "passes when callback assertions on contents pass" do
+      test_project()
+      |> Igniter.create_new_file("lib/new_file.ex", "defmodule Example, do: :ok")
+      |> assert_creates("lib/new_file.ex", fn file ->
+        assert file =~ "defmodule Example"
+        assert file =~ ~r/:ok/
+      end)
+    end
+
+    test "callback receives the file contents" do
+      parent = self()
+
+      test_project()
+      |> Igniter.create_new_file("lib/new_file.ex", "hello")
+      |> assert_creates("lib/new_file.ex", fn file ->
+        send(parent, {:file, file})
+      end)
+
+      assert_receive {:file, "hello\n"}
+    end
+
+    test "callback failures bubble up as assertion errors" do
+      assert_raise ExUnit.AssertionError, fn ->
+        test_project()
+        |> Igniter.create_new_file("lib/new_file.ex", "actual")
+        |> assert_creates("lib/new_file.ex", fn file ->
+          assert file =~ "this will not match"
+        end)
+      end
+    end
+
+    test "returns the igniter when using a callback" do
+      igniter =
+        test_project()
+        |> Igniter.create_new_file("lib/new_file.ex", "hello")
+
+      result = assert_creates(igniter, "lib/new_file.ex", fn _file -> :ok end)
+      assert result == igniter
+    end
   end
 
   describe "assert_moves/3" do
