@@ -623,7 +623,11 @@ defmodule Igniter.Test do
   @doc """
   Asserts that a file was created during the igniter run.
 
-  Optionally validates the content of the created file if `content` is provided.
+  The third argument is optional. It can be either:
+
+    * a string — the file's full contents are compared for equality
+    * a 1-arity function — invoked with the file's contents so you can run
+      custom assertions (e.g. regex matches) against the file
 
   ## Examples
 
@@ -634,6 +638,13 @@ defmodule Igniter.Test do
       test_project()
       |> Igniter.create_new_file("lib/example.ex", "defmodule Example, do: nil")
       |> assert_creates("lib/example.ex", "defmodule Example, do: nil")
+
+      test_project()
+      |> Igniter.create_new_file("mix.exs", contents)
+      |> assert_creates("mix.exs", fn file ->
+        assert file =~ ~r/def project/
+        assert file =~ "app: :test"
+      end)
   """
   def assert_creates(igniter, path, content \\ nil) do
     assert source = igniter.rewrite.sources[path],
@@ -648,24 +659,31 @@ defmodule Igniter.Test do
            #{Igniter.Test.created_files(igniter)}
            """
 
-    if content do
-      actual_content = Rewrite.Source.get(source, :content)
+    cond do
+      is_function(content, 1) ->
+        content.(Rewrite.Source.get(source, :content))
 
-      if actual_content != content do
-        flunk("""
-        Expected created file #{inspect(path)} to have the following contents:
+      is_binary(content) ->
+        actual_content = Rewrite.Source.get(source, :content)
 
-        #{content}
+        if actual_content != content do
+          flunk("""
+          Expected created file #{inspect(path)} to have the following contents:
 
-        But it actually had the following contents:
+          #{content}
 
-        #{actual_content}
+          But it actually had the following contents:
 
-        Diff, showing your assertion against the actual contents:
+          #{actual_content}
 
-        #{TextDiff.format(actual_content, content)}
-        """)
-      end
+          Diff, showing your assertion against the actual contents:
+
+          #{TextDiff.format(actual_content, content)}
+          """)
+        end
+
+      is_nil(content) ->
+        :ok
     end
 
     igniter
