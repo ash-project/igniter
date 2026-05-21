@@ -503,7 +503,7 @@ defmodule Igniter.Project.Deps do
   end
 
   @doc false
-  def determine_dep_type_and_version!(requirement) do
+  def determine_dep_type_and_version!(requirement, options \\ []) do
     [package | maybe_version] = String.split(requirement, "@", trim: true, parts: 2)
 
     {package, opts} =
@@ -518,9 +518,11 @@ defmodule Igniter.Project.Deps do
         [package] -> {package, opts}
       end
 
+    argv = Keyword.get(options, :argv)
+
     case maybe_version do
       [] ->
-        with {:ok, version} <- fetch_latest_version(package, opts) do
+        with {:ok, version} <- resolve_latest_hex_version(package, opts, argv) do
           {version, []}
         end
 
@@ -639,6 +641,232 @@ defmodule Igniter.Project.Deps do
   rescue
     _ ->
       :error
+  end
+
+  defp resolve_latest_hex_version(package, hex_opts, argv) when is_list(hex_opts) do
+    if is_list(argv) do
+      fetch_latest_hex_version_with_maybe_confirm(package, hex_opts, argv)
+    else
+      fetch_latest_version(package, hex_opts)
+    end
+  end
+
+  defp fetch_latest_hex_version_with_maybe_confirm(package, hex_opts, argv)
+       when is_binary(package) and is_list(hex_opts) and is_list(argv) do
+    if Regex.match?(~r/^[a-z][a-z0-9_]*$/, package) do
+      case fetch_hex_latest_bundle_for_confirm(package, hex_opts) do
+        {:ok, raw_version, popup_fields} ->
+          auto_yes? = not Igniter.Mix.Task.tty?() or "--yes" in argv
+
+          unless auto_yes? do
+            Mix.shell().info("\n" <> format_hex_confirmation_from_popup_fields(popup_fields))
+
+            unless Igniter.Util.IO.yes?("Is this correct?") do
+              exit({:shutdown, 1})
+            end
+          end
+
+          {:ok, Igniter.Util.Version.version_string_to_general_requirement!(raw_version)}
+
+        :error ->
+          :error
+      end
+    else
+      :error
+    end
+  rescue
+    _ ->
+      :error
+  end
+
+  defp fetch_hex_latest_bundle_for_confirm(package, opts)
+       when is_binary(package) and is_list(opts) do
+    {:ok, _} = Application.ensure_all_started(:req)
+
+    with {:ok, package_api_url, headers} <-
+           fetch_hex_package_url_maybe(package, opts),
+         {:ok, body} <- req_hex_package_json(package_api_url, headers),
+         {:ok, chosen} <- hex_pick_latest_release(body),
+         {:ok, version_string} <- hex_resolve_release_version_string(chosen) do
+      release_detail =
+        case req_hex_release_json(package_api_url, version_string, headers) do
+          {:ok, %{} = rb} -> rb
+          _ -> %{}
+        end
+
+      release_body = Map.merge(hex_string_key_map(chosen), release_detail)
+
+      {:ok, version_string,
+       hex_install_popup_fields(package, body, release_body)}
+    else
+      _ -> :error
+    end
+  end
+
+  defp hex_string_key_map(map) when is_map(map) do
+    for {k, v} <- map, into: %{} do
+      {if(is_atom(k), do: Atom.to_string(k), else: k), v}
+    end
+  end
+
+  defp hex_resolve_release_version_string(%{} = chosen) do
+    case chosen["version"] || chosen[:version] do
+      v when is_binary(v) and v != "" -> {:ok, v}
+      v when is_atom(v) -> {:ok, Atom.to_string(v)}
+      _ -> :error
+    end
+  end
+
+  defp hex_resolve_release_version_string(_), do: :error
+
+  defp fetch_hex_package_url_maybe(package, opts) do
+    {:ok, url, hdrs} = fetch_hex_api_url_and_headers(package, opts)
+    {:ok, url, hdrs}
+  rescue
+    _ -> :error
+  end
+
+  defp req_hex_package_json(package_api_url, headers) do
+    case Req.get(package_api_url, headers: headers) do
+      {:ok, %{status: 200, body: %{} = response_body}} ->
+        {:ok, response_body}
+
+      _ ->
+        :error
+    end
+  end
+
+  defp hex_pick_latest_release(body) do
+    case body["releases"] do
+      [_ | _] = releases ->
+        case first_non_rc_version_or_first_version(releases, body) do
+          nil -> :error
+          chosen -> {:ok, chosen}
+        end
+
+      _ ->
+        :error
+    end
+  end
+
+  defp req_hex_release_json(package_api_url, version_string, headers) do
+    rel_url = hex_release_api_url(package_api_url, version_string)
+
+    case Req.get(rel_url, headers: headers) do
+      {:ok, %{status: 200, body: %{} = rb}} -> {:ok, rb}
+      _ -> :error
+    end
+  end
+
+  defp format_hex_confirmation_from_popup_fields(fields) when is_map(fields) do
+    """
+    You are installing the package "#{fields.package}":
+
+    Description:       #{fields.description}
+    Current version:   #{fields.version} (released #{fields.release_date})
+    hex.pm authors:    #{fields.hex_authors}
+    hex.pm publishers: #{fields.hex_publishers}
+    Dependencies:      #{fields.deps_list}
+    Downloads:         #{fields.downloads_this_version} (this version), #{fields.downloads_last_seven_days} (last 7 days), #{fields.downloads_all_time} (all time)
+
+    """
+  end
+
+  defp hex_install_popup_fields(package_atom_string, pkg_body, release_body) do
+    version = release_body["version"]
+    reqs = Map.get(release_body, "requirements") || %{}
+
+    deps_list =
+      reqs |> Map.keys() |> Enum.sort() |> Enum.join(", ")
+
+    owners =
+      (pkg_body["owners"] || []) |> Enum.map(&hex_popup_user_label/1) |> Enum.reject(&is_nil/1)
+
+    publisher_accounts =
+      case release_body["publisher"] do
+        %{} = pu ->
+          List.wrap(hex_popup_user_label(pu))
+
+        _ ->
+          owners
+      end
+
+    downloads_pkg = pkg_body["downloads"] || %{}
+
+    %{
+      package: package_atom_string,
+      description: hex_popup_description(pkg_body),
+      version: hex_popup_optional_text(version),
+      release_date: hex_popup_inserted_at_date(release_body["inserted_at"]),
+      hex_authors: hex_popup_join_user_list(owners),
+      hex_publishers: hex_popup_join_user_list(publisher_accounts),
+      deps_list: if(deps_list == "", do: hex_popup_na(), else: deps_list),
+      downloads_this_version: hex_popup_format_download(release_body["downloads"]),
+      downloads_last_seven_days: hex_popup_format_download(downloads_pkg["week"]),
+      downloads_all_time: hex_popup_format_download(downloads_pkg["all"])
+    }
+  end
+
+  defp hex_popup_na, do: "N/A"
+
+  defp hex_popup_optional_text(term) when term in [nil, ""], do: hex_popup_na()
+
+  defp hex_popup_optional_text(s) when is_binary(s), do: s
+
+  defp hex_popup_optional_text(v) when is_atom(v),
+    do: v |> Atom.to_string() |> hex_popup_optional_text()
+
+  defp hex_popup_optional_text(n) when is_integer(n), do: Integer.to_string(n)
+
+  defp hex_popup_optional_text(n) when is_float(n), do: Float.to_string(n)
+
+  defp hex_popup_optional_text(_), do: hex_popup_na()
+
+  defp hex_release_api_url(package_api_url, version) do
+    enc = URI.encode(version, &URI.char_unreserved?/1)
+    package_api_url <> "/releases/" <> enc
+  end
+
+  defp hex_popup_description(pkg_body) do
+    case get_in(pkg_body, ["meta", "description"]) do
+      d when is_binary(d) -> String.replace(d, "\n", " ")
+      _ -> hex_popup_na()
+    end
+  end
+
+  defp hex_popup_inserted_at_date(str) when is_binary(str) do
+    case String.split(str, "T", parts: 2) do
+      [date | _] when date != "" -> date
+      _ -> hex_popup_na()
+    end
+  rescue
+    _ -> hex_popup_na()
+  end
+
+  defp hex_popup_inserted_at_date(_), do: hex_popup_na()
+
+  defp hex_popup_user_label(%{"username" => u}) when is_binary(u), do: u
+  defp hex_popup_user_label(%{"username" => u}) when is_atom(u), do: Atom.to_string(u)
+  defp hex_popup_user_label(_), do: nil
+
+  defp hex_popup_join_user_list(users) when is_list(users) do
+    case users |> Enum.reject(&(&1 in [nil, ""])) |> Enum.uniq() do
+      [] -> hex_popup_na()
+      xs -> Enum.join(xs, ", ")
+    end
+  end
+
+  defp hex_popup_format_download(n) when is_integer(n),
+    do: hex_popup_space_int(abs(n)) |> maybe_neg_prefix(n)
+
+  defp hex_popup_format_download(_),
+    do: hex_popup_na()
+
+  defp maybe_neg_prefix(s, int) when int < 0, do: "-" <> s
+  defp maybe_neg_prefix(s, _), do: s
+
+  defp hex_popup_space_int(abs_int) when is_integer(abs_int) do
+    abs_int |> Integer.to_string() |> String.replace(~r/\B(?=(\d{3})+(?!\d))/, " ")
   end
 
   def fetch_hex_api_url_and_headers(package, opts) do
