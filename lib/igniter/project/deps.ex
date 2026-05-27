@@ -696,8 +696,7 @@ defmodule Igniter.Project.Deps do
 
       release_body = Map.merge(hex_string_key_map(chosen), release_detail)
 
-      {:ok, version_string,
-       hex_install_popup_fields(package, body, release_body)}
+      {:ok, version_string, hex_install_popup_fields(package, body, release_body)}
     else
       _ -> :error
     end
