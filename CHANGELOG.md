@@ -12,6 +12,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.1](https://github.com/ash-project/igniter/compare/v0.8.0...v0.8.1) (2026-06-02)
+
+
+
+
+### Improvements:
+
+* adding hex confirmation for igniter.install (#379) by ESmithByui
+
+* accept content-checking function in assert_creates/3 (#291) by Lars Wikman
+
 ## [v0.8.0](https://github.com/ash-project/igniter/compare/v0.7.9...v0.8.0) (2026-05-09)
 
 
