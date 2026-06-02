@@ -113,7 +113,7 @@ defmodule Igniter.MixProject do
       {:glob_ex, "~> 0.1.7"},
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
-      {:jason, "~> 1.4"},
+      {:jason, "~> 1.4.5"},
       {:req, "~> 0.5"},
       {:phx_new, "~> 1.7", optional: true},
       {:ex_ast, "~> 0.5"},
@@ -128,7 +128,7 @@ defmodule Igniter.MixProject do
       {:git_ops, github: "zachdaniel/git_ops", branch: "no-igniter", only: :dev},
       {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:benchee, "~> 1.1", only: [:dev, :test]},
-      {:doctor, "~> 0.21", only: [:dev, :test]}
+      {:doctor, "~> 0.23", only: [:dev, :test]}
     ]
   end
 

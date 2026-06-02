@@ -3,9 +3,17 @@
 # SPDX-License-Identifier: MIT
 
 defmodule Igniter.Project.DepsTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
+  use Mimic
 
   import Igniter.Test
+
+  setup_all do
+    Mimic.copy(Req)
+    Mimic.copy(Igniter.Util.IO)
+    Mimic.copy(Igniter.Mix.Task)
+    :ok
+  end
 
   describe "add_dep/3" do
     test "adds the provided dependency" do
@@ -292,6 +300,287 @@ defmodule Igniter.Project.DepsTest do
         assert spec |> to_string() |> Igniter.Project.Deps.determine_dep_type_and_version!() ==
                  expected
       end
+    end
+  end
+
+  describe "hex install confirmation popup" do
+    @package "testpkg"
+    @package_url "https://hex.pm/api/packages/testpkg"
+
+    setup :verify_on_exit!
+
+    setup do
+      stub(Igniter.Mix.Task, :tty?, fn -> true end)
+      stub(Igniter.Util.IO, :yes?, fn _prompt -> true end)
+      :ok
+    end
+
+    defp collect_mix_shell_info(acc) do
+      receive do
+        {:mix_shell, :info, [payload]} -> collect_mix_shell_info([payload | acc])
+      after
+        0 -> Enum.reverse(acc)
+      end
+    end
+
+    defp capture_confirmation_banner(fun) do
+      Mix.shell(Mix.Shell.Process)
+
+      try do
+        fun.()
+        payloads = collect_mix_shell_info([])
+
+        payloads
+        |> Enum.map(fn p -> Enum.map_join(List.wrap(p), "", &IO.ANSI.format/1) end)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.join("")
+      after
+        Mix.shell(Mix.Shell.IO)
+      end
+    end
+
+    defp release_url(version) do
+      @package_url <> "/releases/" <> URI.encode(version, &URI.char_unreserved?/1)
+    end
+
+    defp stub_hex_api(package_body, release_body) do
+      version = release_body["version"]
+      release_api_url = release_url(version)
+
+      stub(Req, :get, fn url, _opts ->
+        cond do
+          url == release_api_url ->
+            {:ok, %{status: 200, body: release_body}}
+
+          url == @package_url ->
+            {:ok, %{status: 200, body: package_body}}
+
+          true ->
+            flunk("unexpected Req.get URL: #{url}")
+        end
+      end)
+    end
+
+    defp run_hex_install(package_body, release_body, opts \\ []) do
+      argv = Keyword.get(opts, :argv, [])
+      stub_hex_api(package_body, release_body)
+
+      capture_confirmation_banner(fn ->
+        Igniter.Project.Deps.determine_dep_type_and_version!(@package, argv: argv)
+      end)
+    end
+
+    defp base_package_body(overrides \\ %{}) do
+      Map.merge(
+        %{
+          "releases" => [
+            %{
+              "version" => "1.2.3",
+              "inserted_at" => "2024-05-15T12:00:00Z"
+            }
+          ],
+          "meta" => %{"description" => "A great package"},
+          "owners" => [
+            %{"username" => "alice"},
+            %{"username" => "bob"}
+          ],
+          "downloads" => %{"week" => 1234, "all" => 1_234_567}
+        },
+        overrides
+      )
+    end
+
+    defp base_release_body(overrides \\ %{}) do
+      Map.merge(
+        %{
+          "version" => "1.2.3",
+          "inserted_at" => "2024-05-15T12:00:00Z",
+          "requirements" => %{"plug" => "~> 1.0", "jason" => "~> 1.0"},
+          "publisher" => %{"username" => "publisher1"},
+          "downloads" => 9876
+        },
+        overrides
+      )
+    end
+
+    defp expected_banner(fields) do
+      """
+
+      You are installing the package "#{fields.package}":
+
+      Description:       #{fields.description}
+      Current version:   #{fields.version} (released #{fields.release_date})
+      hex.pm authors:    #{fields.authors}
+      hex.pm publishers: #{fields.publishers}
+      Dependencies:      #{fields.deps}
+      Downloads:         #{fields.downloads_this_version} (this version), #{fields.downloads_week} (last 7 days), #{fields.downloads_all} (all time)
+
+      """
+    end
+
+    test "shows full confirmation banner with complete metadata" do
+      output =
+        run_hex_install(
+          base_package_body(),
+          base_release_body()
+        )
+
+      assert output ==
+               expected_banner(%{
+                 package: @package,
+                 description: "A great package",
+                 version: "1.2.3",
+                 release_date: "2024-05-15",
+                 authors: "alice, bob",
+                 publishers: "publisher1",
+                 deps: "jason, plug",
+                 downloads_this_version: "9 876",
+                 downloads_week: "1 234",
+                 downloads_all: "1 234 567"
+               })
+    end
+
+    test "shows N/A when meta description is missing" do
+      package_body = base_package_body(%{"meta" => %{}})
+
+      output =
+        run_hex_install(
+          package_body,
+          base_release_body()
+        )
+
+      assert output =~ "Description:       N/A"
+    end
+
+    test "shows Dependencies N/A when requirements map is empty" do
+      output =
+        run_hex_install(
+          base_package_body(),
+          base_release_body(%{"requirements" => %{}})
+        )
+
+      assert output =~ "Dependencies:      N/A"
+    end
+
+    test "shows N/A in Downloads line when download fields are missing" do
+      package_body = base_package_body(%{"downloads" => %{}})
+
+      output =
+        run_hex_install(
+          package_body,
+          base_release_body(%{"downloads" => nil})
+        )
+
+      assert output =~
+               "Downloads:         N/A (this version), N/A (last 7 days), N/A (all time)"
+    end
+
+    test "formats integer downloads with thousands separators and negative prefix" do
+      package_body = base_package_body(%{"downloads" => %{"week" => -5432, "all" => 1_000_000}})
+
+      output =
+        run_hex_install(
+          package_body,
+          base_release_body(%{"downloads" => -12_345})
+        )
+
+      assert output =~
+               "Downloads:         -12 345 (this version), -5 432 (last 7 days), 1 000 000 (all time)"
+    end
+
+    test "falls back to owners for publishers when release has no publisher" do
+      output =
+        run_hex_install(
+          base_package_body(),
+          base_release_body(%{"publisher" => nil})
+        )
+
+      assert output =~ "hex.pm publishers: alice, bob"
+    end
+
+    test "shows N/A for authors and publishers when owners list is empty" do
+      output =
+        run_hex_install(
+          base_package_body(%{"owners" => []}),
+          base_release_body(%{"publisher" => nil})
+        )
+
+      assert output =~ "hex.pm authors:    N/A"
+      assert output =~ "hex.pm publishers: N/A"
+    end
+
+    test "collapses embedded newlines in description to spaces" do
+      package_body =
+        base_package_body(%{
+          "meta" => %{"description" => "Line one\nLine two"}
+        })
+
+      output =
+        run_hex_install(
+          package_body,
+          base_release_body()
+        )
+
+      assert output =~ "Description:       Line one Line two"
+    end
+
+    test "shows N/A for release date when inserted_at is empty" do
+      release_body = base_release_body(%{"inserted_at" => ""})
+
+      package_body =
+        base_package_body(%{
+          "releases" => [
+            %{"version" => "1.2.3", "inserted_at" => ""}
+          ]
+        })
+
+      output =
+        run_hex_install(
+          package_body,
+          release_body
+        )
+
+      assert output =~ "Current version:   1.2.3 (released N/A)"
+    end
+
+    test "skips confirmation banner when argv contains --yes" do
+      stub_hex_api(base_package_body(), base_release_body())
+
+      output =
+        capture_confirmation_banner(fn ->
+          result =
+            Igniter.Project.Deps.determine_dep_type_and_version!(@package, argv: ["--yes"])
+
+          assert result == {:testpkg, "~> 1.0"}
+        end)
+
+      assert output == ""
+    end
+
+    test "handles atom keys in release entry after hex_string_key_map merge" do
+      package_body =
+        base_package_body(%{
+          "releases" => [
+            %{
+              "version" => "2.0.0",
+              :inserted_at => "2024-06-01T00:00:00Z"
+            }
+          ]
+        })
+
+      release_body =
+        base_release_body(%{
+          "version" => "2.0.0",
+          "inserted_at" => "2024-06-01T00:00:00Z"
+        })
+
+      output =
+        run_hex_install(
+          package_body,
+          release_body
+        )
+
+      assert output =~ "Current version:   2.0.0 (released 2024-06-01)"
     end
   end
 end

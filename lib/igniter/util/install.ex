@@ -30,7 +30,7 @@ defmodule Igniter.Util.Install do
   def install([head | _] = deps, argv, igniter, opts) when is_binary(head) do
     deps =
       Enum.map(deps, fn dep ->
-        Igniter.Project.Deps.determine_dep_type_and_version!(dep)
+        Igniter.Project.Deps.determine_dep_type_and_version!(dep, argv: argv)
       end)
 
     install(deps, argv, igniter, opts)
