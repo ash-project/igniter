@@ -5,8 +5,20 @@
 defmodule Mix.Tasks.Igniter.NewTest do
   use ExUnit.Case, async: true
 
-  @moduletag :tmp_dir
+  import ExUnit.CaptureIO
 
+  @moduletag :tmp_dir
+  test "it delegates --help to mix help" do
+    expected =
+      capture_io(fn ->
+        Mix.Task.run("help", ["igniter.new"])
+      end)
+
+    Mix.Task.reenable("help")
+
+    actual = capture_io(fn -> Mix.Tasks.Igniter.New.run(["--help"]) end)
+    assert actual == expected
+  end
   describe "igniter.new with --git flag" do
     @tag :integration
     test "initializes git repository and creates initial commit", %{tmp_dir: tmp_dir} do
