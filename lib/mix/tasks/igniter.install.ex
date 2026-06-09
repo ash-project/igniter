@@ -52,33 +52,37 @@ defmodule Mix.Tasks.Igniter.Install do
   @impl true
   @shortdoc "Install a package or packages, and run any associated installers."
   def run(argv) do
-    Igniter.Util.Loading.with_spinner(
-      "compile",
-      fn ->
-        Mix.Task.run("deps.compile")
-        Mix.Task.run("deps.loadpaths")
-        Mix.Task.run("compile", ["--no-compile"])
-      end,
-      verbose?: "--verbose" in argv
-    )
+    if Igniter.Mix.Task.help_requested?(argv) do
+      Mix.Task.run("help", [Mix.Task.task_name(__MODULE__)])
+    else
+      Igniter.Util.Loading.with_spinner(
+        "compile",
+        fn ->
+          Mix.Task.run("deps.compile")
+          Mix.Task.run("deps.loadpaths")
+          Mix.Task.run("compile", ["--no-compile"])
+        end,
+        verbose?: "--verbose" in argv
+      )
 
-    argv = Enum.reject(argv, &(&1 in ["--from-igniter-new", "--igniter-repeat"]))
+      argv = Enum.reject(argv, &(&1 in ["--from-igniter-new", "--igniter-repeat"]))
 
-    {argv, positional} = extract_positional_args(argv)
+      {argv, positional} = extract_positional_args(argv)
 
-    packages =
-      positional
-      |> Enum.join(",")
-      |> String.split(",", trim: true)
-      |> Enum.map(&String.trim/1)
+      packages =
+        positional
+        |> Enum.join(",")
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
 
-    if Enum.empty?(packages) do
-      raise ArgumentError, "must provide at least one package to install"
+      if Enum.empty?(packages) do
+        raise ArgumentError, "must provide at least one package to install"
+      end
+
+      Application.ensure_all_started(:rewrite)
+
+      Igniter.Util.Install.install(Enum.join(packages, ","), argv)
     end
-
-    Application.ensure_all_started(:rewrite)
-
-    Igniter.Util.Install.install(Enum.join(packages, ","), argv)
   end
 
   @doc false

@@ -5,6 +5,20 @@
 defmodule Mix.Tasks.Igniter.InstallTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureIO
+
+  test "it delegates --help to mix help" do
+    expected =
+      capture_io(fn ->
+        Mix.Task.run("help", ["igniter.install"])
+      end)
+
+    Mix.Task.reenable("help")
+
+    actual = capture_io(fn -> Mix.Tasks.Igniter.Install.run(["--help"]) end)
+    assert actual == expected
+  end
+
   setup do
     File.rm_rf!("test_project")
     cmd!("mix", ["new", "test_project"])
