@@ -77,7 +77,10 @@ defmodule Igniter.Mix.Task do
 
       @impl Mix.Task
       def run(argv) do
-        if !supports_umbrella?() && Mix.Project.umbrella?() do
+        if Igniter.Mix.Task.help_requested?(argv) do
+          Mix.Task.run("help", [Mix.Task.task_name(__MODULE__)])
+        else
+          if !supports_umbrella?() && Mix.Project.umbrella?() do
           raise """
           Cannot run #{inspect(__MODULE__)} in an umbrella project.
           """
@@ -115,6 +118,7 @@ defmodule Igniter.Mix.Task do
             Igniter.do_or_dry_run(igniter, opts)
           end
         end)
+        end
       end
 
       defoverridable run: 1
@@ -324,6 +328,9 @@ defmodule Igniter.Mix.Task do
     _ ->
       true
   end
+
+  @doc false
+  def help_requested?(argv), do: "--help" in argv
 
   @deprecated "use `igniter.args.positional` instead"
   defmacro positional_args!(argv) do

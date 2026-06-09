@@ -86,6 +86,9 @@ defmodule Igniter.Installer.TaskHelpers do
     end
   end
 
+  @doc false
+  def help_requested?(argv), do: "--help" in argv
+
   def wrap_task(task_name, {module, fun, args}, argv) do
     prevent_infinite_loops!(argv)
     load_deps(argv)

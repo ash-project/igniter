@@ -5,6 +5,8 @@
 defmodule Igniter.Mix.TaskTest do
   use ExUnit.Case, async: false
 
+  import ExUnit.CaptureIO
+
   defmodule ExampleTask do
     use Igniter.Mix.Task
 
@@ -38,6 +40,24 @@ defmodule Igniter.Mix.TaskTest do
     on_exit(fn ->
       Mix.shell(current_shell)
     end)
+  end
+  test "it delegates --help to mix help" do
+    shell = Mix.shell()
+    Mix.shell(Mix.Shell.IO)
+
+    try do
+      expected =
+        capture_io(fn ->
+          Mix.Task.run("help", ["igniter.add"])
+        end)
+
+      Mix.Task.reenable("help")
+
+      actual = capture_io(fn -> Mix.Tasks.Igniter.Add.run(["--help"]) end)
+      assert actual == expected
+    after
+      Mix.shell(shell)
+    end
   end
 
   test "it parses options" do

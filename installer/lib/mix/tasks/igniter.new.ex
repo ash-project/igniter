@@ -39,7 +39,10 @@ defmodule Mix.Tasks.Igniter.New do
 
   @impl Mix.Task
   def run(argv) do
-    {argv, positional} = extract_positional_args(argv)
+    if Igniter.Installer.TaskHelpers.help_requested?(argv) do
+      Mix.Task.run("help", [Mix.Task.task_name(__MODULE__)])
+    else
+      {argv, positional} = extract_positional_args(argv)
 
     name =
       case positional do
@@ -251,7 +254,8 @@ defmodule Mix.Tasks.Igniter.New do
       initialize_git_repo()
     end
 
-    :ok
+      :ok
+    end
   end
 
   defp do_warn_outdated(version_task, opts) do
