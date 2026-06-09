@@ -326,8 +326,9 @@ defmodule Igniter.Upgrades do
 
   defp updatable_dep_names(options) do
     Mix.Project.get!().project()[:deps]
-    |> Enum.filter(&dep_in_requested_env?(&1, options))
-    |> Enum.filter(&dep_for_requested_target?(&1, options))
+    |> Enum.filter(
+      &(dep_in_requested_env?(&1, options) and dep_for_requested_target?(&1, options))
+    )
     |> Enum.map(&(dep_name(&1) |> to_string()))
   end
 
