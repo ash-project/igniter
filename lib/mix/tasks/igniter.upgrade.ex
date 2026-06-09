@@ -34,6 +34,7 @@ defmodule Mix.Tasks.Igniter.Upgrade do
 
   * `--yes` - Accept all changes automatically
   * `--all` - Upgrades all dependencies
+  * `--except` - when used with `--all`, skips the given comma-separated dependencies. Can be provided multiple times.
   * `--only` - only fetches dependencies for given environment
   * `--verbose` - display additional output from various operations
   * `--target` - only fetches dependencies for given target

@@ -32,14 +32,28 @@ defmodule Igniter.Upgrades do
         options
       end
 
-    packages =
-      packages
-      |> Enum.join(",")
-      |> String.split(",")
+    packages = split_package_names(packages)
+    except = except_packages(options)
 
     if Enum.empty?(packages) && !options[:all] do
       Mix.shell().error("""
       Must specify at least one package to upgrade or use --all to upgrade all packages.
+      """)
+
+      exit({:shutdown, 1})
+    end
+
+    if options[:all] && !Enum.empty?(packages) do
+      Mix.shell().error("""
+      Cannot specify both --all and package names.
+      """)
+
+      exit({:shutdown, 1})
+    end
+
+    if !Enum.empty?(except) && !options[:all] do
+      Mix.shell().error("""
+      Cannot specify --except without --all.
       """)
 
       exit({:shutdown, 1})
@@ -101,12 +115,9 @@ defmodule Igniter.Upgrades do
     original_mix_lock = Rewrite.Source.get(Rewrite.source!(igniter.rewrite, "mix.lock"), :content)
 
     validate_packages!(packages)
+    validate_except_packages!(except)
 
-    package_names =
-      packages
-      |> Enum.map(&(String.split(&1, "@") |> List.first()))
-      |> Enum.map(&String.to_atom/1)
-
+    deps_to_update = update_deps(packages, options)
     update_deps_args = update_deps_args(options)
 
     igniter =
@@ -119,7 +130,7 @@ defmodule Igniter.Upgrades do
           error_on_abort?: true,
           yes: options[:yes],
           yes_to_deps: options[:yes_to_deps],
-          update_deps: Enum.map(package_names, &to_string/1),
+          update_deps: deps_to_update,
           update_deps_args: update_deps_args,
           force?: true
         )
@@ -267,6 +278,104 @@ defmodule Igniter.Upgrades do
     end
   end
 
+  @doc false
+  def update_deps(packages, options) do
+    except = except_packages(options)
+
+    cond do
+      options[:all] && !Enum.empty?(except) ->
+        # Mix has no --except, so expand --all into the deps this env/target can update.
+        updatable_dep_names(options)
+        |> Enum.reject(&(&1 in except))
+
+      options[:all] ->
+        [:all]
+
+      true ->
+        packages
+        |> Enum.map(&(String.split(&1, "@") |> List.first()))
+        |> Enum.map(&to_string/1)
+    end
+  end
+
+  @doc false
+  def except_packages(options) do
+    options
+    |> option_values(:except)
+    |> split_package_names()
+    |> Enum.map(&(String.split(&1, "@") |> List.first()))
+  end
+
+  defp split_package_names(packages) do
+    packages
+    |> List.wrap()
+    |> List.flatten()
+    |> Enum.join(",")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp option_values(options, key) do
+    if Keyword.keyword?(options) do
+      Keyword.get_values(options, key)
+    else
+      List.wrap(options[key])
+    end
+  end
+
+  defp updatable_dep_names(options) do
+    Mix.Project.get!().project()[:deps]
+    |> Enum.filter(&dep_in_requested_env?(&1, options))
+    |> Enum.filter(&dep_for_requested_target?(&1, options))
+    |> Enum.map(&(dep_name(&1) |> to_string()))
+  end
+
+  defp dep_in_requested_env?(dep, options) do
+    allowed_envs =
+      dep
+      |> dep_opts()
+      |> Keyword.get(:only)
+      |> List.wrap()
+
+    allowed_envs == [] || requested_env(options) in Enum.map(allowed_envs, &to_string/1)
+  end
+
+  defp requested_env(options) do
+    (options[:only] || Mix.env())
+    |> to_string()
+  end
+
+  defp dep_for_requested_target?(dep, options) do
+    allowed_targets =
+      dep
+      |> dep_opts()
+      |> Keyword.get(:targets)
+      |> List.wrap()
+
+    allowed_targets == [] || requested_target(options) in Enum.map(allowed_targets, &to_string/1)
+  end
+
+  defp requested_target(options) do
+    (options[:target] || mix_target())
+    |> to_string()
+  end
+
+  defp mix_target do
+    if function_exported?(Mix, :target, 0) do
+      Mix.target()
+    else
+      :host
+    end
+  end
+
+  # Dependency declarations have multiple tuple shapes.
+  defp dep_name(dep), do: elem(dep, 0)
+
+  defp dep_opts({_dep, opts}) when is_list(opts), do: opts
+  defp dep_opts({_dep, _requirement, opts}) when is_list(opts), do: opts
+  defp dep_opts(_dep), do: []
+
   defp update_deps_args(options) do
     update_deps_args =
       if only = options[:only] do
@@ -289,11 +398,7 @@ defmodule Igniter.Upgrades do
         update_deps_args
       end
 
-    if options[:all] do
-      ["--all"] ++ update_deps_args
-    else
-      update_deps_args
-    end
+    update_deps_args
   end
 
   defp apply_updates(igniter, {package, from, to}) do
@@ -455,5 +560,23 @@ defmodule Igniter.Upgrades do
         """)
       end
     end)
+  end
+
+  defp validate_except_packages!(packages) do
+    dependency_names =
+      Mix.Project.get!().project()[:deps]
+      |> Enum.map(&(dep_name(&1) |> to_string()))
+
+    unknown_packages =
+      packages
+      |> Enum.reject(&(&1 in dependency_names))
+
+    if unknown_packages != [] do
+      Mix.shell().error("""
+      Cannot exclude unknown dependencies from upgrade: #{Enum.join(unknown_packages, ", ")}.
+      """)
+
+      exit({:shutdown, 1})
+    end
   end
 end
