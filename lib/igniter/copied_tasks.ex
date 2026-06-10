@@ -10,6 +10,7 @@ defmodule Igniter.CopiedTasks do
       yes: :boolean,
       yes_to_deps: :boolean,
       all: :boolean,
+      except: :keep,
       only: :string,
       target: :string,
       verbose: :boolean,
