@@ -904,7 +904,11 @@ defmodule Igniter.Project.Module do
                 module_name
             end
 
-          module_to_path(igniter, modified_module_name, module_name)
+          module_name_mapping_path(igniter, modified_module_name, kind)
+          |> case do
+            nil -> module_to_path(igniter, modified_module_name, module_name)
+            path -> path
+          end
       end
 
     last = List.last(path)
@@ -989,6 +993,90 @@ defmodule Igniter.Project.Module do
         |> Path.rootname(".exs")
         |> Path.split()
     end
+  end
+
+  defp module_name_mapping_path(igniter, module, kind) do
+    module_names = Igniter.Project.IgniterConfig.get(igniter, :module_names) || []
+    module_string = inspect(module)
+
+    exact_match_destination =
+      Enum.find_value(module_names, fn
+        {match, destination} when is_binary(match) and match == module_string ->
+          resolve_module_name_destination(destination, module)
+
+        _ ->
+          nil
+      end)
+
+    regex_match_destination =
+      Enum.find_value(module_names, fn
+        {match, destination} when is_struct(match, Regex) ->
+          if Regex.match?(match, module_string) do
+            resolve_module_name_destination(destination, module)
+          end
+
+        _ ->
+          nil
+      end)
+
+    case exact_match_destination || regex_match_destination do
+      nil ->
+        nil
+
+      destination ->
+        destination_to_path_segments(destination, module, kind)
+    end
+  end
+
+  defp resolve_module_name_destination(destination, _module) when is_binary(destination) do
+    destination
+  end
+
+  # We only support path strings today, but keeping this isolated
+  # allows introducing function-based destination mapping later.
+  defp resolve_module_name_destination(destination, module) when is_function(destination, 1) do
+    case destination.(module) do
+      resolved when is_binary(resolved) -> resolved
+      _ -> nil
+    end
+  end
+
+  defp resolve_module_name_destination(_, _), do: nil
+
+  defp destination_to_path_segments(destination, module, kind) do
+    segments =
+      if Path.extname(destination) in [".ex", ".exs"] do
+        destination
+        |> Path.rootname(".ex")
+        |> Path.rootname(".exs")
+        |> Path.split()
+      else
+        destination
+        |> Path.join("#{module_filename(module)}.ex")
+        |> Path.rootname(".ex")
+        |> Path.split()
+      end
+
+    strip_source_folder_prefix(segments, kind)
+  end
+
+  defp strip_source_folder_prefix(segments, {:source_folder, source_folder}) do
+    source_segments = Path.split(source_folder)
+
+    if List.starts_with?(segments, source_segments) do
+      Enum.drop(segments, length(source_segments))
+    else
+      segments
+    end
+  end
+
+  defp strip_source_folder_prefix(segments, _kind), do: segments
+
+  defp module_filename(module) do
+    module
+    |> Module.split()
+    |> List.last()
+    |> Macro.underscore()
   end
 
   defp default_location(module) do
