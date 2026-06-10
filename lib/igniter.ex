@@ -1907,7 +1907,7 @@ defmodule Igniter do
     |> Enum.map(fn error ->
       ["* ", :red, format_error(error)]
     end)
-    |> display_list([:red, "Issues:"])
+    |> display_list([:red, "Issues:"], output: :stderr)
   end
 
   @doc false
@@ -2013,15 +2013,32 @@ defmodule Igniter do
       |> display_list(title)
     end
   end
+  
+  @spec display_list(list(IO.ANSI.ansidata()), IO.ANSI.ansidata(), keyword()) :: :ok
+  defp display_list(list, title, opts \\ [])
 
-  @spec display_list(IO.ANSI.ansidata(), IO.ANSI.ansidata()) :: :ok
-  defp display_list([], _title), do: :ok
+  defp display_list([], _title, _opts), do: :ok
 
-  defp display_list(list, title) do
+  defp display_list(list, title, opts) do
     title = [IO.ANSI.format(title), "\n\n"]
     formatted_list = Enum.map_join(list, "\n", &IO.ANSI.format/1)
 
-    Mix.shell().info(["\n", title, formatted_list, "\n"])
+    output = ["\n", title, formatted_list, "\n"]
+
+    case Keyword.get(opts, :output, :stdout) do
+      :stderr -> shell_error(output)
+      :stdout -> Mix.shell().info(output)
+    end
+  end
+
+  defp shell_error(message) do
+    case Mix.shell() do
+      Mix.Shell.IO ->
+        IO.puts(:stderr, IO.ANSI.format(message))
+
+      shell ->
+        shell.error(message)
+    end
   end
 
   defp format_error(%{__exception__: true} = exception) do
@@ -2177,3 +2194,4 @@ defmodule Igniter do
   defp format_task_for_log({task_name, []}), do: "mix #{task_name}"
   defp format_task_for_log({task_name, args}), do: "mix #{task_name} #{Enum.join(args, " ")}"
 end
+

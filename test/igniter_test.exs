@@ -130,16 +130,25 @@ defmodule IgniterTest do
 
   describe "display_issues/1" do
     test "prints a list of all added issues" do
+      original_shell = Mix.shell()
+      Mix.shell(Mix.Shell.Process)
+
+      on_exit(fn ->
+        Mix.shell(original_shell)
+      end)
+
       igniter =
         test_project()
         |> Igniter.add_issue("issue 1")
         |> Igniter.add_issue("issue 2")
         |> Igniter.add_issue(%RuntimeError{})
 
-      assert_display_output(
-        "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n* \e[31missue 2\e[0m\n* \e[31m** (RuntimeError) runtime error\e[0m\n",
-        fn -> Igniter.display_issues(igniter) end
-      )
+      Igniter.display_issues(igniter)
+
+      assert_received {:mix_shell, :error, [output]}
+
+      assert output ==
+               "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n* \e[31missue 2\e[0m\n* \e[31m** (RuntimeError) runtime error\e[0m\n"
     end
 
     test "prints nothing if there are no issues" do
