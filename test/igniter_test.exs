@@ -151,6 +151,27 @@ defmodule IgniterTest do
                "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n* \e[31missue 2\e[0m\n* \e[31m** (RuntimeError) runtime error\e[0m\n"
     end
 
+    test "prints issues to stderr when using Mix.Shell.IO" do
+      original_shell = Mix.shell()
+      Mix.shell(Mix.Shell.IO)
+
+      on_exit(fn ->
+        Mix.shell(original_shell)
+      end)
+
+      igniter =
+        test_project()
+        |> Igniter.add_issue("issue 1")
+
+      output =
+        capture_io(:stderr, fn ->
+          Igniter.display_issues(igniter)
+        end)
+
+      assert output ==
+              "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n\n"
+    end
+
     test "prints nothing if there are no issues" do
       assert capture_io(fn -> Igniter.display_issues(test_project()) end) == ""
     end
