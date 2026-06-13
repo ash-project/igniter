@@ -11,6 +11,15 @@ defmodule Igniter.Project.Config do
   @type updater :: (Sourceror.Zipper.t() -> {:ok, Sourceror.Zipper.t()}) | :error | nil
   @type after_predicate :: (Sourceror.Zipper.t() -> boolean())
 
+  @type on_scope_missing ::
+          :error
+          | :skip
+          | (Sourceror.Zipper.t() ->
+               {:ok, Sourceror.Zipper.t()}
+               | :error
+               | {:warning, String.t()}
+               | {:error, String.t()})
+
   @type config_group_item ::
           {list(term) | term(), term()} | {list(term) | term(), term(), Keyword.t()}
 
@@ -23,6 +32,11 @@ defmodule Igniter.Project.Config do
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
   * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
+  * `env` - An atom like `:prod`. Scopes the configuration change to the matching `config_env()` block.
+  * `in_scope` - Cursor patterns that scope where the configuration change is applied.
+    See `Igniter.Code.Common.move_to_cursor_match_in_scope/2`.
+  * `on_scope_missing` - `t:on_scope_missing/0`. What to do when the scope cannot be found.
+    Defaults to `:error`.
   """
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -273,7 +287,7 @@ defmodule Igniter.Project.Config do
           opts :: Keyword.t()
         ) :: Igniter.t()
   def configure(igniter, file_name, app_name, config_path, value, opts \\ []) do
-    validate_scope_opts!(opts) # Helper function which makes it so that the user can't pass both :env and :in_scope options to configure/6.
+    validate_scope_opts!(opts)
 
     file_contents = "import Config\n"
 
@@ -296,12 +310,12 @@ defmodule Igniter.Project.Config do
         nil ->
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
-        _ -> # Takes in the user's key/value pairs that they plug in, determines what scope we're targeting - an environment? or a custom pattern?
+        _ ->
           case move_into_scope(zipper, opts, app_name, file_path, config_path) do
             :skip ->
               {:ok, zipper}
 
-            {:ok, scoped_zipper} -> # Searches for patterns inside of the project's runtime.exs file, it then inserts and updates the config accordingly.
+            {:ok, scoped_zipper} ->
               modify_config_code(scoped_zipper, config_path, app_name, value,
                 updater: updater,
                 after: opts[:after]
@@ -860,14 +874,12 @@ defmodule Igniter.Project.Config do
     end)
   end
 
-  # Helper function which makes it so that the user can't pass both :env and :in_scope options to configure/6.
   defp validate_scope_opts!(opts) do
     if opts[:in_scope] && opts[:env] do
       raise ArgumentError, "cannot pass both :env and :in_scope options to configure/6"
     end
   end
 
-  # Determines what scope we're targeting - an environment? or a custom pattern?
   defp scope_patterns(opts) do
     cond do
       patterns = opts[:in_scope] ->
@@ -881,7 +893,6 @@ defmodule Igniter.Project.Config do
     end
   end
 
-  # Defines what the env pattern looks like.
   defp env_scope_patterns(env) do
     [
       """
@@ -897,7 +908,6 @@ defmodule Igniter.Project.Config do
     ]
   end
 
-  # Function to control zipper/cursor around the file into the correct scope before we start editing. If no scope, return the zipper as is. If scope, move the cursor to the correct position. If scope not found, handle the error.
   defp move_into_scope(zipper, opts, app_name, file_path, config_path) do
     case scope_patterns(opts) do
       nil ->
@@ -914,7 +924,6 @@ defmodule Igniter.Project.Config do
     end
   end
 
-  # When the scope is not found, determine whether the user wants to skip the config change, or handle the error. The user can even define a customer fallback function to handle the error.
   defp handle_scope_missing(zipper, opts, app_name, file_path, config_path) do
     case Keyword.get(opts, :on_scope_missing, :error) do
       :error ->
@@ -933,7 +942,6 @@ defmodule Igniter.Project.Config do
     end
   end
 
-  # What will display to the user when the scope is not found.
   defp scope_missing_message(app_name, file_path, config_path, opts) do
     scope_description =
       cond do
