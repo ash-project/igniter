@@ -2013,7 +2013,7 @@ defmodule Igniter do
       |> display_list(title)
     end
   end
-  
+
   @spec display_list(list(IO.ANSI.ansidata()), IO.ANSI.ansidata(), keyword()) :: :ok
   defp display_list(list, title, opts \\ [])
 
@@ -2194,4 +2194,3 @@ defmodule Igniter do
   defp format_task_for_log({task_name, []}), do: "mix #{task_name}"
   defp format_task_for_log({task_name, args}), do: "mix #{task_name} #{Enum.join(args, " ")}"
 end
-

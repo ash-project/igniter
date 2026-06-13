@@ -169,7 +169,7 @@ defmodule IgniterTest do
         end)
 
       assert output ==
-              "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n\n"
+               "\n\e[31mIssues:\e[0m\n\n* \e[31missue 1\e[0m\n\n"
     end
 
     test "prints nothing if there are no issues" do
