@@ -601,6 +601,192 @@ defmodule Igniter.Project.ConfigTest do
     end
   end
 
+  describe "configure/6 scoped options" do
+    test "inserts config inside prod block with env: :prod" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      if config_env() == :prod do
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:database_url],
+        "postgres://localhost",
+        env: :prod
+      )
+      |> assert_has_patch("config/runtime.exs", """
+      4 + |  config :fake, database_url: "postgres://localhost"
+      """)
+    end
+
+    test "inserts config inside reversed prod block with env: :prod" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      if :prod == config_env() do
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:database_url],
+        "postgres://localhost",
+        env: :prod
+      )
+      |> assert_has_patch("config/runtime.exs", """
+      4 + |  config :fake, database_url: "postgres://localhost"
+      """)
+    end
+
+    test "updates existing key inside prod block without duplicating at top level" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      config :fake, other: true
+
+      if config_env() == :prod do
+        config :fake, database_url: "old"
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:database_url],
+        "new",
+        env: :prod
+      )
+      |> assert_has_patch("config/runtime.exs", """
+      6 - |  config :fake, database_url: "old"
+      6 + |  config :fake, database_url: "new"
+      """)
+    end
+
+    test "inserts config inside custom scope with in_scope:" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      if some_condition do
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:key],
+        "value",
+        in_scope: [
+          """
+          if some_condition do
+            __cursor__()
+          end
+          """
+        ]
+      )
+      |> assert_has_patch("config/runtime.exs", """
+      4 + |  config :fake, key: "value"
+      """)
+    end
+
+    test "raises when both env and in_scope are provided" do
+      assert_raise ArgumentError, ~r/cannot pass both :env and :in_scope/, fn ->
+        test_project()
+        |> apply_igniter!()
+        |> Igniter.Project.Config.configure(
+          "runtime.exs",
+          :fake,
+          [:key],
+          "value",
+          env: :prod,
+          in_scope: ["if config_env() == :prod do\n__cursor__()\nend"]
+        )
+      end
+    end
+
+    test "warns when scope is missing by default" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:database_url],
+        "postgres://localhost",
+        env: :prod
+      )
+      |> assert_unchanged()
+      |> assert_has_warning(fn warning ->
+        String.contains?(warning, "Could not find if config_env() == :prod")
+      end)
+    end
+
+    test "skips when scope is missing and on_scope_missing: :skip" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:database_url],
+        "postgres://localhost",
+        env: :prod,
+        on_scope_missing: :skip
+      )
+      |> assert_unchanged()
+    end
+
+    test "uses fallback when scope is missing" do
+      patterns = [
+        """
+        if config_env() == :prod do
+          __cursor__()
+        end
+        """
+      ]
+
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "runtime.exs",
+        :fake,
+        [:database_url],
+        "postgres://localhost",
+        env: :prod,
+        on_scope_missing: fn zipper ->
+          case zipper
+               |> Igniter.Code.Common.add_code("""
+               if config_env() == :prod do
+               end
+               """)
+               |> Igniter.Code.Common.move_to_cursor_match_in_scope(patterns) do
+            {:ok, scoped_zipper} -> {:ok, scoped_zipper}
+            :error -> :error
+          end
+        end
+      )
+      |> assert_has_patch("config/runtime.exs", """
+      3 + |if config_env() == :prod do
+      4 + |  config :fake, database_url: "postgres://localhost"
+      5 + |end
+      """)
+    end
+  end
+
   describe "configures_key?/3" do
     setup do
       %{

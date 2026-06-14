@@ -11,6 +11,15 @@ defmodule Igniter.Project.Config do
   @type updater :: (Sourceror.Zipper.t() -> {:ok, Sourceror.Zipper.t()}) | :error | nil
   @type after_predicate :: (Sourceror.Zipper.t() -> boolean())
 
+  @type on_scope_missing ::
+          :error
+          | :skip
+          | (Sourceror.Zipper.t() ->
+               {:ok, Sourceror.Zipper.t()}
+               | :error
+               | {:warning, String.t()}
+               | {:error, String.t()})
+
   @type config_group_item ::
           {list(term) | term(), term()} | {list(term) | term(), term(), Keyword.t()}
 
@@ -23,6 +32,11 @@ defmodule Igniter.Project.Config do
 
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
   * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate.
+  * `env` - An atom like `:prod`. Scopes the configuration change to the matching `config_env()` block.
+  * `in_scope` - Cursor patterns that scope where the configuration change is applied.
+    See `Igniter.Code.Common.move_to_cursor_match_in_scope/2`.
+  * `on_scope_missing` - `t:on_scope_missing/0`. What to do when the scope cannot be found.
+    Defaults to `:error`.
   """
   @spec configure_new(Igniter.t(), Path.t(), atom(), list(atom), term(), opts :: Keyword.t()) ::
           Igniter.t()
@@ -259,6 +273,10 @@ defmodule Igniter.Project.Config do
   * `failure_message` - A message to display to the user if the configuration change is unsuccessful.
   * `updater` - `t:updater/0`. A function that takes a zipper at a currently configured value and returns a new zipper with the value updated.
   * `after` - `t:after_predicate/0`. Moves to the last node that matches the predicate. Useful to guarantee a `config` is placed after a specific node.
+  * `env` - An atom like `:prod`. Scopes the configuration change to the matching `config_env()` block in the file.
+  * `in_scope` - Cursor patterns that scope where the configuration change is applied.
+    See `Igniter.Code.Common.move_to_cursor_match_in_scope/2`.
+  * `on_scope_missing` - `t:on_scope_missing/0`. What to do when the scope cannot be found. Defaults to `:error`.
   """
   @spec configure(
           Igniter.t(),
@@ -269,6 +287,8 @@ defmodule Igniter.Project.Config do
           opts :: Keyword.t()
         ) :: Igniter.t()
   def configure(igniter, file_name, app_name, config_path, value, opts \\ []) do
+    validate_scope_opts!(opts)
+
     file_contents = "import Config\n"
 
     file_path = config_file_path(igniter, file_name)
@@ -291,10 +311,22 @@ defmodule Igniter.Project.Config do
           {:warning, bad_config_message(app_name, file_path, config_path, value, opts)}
 
         _ ->
-          modify_config_code(zipper, config_path, app_name, value,
-            updater: updater,
-            after: opts[:after]
-          )
+          case move_into_scope(zipper, opts, app_name, file_path, config_path) do
+            :skip ->
+              {:ok, zipper}
+
+            {:ok, scoped_zipper} ->
+              modify_config_code(scoped_zipper, config_path, app_name, value,
+                updater: updater,
+                after: opts[:after]
+              )
+
+            {:warning, warning} ->
+              {:warning, warning}
+
+            {:error, error} ->
+              {:error, error}
+          end
       end
     end)
   end
@@ -840,5 +872,86 @@ defmodule Igniter.Project.Config do
       _ ->
         false
     end)
+  end
+
+  defp validate_scope_opts!(opts) do
+    if opts[:in_scope] && opts[:env] do
+      raise ArgumentError, "cannot pass both :env and :in_scope options to configure/6"
+    end
+  end
+
+  defp scope_patterns(opts) do
+    cond do
+      patterns = opts[:in_scope] ->
+        patterns
+
+      env = opts[:env] ->
+        env_scope_patterns(env)
+
+      true ->
+        nil
+    end
+  end
+
+  defp env_scope_patterns(env) do
+    [
+      """
+      if config_env() == #{inspect(env)} do
+        __cursor__()
+      end
+      """,
+      """
+      if #{inspect(env)} == config_env() do
+        __cursor__()
+      end
+      """
+    ]
+  end
+
+  defp move_into_scope(zipper, opts, app_name, file_path, config_path) do
+    case scope_patterns(opts) do
+      nil ->
+        {:ok, zipper}
+
+      patterns ->
+        case Common.move_to_cursor_match_in_scope(zipper, patterns) do
+          {:ok, scoped_zipper} ->
+            {:ok, scoped_zipper}
+
+          :error ->
+            handle_scope_missing(zipper, opts, app_name, file_path, config_path)
+        end
+    end
+  end
+
+  defp handle_scope_missing(zipper, opts, app_name, file_path, config_path) do
+    case Keyword.get(opts, :on_scope_missing, :error) do
+      :error ->
+        {:warning, scope_missing_message(app_name, file_path, config_path, opts)}
+
+      :skip ->
+        :skip
+
+      fallback when is_function(fallback, 1) ->
+        case fallback.(zipper) do
+          {:ok, scoped_zipper} -> {:ok, scoped_zipper}
+          :error -> {:warning, scope_missing_message(app_name, file_path, config_path, opts)}
+          {:warning, message} -> {:warning, message}
+          {:error, message} -> {:error, message}
+        end
+    end
+  end
+
+  defp scope_missing_message(app_name, file_path, config_path, opts) do
+    scope_description =
+      cond do
+        env = opts[:env] -> "if config_env() == #{inspect(env)}"
+        opts[:in_scope] -> "the provided scope pattern(s)"
+        true -> "the requested scope"
+      end
+
+    """
+    Could not find #{scope_description} in `#{file_path}` to set #{inspect([app_name | config_path])}.
+    """
   end
 end
