@@ -47,6 +47,8 @@ defmodule Igniter.Mix.TaskTest do
     Mix.shell(Mix.Shell.IO)
 
     try do
+      Mix.Task.reenable("help")
+
       expected =
         capture_io(fn ->
           Mix.Task.run("help", ["igniter.add"])
