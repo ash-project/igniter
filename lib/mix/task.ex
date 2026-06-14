@@ -81,43 +81,43 @@ defmodule Igniter.Mix.Task do
           Mix.Task.run("help", [Mix.Task.task_name(__MODULE__)])
         else
           if !supports_umbrella?() && Mix.Project.umbrella?() do
-          raise """
-          Cannot run #{inspect(__MODULE__)} in an umbrella project.
-          """
-        end
-
-        if Mix.Task.task_name(__MODULE__) != "igniter.upgrade" do
-          Mix.Task.run("compile")
-        end
-
-        Application.ensure_all_started(:rewrite)
-
-        global_options = Info.global_options()
-
-        info =
-          argv
-          |> info(nil)
-          |> Map.update!(:schema, &Keyword.merge(&1, global_options[:switches]))
-
-        {opts, _} =
-          Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
-
-        if opts[:scribe] do
-          Igniter.Test.test_project()
-          |> Igniter.assign(:scribe?, true)
-        else
-          Igniter.new()
-        end
-        |> Map.put(:task, Mix.Task.task_name(__MODULE__))
-        |> Igniter.Mix.Task.configure_and_run(__MODULE__, argv)
-        |> then(fn igniter ->
-          if opts[:scribe] do
-            Igniter.Scribe.write(igniter, opts[:scribe])
-          else
-            opts = Keyword.put(opts, :yes, igniter.args.options[:yes])
-            Igniter.do_or_dry_run(igniter, opts)
+            raise """
+            Cannot run #{inspect(__MODULE__)} in an umbrella project.
+            """
           end
-        end)
+
+          if Mix.Task.task_name(__MODULE__) != "igniter.upgrade" do
+            Mix.Task.run("compile")
+          end
+
+          Application.ensure_all_started(:rewrite)
+
+          global_options = Info.global_options()
+
+          info =
+            argv
+            |> info(nil)
+            |> Map.update!(:schema, &Keyword.merge(&1, global_options[:switches]))
+
+          {opts, _} =
+            Igniter.Util.Info.validate!(argv, info, Mix.Task.task_name(__MODULE__))
+
+          if opts[:scribe] do
+            Igniter.Test.test_project()
+            |> Igniter.assign(:scribe?, true)
+          else
+            Igniter.new()
+          end
+          |> Map.put(:task, Mix.Task.task_name(__MODULE__))
+          |> Igniter.Mix.Task.configure_and_run(__MODULE__, argv)
+          |> then(fn igniter ->
+            if opts[:scribe] do
+              Igniter.Scribe.write(igniter, opts[:scribe])
+            else
+              opts = Keyword.put(opts, :yes, igniter.args.options[:yes])
+              Igniter.do_or_dry_run(igniter, opts)
+            end
+          end)
         end
       end
 

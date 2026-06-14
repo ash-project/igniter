@@ -44,215 +44,215 @@ defmodule Mix.Tasks.Igniter.New do
     else
       {argv, positional} = extract_positional_args(argv)
 
-    name =
-      case positional do
-        [name | _] ->
-          name
+      name =
+        case positional do
+          [name | _] ->
+            name
 
-        _ ->
-          Mix.shell().error("""
-          Required positional argument missing: project_name.
-
-          Usage:
-
-              mix igniter.new project_name [options]
-          """)
-
-          exit({:shutdown, 1})
-      end
-
-    if String.starts_with?(name, "-") do
-      Mix.shell().error("""
-      The first positional argument must be a project name that starts with a dash, got: #{name}
-      """)
-
-      exit({:shutdown, 1})
-    end
-
-    {options, _, _} =
-      OptionParser.parse(argv,
-        strict: [
-          install: :keep,
-          local: :string,
-          example: :boolean,
-          with: :string,
-          module: :string,
-          sup: :boolean,
-          umbrella: :boolean,
-          installer_version_check: :boolean,
-          git: :boolean
-        ],
-        aliases: [i: :install, l: :local, e: :example, w: :with]
-      )
-
-    install_with = options[:with] || "new"
-
-    if String.match?(install_with, ~r/\s/) do
-      Mix.shell().error("The --with option must not contain any spaces, got: #{install_with}")
-
-      exit({:shutdown, 1})
-    end
-
-    install =
-      options
-      |> Keyword.get_values(:install)
-      |> List.wrap()
-      |> Enum.join(",")
-      |> String.split(",", trim: true)
-
-    if File.exists?(name) do
-      Mix.shell().error("""
-      The directory #{name} already exists. You must either:
-      1. remove or move it
-      2. If you are trying to modify an existing project add `{:igniter` to the project, if it is not
-      already added, and then run `mix igniter.install #{Enum.join(install, ",")}` inside the project
-      """)
-
-      exit({:shutdown, 1})
-    end
-
-    version_task =
-      if Keyword.get(options, :installer_version_check, true) do
-        get_latest_version("igniter_new")
-      end
-
-    with_args =
-      [name | with_args(argv)]
-
-    with_args =
-      if install_with == "phx.new" do
-        with_args ++ ["--install"]
-      else
-        with_args
-      end
-
-    with_args =
-      if options[:module] do
-        with_args ++ ["--module", options[:module]]
-      else
-        with_args
-      end
-
-    with_args =
-      if options[:sup] do
-        with_args ++ ["--sup"]
-      else
-        with_args
-      end
-
-    with_args =
-      if options[:umbrella] do
-        with_args ++ ["--umbrella"]
-      else
-        with_args
-      end
-
-    yes =
-      if "--yes" in argv or "-y" in argv do
-        "--yes"
-      end
-
-    do_warn_outdated(version_task, yes: yes)
-
-    Mix.Task.run(install_with, with_args)
-
-    version_requirement =
-      if options[:local] do
-        local = Path.join(["..", options[:local]])
-        "path: #{inspect(local)}, override: true"
-      else
-        inspect(@igniter_version)
-      end
-
-    if "--umbrella" in with_args or "--umbrella" in argv do
-      Mix.shell().exit("""
-      igniter.new is not currently compatible with umbrella applications
-
-      Additionally, many package installers do not support umbrella applications.
-
-      If you are sure that you want to use umbrella applications (there are plenty
-      of good reasons), please generate the application using `mix #{install_with}`,
-      and then run installers from individual applications.
-      """)
-
-      exit({:shutdown, 1})
-    end
-
-    File.cd!(name)
-
-    contents =
-      "mix.exs"
-      |> File.read!()
-
-    if String.contains?(contents, "{:igniter") do
-      Mix.shell().info(
-        "It looks like the project already exists and igniter is already installed, not adding it to deps."
-      )
-    else
-      # the spaces are required here to avoid the need for a format
-      new_contents =
-        contents
-        |> add_igniter_dep(version_requirement)
-        |> Code.format_string!()
-
-      File.write!("mix.exs", new_contents)
-    end
-
-    Igniter.Installer.Loading.with_spinner(
-      "Fetching and compiling dependencies",
-      fn ->
-        System.cmd("mix", ["deps.get"])
-        System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
-      end
-    )
-
-    if !Enum.empty?(install) do
-      example =
-        if options[:example] do
-          "--example"
-        end
-
-      install_args =
-        Enum.filter([Enum.join(install, ","), example, yes], & &1)
-
-      old_undefined = Code.get_compiler_option(:no_warn_undefined)
-      old_relative_paths = Code.get_compiler_option(:relative_paths)
-      old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
-
-      try do
-        Code.compiler_options(
-          relative_paths: false,
-          no_warn_undefined: :all,
-          ignore_module_conflict: true
-        )
-
-        _ = Code.compile_file("mix.exs")
-      after
-        Code.compiler_options(
-          relative_paths: old_relative_paths,
-          no_warn_undefined: old_undefined,
-          ignore_module_conflict: old_ignore_module_conflict
-        )
-      end
-
-      rest_args =
-        try do
-          rest_args(argv)
-        rescue
           _ ->
-            []
+            Mix.shell().error("""
+            Required positional argument missing: project_name.
+
+            Usage:
+
+                mix igniter.new project_name [options]
+            """)
+
+            exit({:shutdown, 1})
         end
 
-      Mix.Task.run(
-        "igniter.install",
-        install_args ++
-          rest_args ++ ["--yes-to-deps", "--from-igniter-new", "--new-with", "phx-new"]
-      )
-    end
+      if String.starts_with?(name, "-") do
+        Mix.shell().error("""
+        The first positional argument must be a project name that starts with a dash, got: #{name}
+        """)
 
-    if Keyword.get(options, :git, true) do
-      initialize_git_repo()
-    end
+        exit({:shutdown, 1})
+      end
+
+      {options, _, _} =
+        OptionParser.parse(argv,
+          strict: [
+            install: :keep,
+            local: :string,
+            example: :boolean,
+            with: :string,
+            module: :string,
+            sup: :boolean,
+            umbrella: :boolean,
+            installer_version_check: :boolean,
+            git: :boolean
+          ],
+          aliases: [i: :install, l: :local, e: :example, w: :with]
+        )
+
+      install_with = options[:with] || "new"
+
+      if String.match?(install_with, ~r/\s/) do
+        Mix.shell().error("The --with option must not contain any spaces, got: #{install_with}")
+
+        exit({:shutdown, 1})
+      end
+
+      install =
+        options
+        |> Keyword.get_values(:install)
+        |> List.wrap()
+        |> Enum.join(",")
+        |> String.split(",", trim: true)
+
+      if File.exists?(name) do
+        Mix.shell().error("""
+        The directory #{name} already exists. You must either:
+        1. remove or move it
+        2. If you are trying to modify an existing project add `{:igniter` to the project, if it is not
+        already added, and then run `mix igniter.install #{Enum.join(install, ",")}` inside the project
+        """)
+
+        exit({:shutdown, 1})
+      end
+
+      version_task =
+        if Keyword.get(options, :installer_version_check, true) do
+          get_latest_version("igniter_new")
+        end
+
+      with_args =
+        [name | with_args(argv)]
+
+      with_args =
+        if install_with == "phx.new" do
+          with_args ++ ["--install"]
+        else
+          with_args
+        end
+
+      with_args =
+        if options[:module] do
+          with_args ++ ["--module", options[:module]]
+        else
+          with_args
+        end
+
+      with_args =
+        if options[:sup] do
+          with_args ++ ["--sup"]
+        else
+          with_args
+        end
+
+      with_args =
+        if options[:umbrella] do
+          with_args ++ ["--umbrella"]
+        else
+          with_args
+        end
+
+      yes =
+        if "--yes" in argv or "-y" in argv do
+          "--yes"
+        end
+
+      do_warn_outdated(version_task, yes: yes)
+
+      Mix.Task.run(install_with, with_args)
+
+      version_requirement =
+        if options[:local] do
+          local = Path.join(["..", options[:local]])
+          "path: #{inspect(local)}, override: true"
+        else
+          inspect(@igniter_version)
+        end
+
+      if "--umbrella" in with_args or "--umbrella" in argv do
+        Mix.shell().exit("""
+        igniter.new is not currently compatible with umbrella applications
+
+        Additionally, many package installers do not support umbrella applications.
+
+        If you are sure that you want to use umbrella applications (there are plenty
+        of good reasons), please generate the application using `mix #{install_with}`,
+        and then run installers from individual applications.
+        """)
+
+        exit({:shutdown, 1})
+      end
+
+      File.cd!(name)
+
+      contents =
+        "mix.exs"
+        |> File.read!()
+
+      if String.contains?(contents, "{:igniter") do
+        Mix.shell().info(
+          "It looks like the project already exists and igniter is already installed, not adding it to deps."
+        )
+      else
+        # the spaces are required here to avoid the need for a format
+        new_contents =
+          contents
+          |> add_igniter_dep(version_requirement)
+          |> Code.format_string!()
+
+        File.write!("mix.exs", new_contents)
+      end
+
+      Igniter.Installer.Loading.with_spinner(
+        "Fetching and compiling dependencies",
+        fn ->
+          System.cmd("mix", ["deps.get"])
+          System.cmd("mix", ["deps.compile", "--long-compilation-threshold", "0"])
+        end
+      )
+
+      if !Enum.empty?(install) do
+        example =
+          if options[:example] do
+            "--example"
+          end
+
+        install_args =
+          Enum.filter([Enum.join(install, ","), example, yes], & &1)
+
+        old_undefined = Code.get_compiler_option(:no_warn_undefined)
+        old_relative_paths = Code.get_compiler_option(:relative_paths)
+        old_ignore_module_conflict = Code.get_compiler_option(:ignore_module_conflict)
+
+        try do
+          Code.compiler_options(
+            relative_paths: false,
+            no_warn_undefined: :all,
+            ignore_module_conflict: true
+          )
+
+          _ = Code.compile_file("mix.exs")
+        after
+          Code.compiler_options(
+            relative_paths: old_relative_paths,
+            no_warn_undefined: old_undefined,
+            ignore_module_conflict: old_ignore_module_conflict
+          )
+        end
+
+        rest_args =
+          try do
+            rest_args(argv)
+          rescue
+            _ ->
+              []
+          end
+
+        Mix.Task.run(
+          "igniter.install",
+          install_args ++
+            rest_args ++ ["--yes-to-deps", "--from-igniter-new", "--new-with", "phx-new"]
+        )
+      end
+
+      if Keyword.get(options, :git, true) do
+        initialize_git_repo()
+      end
 
       :ok
     end

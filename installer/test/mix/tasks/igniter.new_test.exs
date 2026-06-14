@@ -19,6 +19,7 @@ defmodule Mix.Tasks.Igniter.NewTest do
     actual = capture_io(fn -> Mix.Tasks.Igniter.New.run(["--help"]) end)
     assert actual == expected
   end
+
   describe "igniter.new with --git flag" do
     @tag :integration
     test "initializes git repository and creates initial commit", %{tmp_dir: tmp_dir} do

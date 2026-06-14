@@ -41,6 +41,7 @@ defmodule Igniter.Mix.TaskTest do
       Mix.shell(current_shell)
     end)
   end
+
   test "it delegates --help to mix help" do
     shell = Mix.shell()
     Mix.shell(Mix.Shell.IO)
