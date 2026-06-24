@@ -808,6 +808,12 @@ defmodule Igniter.Project.ConfigTest do
       assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :foo, :key2) == false
     end
 
+    test "works when the path is empty, behaving like configures_root_key?", %{igniter: igniter} do
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :foo, []) == true
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, []) == true
+      assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :nope, []) == false
+    end
+
     test "works when the last argument is a single atom and config/3 is used", %{igniter: igniter} do
       assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, Test) == true
       assert Igniter.Project.Config.configures_key?(igniter, "fake.exs", :bar, Testt) == false
@@ -952,6 +958,28 @@ defmodule Igniter.Project.ConfigTest do
       |> assert_has_patch("config/config.exs", """
        - |config :foo, bar: []
        + |config :foo, bar: [baz: :buz]
+      """)
+    end
+
+    test "works with an empty shared prefix when the root key is already configured via config/3" do
+      test_project()
+      |> Igniter.create_new_file("config/config.exs", """
+      import Config
+
+      config :foo, Some.Module, other: :thing
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure_group(
+        "config.exs",
+        :foo,
+        [],
+        [
+          {[:bar], :baz},
+          {[:nested, :key], :value}
+        ]
+      )
+      |> assert_has_patch("config/config.exs", """
+      + |config :foo, bar: :baz, nested: [key: :value]
       """)
     end
   end

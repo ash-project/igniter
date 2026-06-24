@@ -684,6 +684,10 @@ defmodule Igniter.Project.Config do
     configures_key?(zipper, root_key, List.wrap(key))
   end
 
+  def configures_key?(zipper = %Zipper{}, root_key, []) do
+    configures_root_key?(zipper, root_key)
+  end
+
   def configures_key?(zipper = %Zipper{}, root_key, path) when is_list(path) do
     with :error <-
            Igniter.Code.Function.move_to_function_call_in_current_scope(
