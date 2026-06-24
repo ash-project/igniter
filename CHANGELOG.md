@@ -12,6 +12,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.2](https://github.com/ash-project/igniter/compare/v0.8.1...v0.8.2) (2026-06-24)
+
+
+
+
+### Bug Fixes:
+
+* handle empty list in `configures_key` by Zach Daniel
+
+### Improvements:
+
+* Add scoped configure/6 options for runtime env blocks (#385) by RhettPoole
+
+* Send issue output to stderr (#384) by daphnerosepurcell
+
+* allow remapping modules to their file locations w/ regexes (#378) by aheiner2001
+
+* add --except to igniter.upgrade --all (#383) by febarnett3
+
+* intercept --help for igniter.new and other tasks. (#382) by CaydenLords
+
 ## [v0.8.1](https://github.com/ash-project/igniter/compare/v0.8.0...v0.8.1) (2026-06-02)
 
 
