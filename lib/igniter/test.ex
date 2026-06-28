@@ -424,7 +424,7 @@ defmodule Igniter.Test do
       end
 
     if path do
-      source = Rewrite.source(igniter, path)
+      source = Rewrite.source(igniter.rewrite, path)
 
       issues =
         case source do
