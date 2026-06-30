@@ -68,7 +68,7 @@ defmodule Igniter.Project.Deps do
           Igniter.add_warning(igniter, error)
         end
 
-      {:ok, current} ->
+      {:ok, current_source} ->
         if opts[:on_exists] == :skip do
           igniter
         else
@@ -82,7 +82,7 @@ defmodule Igniter.Project.Deps do
               Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
             end
 
-          current = Code.eval_string(current) |> elem(0)
+          current = Code.eval_string(current_source) |> elem(0)
 
           {desired, current} =
             case {desired, current} do
@@ -105,12 +105,15 @@ defmodule Igniter.Project.Deps do
 
             igniter
           else
+            desired_display = dep_declaration_string(name, version, opts[:dep_opts])
+            current_display = String.trim(current_source)
+
             if opts[:yes?] ||
                  Igniter.Util.IO.yes?("""
                  Dependency #{name} is already in mix.exs. Should we replace it?
 
-                 Desired: `#{inspect(desired)}`
-                 Found: `#{inspect(current)}`
+                 Desired: `#{desired_display}`
+                 Found: `#{current_display}`
                  """) do
               do_add_dependency(igniter, name, version, opts)
             else
@@ -381,6 +384,24 @@ defmodule Igniter.Project.Deps do
          Please remove the old dependency manually.
          """}
     end
+  end
+
+  defp dep_declaration_string(name, version, dep_opts) do
+    quoted =
+      if dep_opts do
+        quote do
+          {unquote(name), unquote(version), unquote(dep_opts)}
+        end
+      else
+        {:__block__, [],
+         [
+           {{:__block__, [], [name]}, {:__block__, [], [version]}}
+         ]}
+      end
+
+    quoted
+    |> Sourceror.to_string()
+    |> String.trim()
   end
 
   defp do_add_dependency(igniter, name, version, opts) do
