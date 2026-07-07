@@ -680,11 +680,11 @@ defmodule Igniter.Project.Config do
   @spec configures_key?(Zipper.t(), atom(), atom() | list(atom())) :: boolean()
   def configures_key?(zipper, root_key, key_or_path)
 
-  def configures_key?(zipper = %Zipper{}, root_key, key) when is_atom(key) do
+  def configures_key?(%Zipper{} = zipper, root_key, key) when is_atom(key) do
     configures_key?(zipper, root_key, List.wrap(key))
   end
 
-  def configures_key?(zipper = %Zipper{}, root_key, []) do
+  def configures_key?(%Zipper{} = zipper, root_key, []) do
     configures_root_key?(zipper, root_key)
   end
 
