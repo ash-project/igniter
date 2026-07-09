@@ -17,6 +17,60 @@ defmodule Igniter.Project.ConfigTest do
       """)
     end
 
+    @tag :regression
+    test "it updates nested keyword values in three argument config" do
+      test_project()
+      |> Igniter.create_new_file("config/dev.exs", """
+      import Config
+      config :demo, DemoWeb.Endpoint,
+        http: [ip: {127, 0, 0, 1}, port: 4000],
+        check_origin: false,
+        code_reloader: true,
+        debug_errors: true,
+        secret_key_base: "A0DSgxjGCYZ6fCIrBlg6L+qC/cdoFq5Rmomm53yacVmN95Wcpl57Gv0sTJjKjtIp",
+        watchers: [
+          esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
+          tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}
+        ]
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "dev.exs",
+        :demo,
+        [DemoWeb.Endpoint, :http, :port],
+        {:code, Sourceror.parse_string!("4100")}
+      )
+      |> assert_has_patch("config/dev.exs", """
+      4 - |  http: [ip: {127, 0, 0, 1}, port: 4000],
+      4 + |  http: [ip: {127, 0, 0, 1}, port: 4100],
+      """)
+    end
+
+    @tag :regression
+    test "it only updates the matching config when another config has the same nested key" do
+      test_project()
+      |> Igniter.create_new_file("config/dev.exs", """
+      import Config
+
+      config :demo, OtherWeb.Endpoint,
+        http: [ip: {127, 0, 0, 1}, port: 4000]
+
+      config :demo, DemoWeb.Endpoint,
+        http: [ip: {127, 0, 0, 1}, port: 4000]
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure(
+        "dev.exs",
+        :demo,
+        [DemoWeb.Endpoint, :http, :port],
+        {:code, Sourceror.parse_string!("4100")}
+      )
+      |> assert_has_patch("config/dev.exs", """
+      5 - |config :demo, DemoWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: 4000]
+      5 + |config :demo, DemoWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: 4100]
+      """)
+    end
+
     test "it doesn't modify a file if the updater returns an error" do
       igniter =
         test_project(
