@@ -357,6 +357,8 @@ defmodule Igniter.Code.Common do
     do_add_code(zipper, new_code, opts)
   end
 
+  # reaches into `Sourceror.Zipper`'s opaque `path` type
+  @dialyzer {:nowarn_function, do_add_code: 3}
   defp do_add_code(zipper, new_code, opts) do
     expand_env? = Keyword.get(opts, :expand_env?, true)
     placement = Keyword.get(opts, :placement, :after)

@@ -25,7 +25,8 @@ defmodule Mix.Tasks.Igniter.Refactor.UnlessToIfNot do
     }
   end
 
-  def igniter(igniter) do
-    Igniter.Refactors.Elixir.unless_to_if_not(igniter)
+  @spec igniter(Igniter.t()) :: no_return()
+  def igniter(_igniter) do
+    Mix.raise("use `mix format --migrate` instead")
   end
 end

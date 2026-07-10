@@ -311,7 +311,7 @@ defmodule Igniter.Util.Info do
 
         Please install it manually, for example:
 
-            `MIX_ENV=#{Enum.at(only, 0)} mix igniter.install #{dependency}`.
+            `MIX_ENV=#{Enum.at(only, 0)} mix igniter.install #{name}`.
         """)
       else
         _ ->
