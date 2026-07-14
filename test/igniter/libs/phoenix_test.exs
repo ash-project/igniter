@@ -71,6 +71,41 @@ defmodule Igniter.Libs.PhoenixTest do
     assert Igniter.Libs.Phoenix.web_module_name(test_project(), "Suffix") == TestWeb.Suffix
   end
 
+  describe "web_module_for_router/2" do
+    test "reads the web module from the router's `use _, :router` declaration" do
+      igniter =
+        test_project()
+        |> Igniter.create_new_file("lib/admin_web/router.ex", """
+        defmodule AdminWeb.Router do
+          use AdminWeb, :router
+        end
+        """)
+        |> apply_igniter!()
+
+      assert {_igniter, AdminWeb} =
+               Igniter.Libs.Phoenix.web_module_for_router(igniter, AdminWeb.Router)
+    end
+
+    test "falls back to `web_module/1` for a `use Phoenix.Router` router" do
+      igniter =
+        test_project()
+        |> Igniter.create_new_file("lib/plain/router.ex", """
+        defmodule Plain.Router do
+          use Phoenix.Router
+        end
+        """)
+        |> apply_igniter!()
+
+      assert {_igniter, TestWeb} =
+               Igniter.Libs.Phoenix.web_module_for_router(igniter, Plain.Router)
+    end
+
+    test "falls back to `web_module/1` when the router cannot be found" do
+      assert {_igniter, TestWeb} =
+               Igniter.Libs.Phoenix.web_module_for_router(test_project(), Missing.Router)
+    end
+  end
+
   describe "list_web_modules/1" do
     test "finds web modules that are one level deep and end with Web" do
       igniter =
