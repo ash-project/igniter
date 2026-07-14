@@ -4,8 +4,16 @@
 
 defmodule Mix.Tasks.Igniter.InstallTest do
   use ExUnit.Case
+  use Mimic
 
   import ExUnit.CaptureIO
+
+  setup_all do
+    Mimic.copy(Igniter.Mix.Task)
+    :ok
+  end
+
+  setup :verify_on_exit!
 
   test "it delegates --help to mix help" do
     expected =
@@ -43,6 +51,24 @@ defmodule Mix.Tasks.Igniter.InstallTest do
       cmd!("mix", ["deps.compile"], cd: "test_project")
       output = cmd!("mix", ["igniter.install", "jason"], cd: "test_project")
       refute String.contains?(output, "jason\nCompiling")
+    end
+
+    test "does not report success when installation is declined" do
+      mix_exs_before = File.read!("test_project/mix.exs")
+
+      stub(Igniter.Mix.Task, :tty?, fn -> true end)
+
+      output =
+        capture_io("n\n", fn ->
+          File.cd!("test_project", fn ->
+            Igniter.Util.Install.install([{:jason, "~> 1.0"}], [])
+          end)
+        end)
+
+      mix_exs_after = File.read!("test_project/mix.exs")
+
+      assert mix_exs_after == mix_exs_before
+      refute String.contains?(output, "Successfully installed")
     end
 
     test "displays additional information with `--verbose` option" do
