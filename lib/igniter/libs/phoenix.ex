@@ -92,6 +92,41 @@ defmodule Igniter.Libs.Phoenix do
     Module.concat(web_module(igniter), suffix)
   end
 
+  @doc """
+  Returns the web module that the given `router` belongs to.
+
+  Reads the router's `use <WebModule>, :router` declaration, which is the module
+  that generated modules (`use <WebModule>, :controller`, `:verified_routes`,
+  etc.) should reference. This lets installers place generated modules alongside
+  the selected router rather than assuming the application's default web module.
+
+  Falls back to `web_module/1` when the router uses `Phoenix.Router` directly or
+  cannot be found.
+  """
+  @spec web_module_for_router(Igniter.t(), module()) :: {Igniter.t(), module()}
+  def web_module_for_router(igniter, router) do
+    case Igniter.Project.Module.find_module(igniter, router) do
+      {:ok, {igniter, _source, zipper}} ->
+        {igniter, web_module_from_router_use(zipper) || web_module(igniter)}
+
+      {:error, igniter} ->
+        {igniter, web_module(igniter)}
+    end
+  end
+
+  defp web_module_from_router_use(zipper) do
+    with {:ok, use_call} <-
+           Igniter.Code.Function.move_to_function_call(zipper, :use, 2, fn call ->
+             Igniter.Code.Function.argument_equals?(call, 1, :router)
+           end),
+         {:ok, arg} <- Igniter.Code.Function.move_to_nth_argument(use_call, 0),
+         {:__aliases__, _, parts} <- Igniter.Code.Common.expand_aliases(arg).node do
+      Module.concat(parts)
+    else
+      _ -> nil
+    end
+  end
+
   @doc "Gets the list of endpoints that use a given router"
   @spec endpoints_for_router(igniter :: Igniter.t(), router :: module()) ::
           {Igniter.t(), list(module())}
