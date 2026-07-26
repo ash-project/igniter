@@ -1319,7 +1319,7 @@ defmodule Igniter do
 
         System.halt(3)
 
-      !Enum.empty?(igniter.moves) ->
+      !Enum.empty?(igniter.rms) ->
         Mix.shell().error("Files would have been removed and the --check flag was specified.")
         display_rms(igniter)
 
