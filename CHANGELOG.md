@@ -12,6 +12,27 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.3](https://github.com/ash-project/igniter/compare/v0.8.2...v0.8.3) (2026-07-26)
+
+
+
+
+### Bug Fixes:
+
+* ensure verbose is passed all the way down by Zach Daniel
+
+* properly check `igniter.rms` in `--check` by Zach Daniel
+
+* resolve Elixir 1.20 type-check warnings (#387) by Gilbert
+
+### Improvements:
+
+* add `Igniter.Libs.Phoenix.web_module_for_router/2` (#393) by James Harton
+
+* update to Elixir 1.20 (#391) by ESmithByui
+
+* direct users to format command for unless refactor by Zach Daniel
+
 ## [v0.8.2](https://github.com/ash-project/igniter/compare/v0.8.1...v0.8.2) (2026-06-24)
 
 
