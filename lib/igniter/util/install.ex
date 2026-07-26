@@ -95,6 +95,7 @@ defmodule Igniter.Util.Install do
         "igniter.install",
         yes: force_yes? or "--yes" in argv,
         yes_to_deps: force_yes? or "--yes-to-deps" in argv,
+        verbose: "--verbose" in argv,
         only: only,
         append?: Keyword.get(opts, :append?, false)
       )
@@ -214,9 +215,13 @@ defmodule Igniter.Util.Install do
   end
 
   def get_deps!(igniter, opts) do
-    case Igniter.Util.Loading.with_spinner("fetching deps", fn ->
-           raising_cmd!("mix", ["deps.get"], stderr_to_stdout: true)
-         end) do
+    case Igniter.Util.Loading.with_spinner(
+           "fetching deps",
+           fn ->
+             raising_cmd!("mix", ["deps.get"], stderr_to_stdout: true)
+           end,
+           verbose?: opts[:verbose]
+         ) do
       {_output, 0} ->
         Igniter.Util.Loading.with_spinner(
           opts[:operation] || "building deps",
@@ -281,7 +286,8 @@ defmodule Igniter.Util.Install do
                 ignore_module_conflict: old_ignore_module_conflict
               )
             end
-          end
+          end,
+          verbose?: opts[:verbose]
         )
 
       {output, exit_code} ->

@@ -48,9 +48,15 @@ defmodule Mix.Tasks.Igniter.InstallTest do
 
   describe "installing a new project" do
     test "basic installer works" do
+      # get the unsuppressed compilation of `test_project`'s deps out of the way,
+      # so that the only remaining output is the installer's own
       cmd!("mix", ["deps.compile"], cd: "test_project")
       output = cmd!("mix", ["igniter.install", "jason"], cd: "test_project")
-      refute String.contains?(output, "jason\nCompiling")
+
+      # each step is reported as a spinner line, with its output suppressed
+      assert output =~ "fetching deps"
+      refute output =~ "fetching deps:"
+      refute output =~ "compiling jason:"
     end
 
     test "does not report success when installation is declined" do
@@ -72,8 +78,13 @@ defmodule Mix.Tasks.Igniter.InstallTest do
     end
 
     test "displays additional information with `--verbose` option" do
+      cmd!("mix", ["deps.compile"], cd: "test_project")
       output = cmd!("mix", ["igniter.install", "jason", "--verbose"], cd: "test_project")
-      assert String.contains?(output, "jason\nCompiling")
+
+      # each step names itself and passes its output through, rather than spinning
+      assert output =~ "compile:"
+      assert output =~ "fetching deps:"
+      assert output =~ "compiling jason:"
     end
 
     test "rerunning the same installer lets you know the dependency was not changed" do
