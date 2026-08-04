@@ -232,14 +232,7 @@ defmodule Igniter.Mix.Task do
 
     argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
 
-    schema =
-      Enum.map(info.schema, fn
-        {k, :csv} ->
-          {k, :keep}
-
-        {k, v} ->
-          {k, v}
-      end)
+    schema = option_parser_schema(info.schema)
 
     {parsed, _} = OptionParser.parse!(argv, switches: schema, aliases: info.aliases)
 
@@ -346,7 +339,11 @@ defmodule Igniter.Mix.Task do
 
     argv = Igniter.Util.Info.args_for_group(argv, Igniter.Util.Info.group(info, task_name))
 
-    {argv, positional} = Igniter.Mix.Task.extract_positional_args(argv)
+    {argv, positional} =
+      Igniter.Mix.Task.extract_positional_args(argv,
+        switches: Info.global_options()[:switches] ++ option_parser_schema(info.schema),
+        aliases: info.aliases
+      )
 
     desired =
       Enum.map(info.positional, fn
@@ -470,18 +467,26 @@ defmodule Igniter.Mix.Task do
     mix_task? and igniter_task?
   end
 
-  @doc false
-  def extract_positional_args(argv) do
-    do_extract_positional_args(argv, [], [])
+  @doc """
+  Splits `argv` into flags and positional arguments.
+
+  `parse_opts` are `OptionParser` options, i.e `:switches` (defaulting to `[]`)
+  and `:aliases`. Supply them whenever they are known: without a schema
+  `OptionParser` cannot tell a boolean flag from one that takes a value, and
+  consumes the following positional argument as `--flag`'s value.
+  """
+  def extract_positional_args(argv, parse_opts \\ []) do
+    do_extract_positional_args(argv, Keyword.put_new(parse_opts, :switches, []), [], [])
   end
 
-  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
+  defp do_extract_positional_args([], _parse_opts, argv, positional), do: {argv, positional}
 
-  defp do_extract_positional_args(argv, got_argv, positional) do
-    case OptionParser.next(argv, switches: []) do
+  defp do_extract_positional_args(argv, parse_opts, got_argv, positional) do
+    case OptionParser.next(argv, parse_opts) do
       {_, _key, true, rest} ->
         do_extract_positional_args(
           rest,
+          parse_opts,
           got_argv ++ [Enum.at(argv, 0)],
           positional
         )
@@ -491,13 +496,21 @@ defmodule Igniter.Mix.Task do
 
         do_extract_positional_args(
           rest,
+          parse_opts,
           got_argv ++ Enum.take(argv, count_consumed),
           positional
         )
 
       {:error, rest} ->
         [first | rest] = rest
-        do_extract_positional_args(rest, got_argv, positional ++ [first])
+        do_extract_positional_args(rest, parse_opts, got_argv, positional ++ [first])
     end
+  end
+
+  defp option_parser_schema(schema) do
+    Enum.map(schema, fn
+      {k, :csv} -> {k, :keep}
+      {k, v} -> {k, v}
+    end)
   end
 end

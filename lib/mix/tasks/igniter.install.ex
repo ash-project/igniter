@@ -67,7 +67,10 @@ defmodule Mix.Tasks.Igniter.Install do
 
       argv = Enum.reject(argv, &(&1 in ["--from-igniter-new", "--igniter-repeat"]))
 
-      {argv, positional} = extract_positional_args(argv)
+      {argv, positional} =
+        Igniter.Mix.Task.extract_positional_args(argv,
+          switches: Igniter.Mix.Task.Info.global_options()[:switches] ++ [example: :boolean]
+        )
 
       packages =
         positional
@@ -82,37 +85,6 @@ defmodule Mix.Tasks.Igniter.Install do
       Application.ensure_all_started(:rewrite)
 
       Igniter.Util.Install.install(Enum.join(packages, ","), argv)
-    end
-  end
-
-  @doc false
-  defp extract_positional_args(argv) do
-    do_extract_positional_args(argv, [], [])
-  end
-
-  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
-
-  defp do_extract_positional_args(argv, got_argv, positional) do
-    case OptionParser.next(argv, switches: []) do
-      {_, _key, true, rest} ->
-        do_extract_positional_args(
-          rest,
-          got_argv ++ [Enum.at(argv, 0)],
-          positional
-        )
-
-      {_, _key, _value, rest} ->
-        count_consumed = Enum.count(argv) - Enum.count(rest)
-
-        do_extract_positional_args(
-          rest,
-          got_argv ++ Enum.take(argv, count_consumed),
-          positional
-        )
-
-      {:error, rest} ->
-        [first | rest] = rest
-        do_extract_positional_args(rest, got_argv, positional ++ [first])
     end
   end
 end
