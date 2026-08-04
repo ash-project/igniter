@@ -20,7 +20,7 @@ defmodule Igniter.CopiedTasks do
   end
 
   def upgrade(original_argv) do
-    {argv, positional} = extract_positional_args(original_argv)
+    {argv, positional} = extract_positional_args(original_argv, upgrade_switches())
     {opts, _} = OptionParser.parse!(argv, switches: upgrade_switches(), aliases: [])
 
     Igniter.new()
@@ -34,7 +34,7 @@ defmodule Igniter.CopiedTasks do
   end
 
   def apply_upgrades(original_argv) do
-    {argv, positional} = extract_positional_args(original_argv)
+    {argv, positional} = extract_positional_args(original_argv, [yes: :boolean], y: :yes)
     {opts, _} = OptionParser.parse!(argv, switches: [yes: :boolean], aliases: [])
 
     Igniter.new()
@@ -69,7 +69,7 @@ defmodule Igniter.CopiedTasks do
   end
 
   def add(argv) do
-    {argv, positional} = extract_positional_args(argv)
+    {argv, positional} = extract_positional_args(argv, yes: :boolean)
 
     packages =
       positional
@@ -96,7 +96,7 @@ defmodule Igniter.CopiedTasks do
   end
 
   def remove(argv) do
-    {argv, positional} = extract_positional_args(argv)
+    {argv, positional} = extract_positional_args(argv, [])
 
     packages =
       positional
@@ -124,7 +124,7 @@ defmodule Igniter.CopiedTasks do
 
   @doc false
   def install(argv) do
-    {argv, positional} = extract_positional_args(argv)
+    {argv, positional} = extract_positional_args(argv, example: :boolean)
 
     packages =
       positional
@@ -143,34 +143,10 @@ defmodule Igniter.CopiedTasks do
     [yes: yes, yes_to_deps: yes]
   end
 
-  @doc false
-  defp extract_positional_args(argv) do
-    do_extract_positional_args(argv, [], [])
-  end
-
-  defp do_extract_positional_args([], argv, positional), do: {argv, positional}
-
-  defp do_extract_positional_args(argv, got_argv, positional) do
-    case OptionParser.next(argv, switches: []) do
-      {_, _key, true, rest} ->
-        do_extract_positional_args(
-          rest,
-          got_argv ++ [Enum.at(argv, 0)],
-          positional
-        )
-
-      {_, _key, _value, rest} ->
-        count_consumed = Enum.count(argv) - Enum.count(rest)
-
-        do_extract_positional_args(
-          rest,
-          got_argv ++ Enum.take(argv, count_consumed),
-          positional
-        )
-
-      {:error, rest} ->
-        [first | rest] = rest
-        do_extract_positional_args(rest, got_argv, positional ++ [first])
-    end
+  defp extract_positional_args(argv, switches, aliases \\ []) do
+    Igniter.Mix.Task.extract_positional_args(argv,
+      switches: Igniter.Mix.Task.Info.global_options()[:switches] ++ switches,
+      aliases: aliases
+    )
   end
 end

@@ -35,7 +35,9 @@ defmodule Igniter.Upgrades do
     packages = split_package_names(packages)
     except = except_packages(options)
 
-    if Enum.empty?(packages) && !options[:all] do
+    # Under --git-ci the packages to upgrade come from the mix.lock diff against
+    # HEAD~1, so a package list is neither needed nor read.
+    if Enum.empty?(packages) && !options[:all] && !options[:git_ci] do
       Mix.shell().error("""
       Must specify at least one package to upgrade or use --all to upgrade all packages.
       """)

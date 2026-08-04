@@ -77,6 +77,26 @@ defmodule Igniter.Mix.TaskTest do
     assert_received {:args, %{a: "foo"}}
   end
 
+  describe "positional args following flags" do
+    test "a boolean flag does not consume the next positional arg" do
+      assert {%{a: "foo"}, ["--yes"]} =
+               Igniter.Mix.Task.__positional_args__!(ExampleTask, ["--yes", "foo"])
+    end
+
+    test "an aliased boolean flag does not consume the next positional arg" do
+      assert {%{packages: ["igniter:0.8.0:0.8.1"]}, ["-y"]} =
+               Igniter.Mix.Task.__positional_args__!(
+                 Mix.Tasks.Igniter.ApplyUpgrades,
+                 ["-y", "igniter:0.8.0:0.8.1"]
+               )
+    end
+
+    test "a flag that takes a value still consumes it" do
+      assert {%{a: "foo"}, ["--option", "bar"]} =
+               Igniter.Mix.Task.__positional_args__!(ExampleTask, ["--option", "bar", "foo"])
+    end
+  end
+
   describe "option merging" do
     defmodule Elixir.Mix.Tasks.ExampleTaskGroupA do
       use Igniter.Mix.Task
