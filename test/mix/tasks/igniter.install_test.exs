@@ -81,8 +81,10 @@ defmodule Mix.Tasks.Igniter.InstallTest do
       cmd!("mix", ["deps.compile"], cd: "test_project")
       output = cmd!("mix", ["igniter.install", "jason", "--verbose"], cd: "test_project")
 
-      # each step names itself and passes its output through, rather than spinning
-      assert output =~ "compile:"
+      # each step names itself and passes its output through, rather than spinning.
+      # only steps from `Igniter.Util.Install` are asserted on, because the steps
+      # before it differ depending on whether the igniter_new archive is installed
+      # and intercepts the task
       assert output =~ "fetching deps:"
       assert output =~ "compiling jason:"
     end
