@@ -6,15 +6,13 @@
 updates:
   - directory: /
     groups:
-      dev-dependencies:
-        dependency-type: development
-      production-dependencies:
-        dependency-type: production
+      all-dependencies:
+        patterns:
+          - '*'
     ignore:
       - dependency-name: git_ops
     package-ecosystem: mix
     schedule:
-      day: thursday
       interval: monthly
     versioning-strategy: lockfile-only
 version: 2
