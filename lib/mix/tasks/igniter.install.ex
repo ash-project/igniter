@@ -39,6 +39,7 @@ defmodule Mix.Tasks.Igniter.Install do
   ## Switches
 
   * `--dry-run` - Run the task without making any changes.
+  * `--skip-installed` - Do not rerun installers for packages already in `mix.exs`.
   * `--yes` - Automatically answer yes to any prompts.
   * `--yes-to-deps` - Automatically answer yes to any prompts about installing new deps.
   * `--verbose` - Display additional output from various operations.
@@ -69,7 +70,9 @@ defmodule Mix.Tasks.Igniter.Install do
 
       {argv, positional} =
         Igniter.Mix.Task.extract_positional_args(argv,
-          switches: Igniter.Mix.Task.Info.global_options()[:switches] ++ [example: :boolean]
+          switches:
+            Igniter.Mix.Task.Info.global_options()[:switches] ++
+              [example: :boolean, skip_installed: :boolean]
         )
 
       packages =

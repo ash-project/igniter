@@ -124,7 +124,8 @@ defmodule Igniter.CopiedTasks do
 
   @doc false
   def install(argv) do
-    {argv, positional} = extract_positional_args(argv, example: :boolean)
+    {argv, positional} =
+      extract_positional_args(argv, example: :boolean, skip_installed: :boolean)
 
     packages =
       positional
