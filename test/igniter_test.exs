@@ -443,4 +443,76 @@ defmodule IgniterTest do
       assert output =~ "mix compile"
     end
   end
+
+  describe "application environment during config evaluation" do
+    setup do
+      app = :igniter_config_eval_test
+
+      Enum.each(Application.get_all_env(app), fn {key, _value} ->
+        Application.delete_env(app, key)
+      end)
+
+      on_exit(fn ->
+        Enum.each(Application.get_all_env(app), fn {key, _value} ->
+          Application.delete_env(app, key)
+        end)
+      end)
+
+      {:ok, app: app}
+    end
+
+    test "removes keys that did not exist before evaluation", %{app: app} do
+      test_project()
+      |> Igniter.create_new_file("config/config.exs", """
+      import Config
+
+      config :igniter_config_eval_test, :some_key, :some_value
+      """)
+      |> Igniter.create_new_file("lib/example.ex", """
+      defmodule Example do
+      end
+      """)
+      |> apply_igniter!()
+
+      assert Application.fetch_env(app, :some_key) == :error
+    end
+
+    test "preserves existing keys when config evaluation assigns a different value", %{app: app} do
+      Application.put_env(app, :existing_key, :original_value)
+
+      test_project()
+      |> Igniter.create_new_file("config/config.exs", """
+      import Config
+
+      config :igniter_config_eval_test, :existing_key, :overwritten_value
+      config :igniter_config_eval_test, :new_key, :new_value
+      """)
+      |> Igniter.create_new_file("lib/example.ex", """
+      defmodule Example do
+      end
+      """)
+      |> apply_igniter!()
+
+      assert Application.fetch_env(app, :existing_key) == {:ok, :original_value}
+      assert Application.fetch_env(app, :new_key) == :error
+    end
+
+    test "leaves no environment for an application that had none before", %{app: app} do
+      assert Application.get_all_env(app) == []
+
+      test_project()
+      |> Igniter.create_new_file("config/config.exs", """
+      import Config
+
+      config :igniter_config_eval_test, :another_key, :another_value
+      """)
+      |> Igniter.create_new_file("lib/example.ex", """
+      defmodule Example do
+      end
+      """)
+      |> apply_igniter!()
+
+      assert Application.get_all_env(app) == []
+    end
+  end
 end
