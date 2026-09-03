@@ -8,6 +8,24 @@ defmodule Mix.Tasks.Igniter.InstallTest do
 
   import ExUnit.CaptureIO
 
+  defmodule Elixir.Mix.Tasks.Jason.Install do
+    use Igniter.Mix.Task
+
+    @impl Igniter.Mix.Task
+    def igniter(igniter) do
+      Igniter.create_new_file(igniter, ".jason-installer-ran")
+    end
+  end
+
+  defmodule Elixir.Mix.Tasks.Rewrite.Install do
+    use Igniter.Mix.Task
+
+    @impl Igniter.Mix.Task
+    def igniter(igniter) do
+      Igniter.create_new_file(igniter, ".rewrite-installer-ran")
+    end
+  end
+
   setup_all do
     Mimic.copy(Igniter.Mix.Task)
     :ok
@@ -36,6 +54,7 @@ defmodule Mix.Tasks.Igniter.InstallTest do
     new_contents =
       mix_exs
       |> add_igniter_dep()
+      |> add_rewrite_dep()
       |> Code.format_string!()
 
     File.write!("test_project/mix.exs", new_contents)
@@ -98,6 +117,51 @@ defmodule Mix.Tasks.Igniter.InstallTest do
                "Dependency jason is already in mix.exs with the desired version. Skipping."
              )
     end
+
+    test "runs the installer for a newly added package without prompting" do
+      output = install([{:jason, "~> 1.4.5"}])
+
+      assert File.exists?("test_project/.jason-installer-ran")
+      refute output =~ "already installed. Run its installer again?"
+    end
+
+    test "reruns an existing package's installer when accepted" do
+      output = install([rewrite_dep()], [], "y\n")
+
+      assert File.exists?("test_project/.rewrite-installer-ran")
+      assert output =~ "Dependency rewrite is already installed. Run its installer again?"
+    end
+
+    test "does not rerun an existing package's installer when declined" do
+      output = install([rewrite_dep()], [], "n\n")
+
+      refute File.exists?("test_project/.rewrite-installer-ran")
+      assert output =~ "Dependency rewrite is already installed. Run its installer again?"
+    end
+
+    test "--yes reruns an existing package's installer without prompting" do
+      output = install([rewrite_dep()], ["--yes"])
+
+      assert File.exists?("test_project/.rewrite-installer-ran")
+      refute output =~ "already installed. Run its installer again?"
+    end
+
+    test "--skip-installed does not rerun or prompt for an existing package" do
+      for argv <- [["--skip-installed"], ["--yes", "--skip-installed"]] do
+        output = install([rewrite_dep()], argv)
+
+        refute File.exists?("test_project/.rewrite-installer-ran")
+        refute output =~ "already installed. Run its installer again?"
+      end
+    end
+
+    test "--skip-installed still runs installers for newly added packages" do
+      output = install([rewrite_dep(), {:jason, "~> 1.4.5"}], ["--skip-installed"])
+
+      refute File.exists?("test_project/.rewrite-installer-ran")
+      assert File.exists?("test_project/.jason-installer-ran")
+      refute output =~ "already installed. Run its installer again?"
+    end
   end
 
   defp add_igniter_dep(contents) do
@@ -106,6 +170,28 @@ defmodule Mix.Tasks.Igniter.InstallTest do
       "defp deps do\n    [\n",
       "defp deps do\n    [\n      {:igniter, path: \"../\"},\n"
     )
+  end
+
+  defp add_rewrite_dep(contents) do
+    String.replace(
+      contents,
+      "defp deps do\n    [\n",
+      "defp deps do\n    [\n      #{inspect(rewrite_dep())},\n"
+    )
+  end
+
+  defp rewrite_dep do
+    {:rewrite, "~> 1.1 and >= 1.1.1"}
+  end
+
+  defp install(deps, argv, input \\ "") do
+    stub(Igniter.Mix.Task, :tty?, fn -> true end)
+
+    capture_io(input, fn ->
+      File.cd!("test_project", fn ->
+        Igniter.Util.Install.install(deps, argv)
+      end)
+    end)
   end
 
   defp cmd!(cmd, args, opts \\ []) do

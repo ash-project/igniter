@@ -42,11 +42,17 @@ defmodule Igniter.Util.Install do
             "cannot install the igniter package with `mix igniter.install`. Please use `mix igniter.setup` instead."
     end
 
+    installed =
+      deps
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.filter(&Igniter.Project.Deps.has_dep?(igniter, &1))
+      |> MapSet.new()
+
     global_options =
       Keyword.update!(
         Igniter.Mix.Task.Info.global_options(),
         :switches,
-        &Keyword.put(&1, :example, :boolean)
+        &Keyword.merge(&1, example: :boolean, skip_installed: :boolean)
       )
 
     {installed_with, argv} = remove_installed_with(argv)
@@ -125,9 +131,24 @@ defmodule Igniter.Util.Install do
         Keyword.put(options, :operation, "compiling #{installing_names}")
       )
 
+    installing =
+      if options[:skip_installed] do
+        Enum.reject(installing, &MapSet.member?(installed, &1))
+      else
+        installing
+      end
+
     {available_tasks, unavailable_tasks} =
       Enum.zip(installing, Enum.map(installing, &Mix.Task.get("#{&1}.install")))
       |> Enum.split_with(fn {_desired_task, source_task} -> source_task end)
+
+    available_tasks =
+      Enum.filter(available_tasks, fn {name, _task} ->
+        !MapSet.member?(installed, name) || force_yes? || options[:yes] ||
+          Igniter.Util.IO.yes?(
+            "Dependency #{name} is already installed. Run its installer again?"
+          )
+      end)
 
     if Enum.any?(unavailable_tasks) do
       Mix.shell().info("""
