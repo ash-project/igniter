@@ -1688,6 +1688,7 @@ defmodule Igniter do
         restore =
           to_set
           |> Keyword.keys()
+          |> Enum.uniq()
           |> Enum.map(fn key ->
             {key, Application.get_all_env(key)}
           end)
@@ -1697,9 +1698,22 @@ defmodule Igniter do
 
           fun.()
         after
-          Application.put_all_env(restore)
+          restore_application_env(restore)
         end
     end
+  end
+
+  defp restore_application_env(restore) do
+    Enum.each(restore, fn {app, snapshot_env} ->
+      Application.get_all_env(app)
+      |> Enum.each(fn {key, _value} ->
+        if not Keyword.has_key?(snapshot_env, key) do
+          Application.delete_env(app, key)
+        end
+      end)
+
+      Application.put_all_env([{app, snapshot_env}])
+    end)
   end
 
   defp apply_func_with_zipper(igniter, path, func) do
