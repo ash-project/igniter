@@ -19,7 +19,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 ### Bug Fixes:
 
-* strip terminal control sequences from hex install confirmation metadata by Zach Daniel
+* strip terminal control sequences from hex install confirmation metadata (CVE-2026-82584) by Zach Daniel
 
 * restore application env exactly after evaluating project config (#400) by neilberkman
 
