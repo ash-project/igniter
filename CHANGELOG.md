@@ -12,6 +12,25 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.4](https://github.com/ash-project/igniter/compare/v0.8.3...v0.8.4) (2026-09-07)
+
+
+
+
+### Bug Fixes:
+
+* strip terminal control sequences from hex install confirmation metadata by Zach Daniel
+
+* restore application env exactly after evaluating project config (#400) by neilberkman
+
+* Control rerunning installers for existing packages (#399) by mvanhorn
+
+* unbreak `mix igniter.upgrade --git-ci`, and positional args after flags (#397) by James Harton
+
+* stop boolean flags consuming the following positional arg by James Harton
+
+* don't require a package list for `igniter.upgrade --git-ci` by James Harton
+
 ## [v0.8.3](https://github.com/ash-project/igniter/compare/v0.8.2...v0.8.3) (2026-07-26)
 
 
