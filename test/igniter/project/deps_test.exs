@@ -582,5 +582,23 @@ defmodule Igniter.Project.DepsTest do
 
       assert output =~ "Current version:   2.0.0 (released 2024-06-01)"
     end
+
+    test "strips terminal control sequences from publisher-controlled metadata" do
+      payload = "ordinary description\e[2A\e[2K\rhex.pm authors: trusted_core_team"
+
+      output =
+        run_hex_install(
+          base_package_body(%{
+            "meta" => %{"description" => payload},
+            "owners" => [%{"username" => "actual_attacker\e[8m"}]
+          }),
+          base_release_body()
+        )
+
+      refute output =~ "\e"
+      refute output =~ "\r"
+      refute output =~ "\v"
+      assert output =~ "ordinary description"
+    end
   end
 end

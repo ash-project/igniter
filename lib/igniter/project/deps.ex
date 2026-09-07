@@ -758,18 +758,27 @@ defmodule Igniter.Project.Deps do
   end
 
   defp format_hex_confirmation_from_popup_fields(fields) when is_map(fields) do
-    """
-    You are installing the package "#{fields.package}":
+    # Every value is publisher-controlled hex metadata printed to the terminal;
+    # strip control characters so it cannot rewrite the confirmation panel.
+    f = Map.new(fields, fn {k, v} -> {k, hex_popup_terminal_safe(v)} end)
 
-    Description:       #{fields.description}
-    Current version:   #{fields.version} (released #{fields.release_date})
-    hex.pm authors:    #{fields.hex_authors}
-    hex.pm publishers: #{fields.hex_publishers}
-    Dependencies:      #{fields.deps_list}
-    Downloads:         #{fields.downloads_this_version} (this version), #{fields.downloads_last_seven_days} (last 7 days), #{fields.downloads_all_time} (all time)
+    """
+    You are installing the package "#{f.package}":
+
+    Description:       #{f.description}
+    Current version:   #{f.version} (released #{f.release_date})
+    hex.pm authors:    #{f.hex_authors}
+    hex.pm publishers: #{f.hex_publishers}
+    Dependencies:      #{f.deps_list}
+    Downloads:         #{f.downloads_this_version} (this version), #{f.downloads_last_seven_days} (last 7 days), #{f.downloads_all_time} (all time)
 
     """
   end
+
+  defp hex_popup_terminal_safe(str) when is_binary(str),
+    do: String.replace(str, ~r/\p{Cc}/u, "")
+
+  defp hex_popup_terminal_safe(other), do: other
 
   defp hex_install_popup_fields(package_atom_string, pkg_body, release_body) do
     version = release_body["version"]
