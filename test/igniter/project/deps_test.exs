@@ -143,6 +143,60 @@ defmodule Igniter.Project.DepsTest do
     end
   end
 
+  describe "add_dep/3 replace prompt (#338)" do
+    setup :verify_on_exit!
+
+    test "shows readable quoted runtime in Desired/Found when replacing an existing dep" do
+      igniter =
+        test_project(
+          files: %{
+            "mix.exs" => """
+            defmodule Test.MixProject do
+              use Mix.Project
+
+              def project do
+                [
+                  app: :test,
+                  version: "0.1.0",
+                  elixir: "~> 1.17",
+                  start_permanent: Mix.env() == :prod,
+                  deps: deps()
+                ]
+              end
+
+              def application do
+                [extra_applications: [:logger]]
+              end
+
+              defp deps do
+                [
+                  {:esbuild, "~> 0.8", runtime: true}
+                ]
+              end
+            end
+            """
+          }
+        )
+
+      expect(Igniter.Util.IO, :yes?, fn prompt ->
+        assert prompt =~ "Desired:"
+        assert prompt =~ "Found:"
+
+        # https://github.com/ash-project/igniter/issues/338
+        assert prompt =~ "Mix.env() == :dev"
+        refute prompt =~ ":__aliases__"
+        refute prompt =~ "context:"
+
+        false
+      end)
+
+      Igniter.Project.Deps.add_dep(
+        igniter,
+        {:esbuild, "~> 0.10", runtime: quote(do: Mix.env() == :dev)}
+      )
+    end
+  end
+
   describe "set_dep_option" do
     test "sets the option when no options exist" do
       test_project()
