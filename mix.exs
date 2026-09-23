@@ -114,7 +114,7 @@ defmodule Igniter.MixProject do
       {:spitfire, "~> 0.1 and >= 0.1.3"},
       {:sourceror, "~> 1.4"},
       {:jason, "~> 1.4.5"},
-      {:req, "~> 0.5"},
+      {:req, "~> 0.7"},
       {:phx_new, "~> 1.7", optional: true},
       {:ex_ast, "~> 0.5"},
       {:owl, "~> 0.11"},
