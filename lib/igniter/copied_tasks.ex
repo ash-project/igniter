@@ -31,6 +31,7 @@ defmodule Igniter.CopiedTasks do
       options: opts
     })
     |> Igniter.Upgrades.upgrade()
+    |> Igniter.do_or_dry_run(opts)
   end
 
   def apply_upgrades(original_argv) do
@@ -45,6 +46,7 @@ defmodule Igniter.CopiedTasks do
       options: opts
     })
     |> do_apply_upgrades()
+    |> Igniter.do_or_dry_run(opts)
   end
 
   def do_apply_upgrades(igniter) do
