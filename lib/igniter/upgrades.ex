@@ -7,6 +7,9 @@ defmodule Igniter.Upgrades do
   Utilities for running upgrades.
   """
 
+  # Igniter and the deps it runs on. This VM is executing their code, so they are never purged.
+  @igniter_apps [:igniter, :glob_ex, :rewrite, :sourceror, :spitfire]
+
   @doc "Run all upgrades from `from` to `to`."
   def run(igniter, from, to, upgrade_map, opts) do
     upgrade_map
@@ -200,7 +203,7 @@ defmodule Igniter.Upgrades do
 
       if !options[:git_ci] &&
            Enum.any?(dep_changes, fn {app, _, _} ->
-             app in [:igniter, :glob_ex, :rewrite, :sourceror, :spitfire]
+             app in @igniter_apps
            end) do
         Process.put(:no_recover_mix_exs, true)
 
@@ -218,6 +221,16 @@ defmodule Igniter.Upgrades do
 
             mix igniter.apply_upgrades #{upgrades}
         """)
+      end
+
+      # `mix deps.compile` rebuilt the changed deps in a separate OS process. If this VM
+      # compiled or loaded the old version earlier, it still holds the old modules, and the
+      # old `<package>.upgrade` task would run.
+      for {app, _from, _to} <- dep_changes, app not in @igniter_apps do
+        case :code.lib_dir(app) do
+          {:error, _} -> :ok
+          lib_dir -> purge_stale_modules(Path.join(lib_dir, "ebin"))
+        end
       end
 
       Enum.reduce(dep_changes, {igniter, []}, fn update, {igniter, missing} ->
@@ -402,6 +415,24 @@ defmodule Igniter.Upgrades do
       end
 
     update_deps_args
+  end
+
+  @doc false
+  # Unloads every module loaded from `ebin_path`, so the next call loads its `.beam` from disk.
+  # It never kills a process: a module whose old code a process still runs stays loaded as is.
+  def purge_stale_modules(ebin_path) do
+    ebin_path = Path.expand(ebin_path)
+
+    for {module, beam} <- :code.all_loaded(),
+        is_list(beam),
+        Path.dirname(Path.expand(List.to_string(beam))) == ebin_path,
+        :code.soft_purge(module) do
+      :code.delete(module)
+      # Drops the deleted version now unless a process is running it.
+      :code.soft_purge(module)
+    end
+
+    :ok
   end
 
   defp apply_updates(igniter, {package, from, to}) do
