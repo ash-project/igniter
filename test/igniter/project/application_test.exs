@@ -296,6 +296,51 @@ defmodule Igniter.Project.ApplicationTest do
       |> Igniter.Project.Application.add_new_child(Foo)
       |> assert_unchanged()
     end
+
+    test "with :after, adds the child right after the match when another child follows it" do
+      project_with_children("[Test.Repo, TestWeb.Endpoint]")
+      |> Igniter.Project.Application.add_new_child(NewChild, after: [Test.Repo])
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [Test.Repo, TestWeb.Endpoint]
+      + |    children = [Test.Repo, NewChild, TestWeb.Endpoint]
+      """)
+    end
+
+    test "with :after, adds the child right after the last of several matches" do
+      project_with_children("[Test.Repo, Test.Other, TestWeb.Endpoint]")
+      |> Igniter.Project.Application.add_new_child(NewChild, after: [Test.Repo, Test.Other])
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [Test.Repo, Test.Other, TestWeb.Endpoint]
+      + |    children = [Test.Repo, Test.Other, NewChild, TestWeb.Endpoint]
+      """)
+    end
+
+    test "with :after, adds the child right after the last match when other children sit between matches" do
+      project_with_children("[Test.Repo, TestWeb.Endpoint, Test.Other, Test.Last]")
+      |> Igniter.Project.Application.add_new_child(NewChild, after: [Test.Repo, Test.Other])
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [Test.Repo, TestWeb.Endpoint, Test.Other, Test.Last]
+      + |    children = [Test.Repo, TestWeb.Endpoint, Test.Other, NewChild, Test.Last]
+      """)
+    end
+
+    test "with :after, adds the child at the end when the match is the last child" do
+      project_with_children("[TestWeb.Endpoint, Test.Repo]")
+      |> Igniter.Project.Application.add_new_child(NewChild, after: [Test.Repo])
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [TestWeb.Endpoint, Test.Repo]
+      + |    children = [TestWeb.Endpoint, Test.Repo, NewChild]
+      """)
+    end
+
+    test "with :after, adds the child first when nothing matches" do
+      project_with_children("[Test.Repo, TestWeb.Endpoint]")
+      |> Igniter.Project.Application.add_new_child(NewChild, after: [Test.Missing])
+      |> assert_has_patch("lib/test/application.ex", """
+      - |    children = [Test.Repo, TestWeb.Endpoint]
+      + |    children = [NewChild, Test.Repo, TestWeb.Endpoint]
+      """)
+    end
   end
 
   describe "app_name/1" do
@@ -549,5 +594,29 @@ defmodule Igniter.Project.ApplicationTest do
         Igniter.Project.Application.priv_dir(igniter, ["test1", ["test2"]])
       end
     end
+  end
+
+  defp project_with_children(children) do
+    test_project(
+      files: %{
+        "lib/test/application.ex" => """
+        defmodule Test.Application do
+          use Application
+
+          @impl true
+          def start(_type, _args) do
+            children = #{children}
+
+            opts = [strategy: :one_for_one, name: Test.Supervisor]
+            Supervisor.start_link(children, opts)
+          end
+        end
+        """
+      }
+    )
+    |> Igniter.Project.MixProject.update(:application, [:mod], fn _zipper ->
+      {:ok, {:code, "{Test.Application, []}"}}
+    end)
+    |> apply_igniter!()
   end
 end
