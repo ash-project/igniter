@@ -443,15 +443,11 @@ defmodule Igniter.Project.Application do
             {:after, zipper}
 
           zipper ->
-            skip_after(zipper, Keyword.put(opts, :nested?, true))
+            skip_after(zipper, opts)
         end
 
       :error ->
-        if Keyword.get(opts, :nested?) do
-          {:after, zipper}
-        else
-          {:before, zipper}
-        end
+        {:before, zipper}
     end
   end
 
