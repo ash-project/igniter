@@ -158,6 +158,15 @@ defmodule Igniter.Code.PatternTest do
 
       assert code_at(zipper) =~ "Enum.flat_map(data"
     end
+
+    test "keeps the arguments matched by ..." do
+      assert {:ok, zipper} =
+               ~S|Logger.debug(msg, label: "a")|
+               |> zip()
+               |> Pattern.replace("Logger.debug(msg, ...)", "Logger.warning(msg, ...)")
+
+      assert code_at(zipper) == ~S|Logger.warning(msg, label: "a")|
+    end
   end
 
   describe "replace_all/4" do
@@ -218,6 +227,17 @@ defmodule Igniter.Code.PatternTest do
     end
   end
 
+  describe "replace_all/4 with ..." do
+    test "keeps the arguments matched by ..." do
+      assert {:ok, zipper} =
+               ~S|Logger.debug(msg, label: "a")|
+               |> zip()
+               |> Pattern.replace_all("Logger.debug(msg, ...)", "Logger.warning(msg, ...)")
+
+      assert code_at(zipper) == ~S|Logger.warning(msg, label: "a")|
+    end
+  end
+
   describe "integration with update_elixir_file" do
     test "works inside Igniter pipeline" do
       igniter = Igniter.new()
@@ -243,6 +263,34 @@ defmodule Igniter.Code.PatternTest do
       assert source =~ "Enum.flat_map(data"
       refute source =~ "Enum.map"
       assert source =~ "Logger.info"
+    end
+
+    test "keeps captured literals and string escapes" do
+      for fun <- [:replace, :replace_all] do
+        igniter =
+          Igniter.new()
+          |> Igniter.create_new_file("lib/example.ex", ~S"""
+          defmodule Example do
+            def a, do: IO.puts(:ok)
+            def b, do: IO.puts("dir\\file\n")
+            def c(name), do: IO.puts("hi #{name}\n")
+          end
+          """)
+          |> Igniter.update_elixir_file("lib/example.ex", fn zipper ->
+            Enum.reduce(1..3, {:ok, zipper}, fn _, {:ok, zipper} ->
+              apply(Pattern, fun, [zipper, "IO.puts(x)", "Logger.info(x)"])
+            end)
+          end)
+
+        assert Rewrite.Source.get(Rewrite.source!(igniter.rewrite, "lib/example.ex"), :content) ==
+                 ~S"""
+                 defmodule Example do
+                   def a, do: Logger.info(:ok)
+                   def b, do: Logger.info("dir\\file\n")
+                   def c(name), do: Logger.info("hi #{name}\n")
+                 end
+                 """
+      end
     end
   end
 
