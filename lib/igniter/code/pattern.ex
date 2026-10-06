@@ -6,7 +6,8 @@ defmodule Igniter.Code.Pattern do
   @moduledoc """
   Pattern-based AST navigation and rewriting powered by ExAST.
 
-  Requires `{:ex_ast, "~> 0.5"}` (included as a dependency of Igniter).
+  See the [ExAST pattern language](https://hexdocs.pm/ex_ast/pattern-language.html)
+  for the full syntax.
 
   ## Pattern syntax
 
@@ -16,10 +17,15 @@ defmodule Igniter.Code.Pattern do
   |--------|---------|
   | `_` or `_name` | Wildcard — matches any node, not captured |
   | `name`, `expr` | Capture — matches any node, bound by name |
-  | `...` | Ellipsis — matches zero or more nodes |
+  | `...` | Ellipsis — matches zero or more nodes; in a replacement, puts back what it matched |
+  | `_(...)`, `_._(...)` | Any local or remote call |
+  | `def name/2 do ... end` | A definition by arity, capturing its name |
+  | `%{..., key: value}` | A map or struct with at least these keys |
+  | `__MODULE__`, `__ENV__`, ... | Literal — match only themselves |
   | Everything else | Literal — must match exactly |
 
-  Structs and maps match partially, pipes are normalized.
+  Structs and maps match partially, pipes are normalized, and
+  `Kernel.is_nil(x)` matches `is_nil(x)`.
 
   ## Examples
 
@@ -155,8 +161,10 @@ defmodule Igniter.Code.Pattern do
   @spec replace(Zipper.t(), pattern(), pattern(), keyword()) ::
           {:ok, Zipper.t()} | :error
   def replace(%Zipper{} = zipper, pattern, replacement, opts \\ []) do
+    opts = Keyword.put(opts, :limit, 1)
+
     case do_find_all(zipper, pattern, opts) do
-      [first | _] -> do_replace_node(zipper, first.node, pattern, replacement)
+      [_match] -> replace_all(zipper, pattern, replacement, opts)
       [] -> :error
     end
   end
@@ -225,26 +233,6 @@ defmodule Igniter.Code.Pattern do
     ExAST.Patcher.find_all(zipper, pattern, opts)
   end
 
-  defp do_replace_node(zipper, matched_node, pattern, replacement) do
-    replacement_ast = to_quoted(replacement)
-
-    case ExAST.Pattern.match(matched_node, pattern) do
-      {:ok, captures} ->
-        new_node =
-          replacement_ast
-          |> ExAST.Pattern.substitute(captures)
-          |> restore_meta()
-
-        case navigate_to(zipper, matched_node) do
-          {:ok, z} -> {:ok, z |> Zipper.replace(new_node) |> Zipper.topmost()}
-          :error -> :error
-        end
-
-      :error ->
-        :error
-    end
-  end
-
   defp navigate_to(zipper, target_node) do
     zipper
     |> Zipper.topmost()
@@ -252,14 +240,4 @@ defmodule Igniter.Code.Pattern do
   end
 
   defp elixir_source?(source), do: match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, source)
-
-  defp to_quoted(pattern) when is_binary(pattern), do: Code.string_to_quoted!(pattern)
-  defp to_quoted(pattern), do: pattern
-
-  defp restore_meta(ast) do
-    Macro.prewalk(ast, fn
-      {form, nil, args} -> {form, [], args}
-      other -> other
-    end)
-  end
 end
