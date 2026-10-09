@@ -100,7 +100,7 @@ Igniter is a toolkit for writing smarter generators that can semantically create
 
 ### Installing for library authors
 
-For library authors, use `mix igniter.init_library <your_package>` to add Igniter and generate a starter installer task and its test in one command, rather than performing the manual setup below.
+For library authors, use `mix igniter.init_library <your_package>` to add Igniter and generate a starter installer task and its test in one command, as opposed to performing the manual setup below.
 
 Run this from your library project with the [`igniter_new` archive installed](#installing-globally-via-an-archive). The command adds Igniter with `optional: true` and `runtime: false`, fetches and compiles dependencies, and attempts to update Igniter if it is already installed.
 
