@@ -192,7 +192,8 @@ defmodule Igniter.Project.Deps do
   end
 
   @doc "Gets the current dependency declaration in mix.exs for a given dependency."
-  @spec get_dep(Igniter.t(), name :: atom()) :: {:ok, nil | String.t()} | {:error, String.t()}
+  @spec get_dep(Igniter.t(), name :: atom()) ::
+          {:ok, nil | String.t()} | {:error, String.t()} | nil
   def get_dep(igniter, name) do
     zipper =
       igniter
