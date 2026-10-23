@@ -364,6 +364,59 @@ defmodule IgniterTest do
     end
   end
 
+  describe "fetch_deps_before_tasks?/1" do
+    test "is false when no tasks are queued" do
+      igniter =
+        test_project()
+        |> Igniter.Project.Deps.add_dep({:jason, "~> 1.0"})
+
+      refute Igniter.fetch_deps_before_tasks?(igniter)
+    end
+
+    test "is false when a task is queued but mix.exs is unchanged" do
+      igniter =
+        test_project()
+        |> Igniter.create_new_file("lib/foo.ex", "defmodule Foo do\nend\n")
+        |> Igniter.add_task("help", ["compile"])
+
+      refute Igniter.fetch_deps_before_tasks?(igniter)
+    end
+
+    test "is true when a task is queued and mix.exs changed" do
+      igniter =
+        test_project()
+        |> Igniter.Project.Deps.add_dep({:jason, "~> 1.0"})
+        |> Igniter.add_task("jason.install")
+
+      assert Igniter.fetch_deps_before_tasks?(igniter)
+    end
+
+    test "is true when a task is queued and an umbrella child mix.exs changed" do
+      igniter =
+        test_project()
+        |> Igniter.create_new_file("apps/foo/mix.exs", """
+        defmodule Foo.MixProject do
+          use Mix.Project
+
+          def project, do: [app: :foo, version: "0.1.0", deps: []]
+        end
+        """)
+        |> Igniter.add_task("help", ["compile"])
+
+      assert Igniter.fetch_deps_before_tasks?(igniter)
+    end
+
+    test "is false when the first queued task is deps.get" do
+      igniter =
+        test_project()
+        |> Igniter.Project.Deps.add_dep({:jason, "~> 1.0"})
+        |> Igniter.add_task("deps.get")
+        |> Igniter.add_task("jason.install")
+
+      refute Igniter.fetch_deps_before_tasks?(igniter)
+    end
+  end
+
   describe "delay_task" do
     # Delayed vs regular storage and sort order are used by run_queued_tasks_with_tracking/1 when running tasks.
     test "adds delayed tasks correctly" do
