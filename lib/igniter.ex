@@ -421,7 +421,13 @@ defmodule Igniter do
     end
   end
 
-  @doc "Adds a task to the tasks list. Tasks will be run after all changes have been committed"
+  @doc """
+  Adds a task to the tasks list. Tasks will be run after all changes have been committed.
+
+  If any `mix.exs` has pending changes, `mix deps.get` is run once before the queued
+  tasks. If your task needs dependencies fetched even when no `mix.exs` changed,
+  queue `deps.get` first with `add_task(igniter, "deps.get")`.
+  """
   def add_task(igniter, task, argv \\ []) when is_binary(task) do
     %{igniter | tasks: igniter.tasks ++ [{task, argv}]}
   end
@@ -1149,6 +1155,10 @@ defmodule Igniter do
 
   @doc """
   Executes or dry-runs a given Igniter.
+
+  After writing changes, if any tasks are queued and any `mix.exs` (the root one or an
+  umbrella child's) had pending changes, `mix deps.get` is run before the queued tasks.
+  It is skipped when no `mix.exs` changed, or when the first queued task is `deps.get`.
   """
   def do_or_dry_run(igniter, opts \\ []) do
     if igniter.assigns[:test_mode?] do
@@ -1223,19 +1233,14 @@ defmodule Igniter do
             |> Kernel.||(!Enum.empty?(igniter.moves))
             |> Kernel.||(!Enum.empty?(igniter.rms))
             |> if do
+              # must be checked before writing, while the sources still count as changed
+              fetch_deps? = fetch_deps_before_tasks?(igniter)
+
               igniter.rewrite
               |> Rewrite.write_all()
               |> case do
                 {:ok, _result} ->
-                  if !Enum.empty?(igniter.tasks) do
-                    case Enum.at(igniter.tasks, 0) do
-                      {"deps.get", []} ->
-                        :ok
-
-                      _ ->
-                        Mix.shell().cmd("mix deps.get")
-                    end
-                  end
+                  if fetch_deps?, do: Mix.shell().cmd("mix deps.get")
 
                   igniter.mkdirs
                   |> Enum.map(&Path.expand(&1, "."))
@@ -1280,6 +1285,18 @@ defmodule Igniter do
         display_issues(igniter)
         :issues
     end
+  end
+
+  # Whether `do_or_dry_run/2` should run `mix deps.get` before the queued tasks.
+  # Only needed when a `mix.exs` (root or umbrella child) has pending changes,
+  # and not when the first queued task is already `deps.get`.
+  @doc false
+  def fetch_deps_before_tasks?(igniter) do
+    !Enum.empty?(igniter.tasks) &&
+      Enum.at(igniter.tasks, 0) != {"deps.get", []} &&
+      igniter.rewrite
+      |> Rewrite.sources()
+      |> Enum.any?(&(is_binary(&1.path) && Path.basename(&1.path) == "mix.exs" && changed?(&1)))
   end
 
   defp accepted_once(igniter) do
