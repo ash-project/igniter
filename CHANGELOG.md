@@ -12,6 +12,25 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.5](https://github.com/ash-project/igniter/compare/v0.8.4...v0.8.5) (2026-10-25)
+
+
+
+
+### Bug Fixes:
+
+* add nil to Igniter.Project.Deps.get_dep/2 spec (#410) by Łukasz Samson
+
+* insert child right after the last `after:` match in add_new_child/3 (#407) by Peter Shoukry
+
+* ensure notices are printed on upgrades by Zach Daniel
+
+### Improvements:
+
+* only fetch deps before tasks when mix.exs changed (#412) by andyl
+
+* update Igniter.Code.Pattern for recent ExAST (#408) by Danila Poyarkov
+
 ## [v0.8.4](https://github.com/ash-project/igniter/compare/v0.8.3...v0.8.4) (2026-09-07)
 
 
