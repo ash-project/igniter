@@ -304,13 +304,20 @@ defmodule Igniter do
           zipper_updater
         ) :: t()
   def update_glob(igniter, glob, func) do
-    glob =
-      case glob do
-        %{__struct__: GlobEx} = glob -> glob
-        string -> GlobEx.compile!(Path.expand(string))
-      end
+    glob = compile_update_glob(glob)
 
-    igniter = include_glob(igniter, glob)
+    igniter
+    |> include_glob(glob)
+    |> update_included_glob(glob, func)
+  end
+
+  defp compile_update_glob(%{__struct__: GlobEx} = glob), do: glob
+  defp compile_update_glob(string), do: GlobEx.compile!(Path.expand(string))
+
+  # Runs `func` over the sources already in the igniter that match `glob`,
+  # without reading any new files from disk.
+  defp update_included_glob(igniter, glob, func) do
+    glob = compile_update_glob(glob)
 
     igniter.rewrite
     |> Task.async_stream(
@@ -1114,19 +1121,27 @@ defmodule Igniter do
     end
   end
 
-  @doc "Runs an update over all elixir files"
+  @doc """
+  Runs an update over all elixir files.
+
+  Files are only read from disk the first time all elixir files are included
+  (see `include_all_elixir_files/1`). The updater is run every time.
+  """
   def update_all_elixir_files(igniter, updater) do
-    if igniter.assigns[:private][:included_all_elixir_files?] do
-      igniter
-    else
-      igniter
-      |> Igniter.Project.IgniterConfig.get(:source_folders)
-      |> Enum.reduce(igniter, fn source_folder, igniter ->
-        update_glob(igniter, Path.join(source_folder, "/**/*.{ex,exs}"), updater)
-      end)
-      |> update_glob("{test,config}/**/*.{ex,exs}", updater)
-      |> assign_private(:included_all_elixir_files?, true)
-    end
+    update =
+      if igniter.assigns[:private][:included_all_elixir_files?] do
+        &update_included_glob/3
+      else
+        &update_glob/3
+      end
+
+    igniter
+    |> Igniter.Project.IgniterConfig.get(:source_folders)
+    |> Enum.reduce(igniter, fn source_folder, igniter ->
+      update.(igniter, Path.join(source_folder, "/**/*.{ex,exs}"), updater)
+    end)
+    |> update.("{test,config}/**/*.{ex,exs}", updater)
+    |> assign_private(:included_all_elixir_files?, true)
   end
 
   @doc """

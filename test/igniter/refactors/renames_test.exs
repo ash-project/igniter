@@ -29,6 +29,24 @@ defmodule Igniter.Refactors.RenameTest do
     """)
   end
 
+  test "renames calls even after all elixir files have been included" do
+    test_project(
+      files: %{
+        "lib/caller.ex" => """
+        defmodule Caller do
+          def go, do: Old.call(1)
+        end
+        """
+      }
+    )
+    |> Igniter.include_all_elixir_files()
+    |> Igniter.Refactors.Rename.rename_function({Old, :call}, {New, :call}, arity: 1)
+    |> assert_has_patch("lib/caller.ex", """
+    - |  def go, do: Old.call(1)
+    + |  def go, do: New.call(1)
+    """)
+  end
+
   test "copies & deprecates the function, bringing docs and specs along for the ride" do
     test_project()
     |> Igniter.create_new_file("lib/example.ex", """
