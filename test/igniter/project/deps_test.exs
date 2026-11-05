@@ -154,6 +154,48 @@ defmodule Igniter.Project.DepsTest do
       + | {:foobar, "~> 2.0", only: :test}
       """)
     end
+
+    test "sets the option when deps/0 uses the one-line do: form" do
+      test_project(
+        files: %{
+          "mix.exs" => """
+          defmodule Test.MixProject do
+            use Mix.Project
+
+            def project, do: [app: :test, version: "0.1.0", deps: deps()]
+
+            defp deps, do: [{:jason, "~> 1.0"}, {:foobar, "~> 2.0"}]
+          end
+          """
+        }
+      )
+      |> Igniter.Project.Deps.set_dep_option(:foobar, :runtime, false)
+      |> assert_has_patch("mix.exs", """
+      - | defp deps, do: [{:jason, "~> 1.0"}, {:foobar, "~> 2.0"}]
+      + | defp deps, do: [{:jason, "~> 1.0"}, {:foobar, "~> 2.0", runtime: false}]
+      """)
+    end
+
+    test "adds to existing options when deps/0 uses the one-line do: form" do
+      test_project(
+        files: %{
+          "mix.exs" => """
+          defmodule Test.MixProject do
+            use Mix.Project
+
+            def project, do: [app: :test, version: "0.1.0", deps: deps()]
+
+            defp deps, do: [{:jason, "~> 1.0"}, {:foobar, "~> 2.0", only: :test}]
+          end
+          """
+        }
+      )
+      |> Igniter.Project.Deps.set_dep_option(:foobar, :runtime, false)
+      |> assert_has_patch("mix.exs", """
+      - | defp deps, do: [{:jason, "~> 1.0"}, {:foobar, "~> 2.0", only: :test}]
+      + | defp deps, do: [{:jason, "~> 1.0"}, {:foobar, "~> 2.0", only: :test, runtime: false}]
+      """)
+    end
   end
 
   describe "get_dep/2" do
