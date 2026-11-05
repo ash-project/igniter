@@ -167,7 +167,9 @@ defmodule Igniter.Project.Deps do
               )
             else
               _ ->
-                Igniter.Code.Tuple.append_elem(zipper, [{key, quoted}])
+                Igniter.Code.Tuple.append_elem(zipper, [
+                  {{:__block__, [format: :keyword], [key]}, quoted}
+                ])
             end
         end
       else
