@@ -68,6 +68,21 @@ defmodule Igniter.Project.Deps do
           Igniter.add_warning(igniter, error)
         end
 
+      nil ->
+        error = """
+        Could not add dependency #{inspect({name, version})}
+
+        `mix.exs` does not contain a module that uses `Mix.Project` with a `deps/0` function.
+
+        Please add the dependency manually.
+        """
+
+        if opts[:error?] do
+          Igniter.add_issue(igniter, error)
+        else
+          Igniter.add_warning(igniter, error)
+        end
+
       {:ok, current} ->
         if opts[:on_exists] == :skip do
           igniter
@@ -125,7 +140,7 @@ defmodule Igniter.Project.Deps do
   @spec set_dep_option(Igniter.t(), atom(), atom(), quoted :: term) :: Igniter.t()
   def set_dep_option(igniter, name, key, quoted) do
     Igniter.update_elixir_file(igniter, "mix.exs", fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+      with {:ok, zipper} <- move_to_mix_project(zipper),
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0),
            true <- Igniter.Code.List.list?(zipper),
            {:ok, zipper} <-
@@ -203,7 +218,7 @@ defmodule Igniter.Project.Deps do
       |> Rewrite.Source.get(:quoted)
       |> Zipper.zip()
 
-    with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+    with {:ok, zipper} <- move_to_mix_project(zipper),
          {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
       case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
         {m, f, a} ->
@@ -263,6 +278,19 @@ defmodule Igniter.Project.Deps do
     end
   end
 
+  # `Igniter.Code.Module.move_to_module_using/2` only checks the first
+  # `defmodule`, so look through every top-level `defmodule` in mix.exs.
+  defp move_to_mix_project(zipper) do
+    zipper
+    |> Igniter.Code.Function.move_to_function_call_in_current_scope(:defmodule, 2, fn zipper ->
+      match?({:ok, _}, Igniter.Code.Module.move_to_module_using(zipper, Mix.Project))
+    end)
+    |> case do
+      {:ok, zipper} -> Igniter.Code.Module.move_to_module_using(zipper, Mix.Project)
+      :error -> :error
+    end
+  end
+
   defp get_dep_declaration(zipper, name) do
     case Igniter.Code.List.move_to_list_item(zipper, fn item ->
            if Igniter.Code.Tuple.tuple?(item) do
@@ -290,7 +318,7 @@ defmodule Igniter.Project.Deps do
   def remove_dep(igniter, name) do
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+      with {:ok, zipper} <- move_to_mix_project(zipper),
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
         case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
           {m, f, a} ->
@@ -406,7 +434,7 @@ defmodule Igniter.Project.Deps do
 
     igniter
     |> Igniter.update_elixir_file("mix.exs", fn zipper ->
-      with {:ok, zipper} <- Igniter.Code.Module.move_to_module_using(zipper, Mix.Project),
+      with {:ok, zipper} <- move_to_mix_project(zipper),
            {:ok, zipper} <- Igniter.Code.Function.move_to_defp(zipper, :deps, 0) do
         case igniter.assigns[:igniter_exs][:deps_location] || :last_list_literal do
           {m, f, a} ->

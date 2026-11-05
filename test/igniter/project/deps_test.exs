@@ -269,6 +269,89 @@ defmodule Igniter.Project.DepsTest do
     end
   end
 
+  describe "with a module defined before the `Mix.Project` module" do
+    @leading_module_mix_exs """
+    defmodule Mix.Tasks.Hello do
+      use Mix.Task
+
+      def run(_), do: :ok
+    end
+
+    defmodule Test.MixProject do
+      use Mix.Project
+
+      def project do
+        [
+          app: :test,
+          version: "0.1.0",
+          deps: deps()
+        ]
+      end
+
+      defp deps do
+        [
+          {:jason, "~> 1.0"}
+        ]
+      end
+    end
+    """
+
+    test "add_dep/3 adds the dependency" do
+      test_project(files: %{"mix.exs" => @leading_module_mix_exs})
+      |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"})
+      |> assert_has_patch("mix.exs", """
+      + |      {:foobar, "~> 2.0"},
+      """)
+    end
+
+    test "get_dep/2 finds the dependency" do
+      igniter = test_project(files: %{"mix.exs" => @leading_module_mix_exs})
+
+      assert {:ok, "{:jason, \"~> 1.0\"}"} = Igniter.Project.Deps.get_dep(igniter, :jason)
+      assert {:ok, nil} = Igniter.Project.Deps.get_dep(igniter, :foobar)
+    end
+
+    test "set_dep_option/4 sets the option" do
+      test_project(files: %{"mix.exs" => @leading_module_mix_exs})
+      |> Igniter.Project.Deps.set_dep_option(:jason, :only, :test)
+      |> assert_has_patch("mix.exs", """
+      - |      {:jason, "~> 1.0"}
+      + |      {:jason, "~> 1.0", only: :test}
+      """)
+    end
+
+    test "remove_dep/2 removes the dependency" do
+      igniter =
+        test_project(files: %{"mix.exs" => @leading_module_mix_exs})
+        |> Igniter.Project.Deps.remove_dep(:jason)
+        |> assert_has_patch("mix.exs", """
+        - |      {:jason, "~> 1.0"}
+        """)
+
+      assert igniter.warnings == []
+    end
+  end
+
+  describe "without a `deps/0` function" do
+    test "add_dep/3 warns instead of raising" do
+      test_project(
+        files: %{
+          "mix.exs" => """
+          defmodule Test.MixProject do
+            use Mix.Project
+
+            def project do
+              [app: :test, version: "0.1.0"]
+            end
+          end
+          """
+        }
+      )
+      |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"})
+      |> assert_has_warning(&String.contains?(&1, "Could not add dependency"))
+    end
+  end
+
   describe "determine_dep_type_and_version/1" do
     test "parses to a version" do
       tests = [
