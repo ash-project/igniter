@@ -509,6 +509,64 @@ defmodule Igniter.Code.Common do
     end
   end
 
+  @doc false
+  # Plain quoted AST (e.g. from `quote`) contains bare literals. The formatter's
+  # normalizer wraps those, but it does not normalize the value of a keyword or map
+  # pair whose key is already formatter AST (`{:__block__, meta, [key]}`). Raw AST
+  # placed there reaches `Code.Formatter` unnormalized and crashes it, so anything
+  # that puts caller-provided AST next to such a key should normalize it first.
+  #
+  # Formatter AST is returned untouched; raw AST is round tripped through Sourceror.
+  # The round trip hits the same formatter limitation, so this must run on the
+  # caller's value *before* it is wrapped in formatter-shaped keys. AST that
+  # can't be round tripped is returned as is.
+  @spec normalize_quoted(Macro.t()) :: Macro.t()
+  def normalize_quoted(ast) do
+    if raw_ast?(ast) do
+      try do
+        ast
+        |> Sourceror.to_string()
+        |> Sourceror.parse_string!()
+      rescue
+        _ -> ast
+      end
+    else
+      ast
+    end
+  end
+
+  # Returns true if the AST contains literals that the formatter AST would wrap
+  # in a `:__block__`. Constructs whose formatter AST also holds bare literals
+  # (binaries, sigils, delimited literals) are not inspected.
+  defp raw_ast?({:__aliases__, _, _}), do: false
+  defp raw_ast?({:<<>>, _, _}), do: false
+
+  defp raw_ast?({:__block__, meta, [list]}) when is_list(list),
+    do: !meta[:delimiter] and Enum.any?(list, &raw_arg?/1)
+
+  defp raw_ast?({:__block__, _, [literal]}) when not is_tuple(literal), do: false
+  defp raw_ast?({:__block__, _, [{left, right}]}), do: raw_ast?(left) or raw_ast?(right)
+  defp raw_ast?({:., _, [left, right]}) when is_atom(right), do: raw_ast?(left)
+  defp raw_ast?({name, _, context}) when is_atom(name) and is_atom(context), do: false
+
+  defp raw_ast?({form, _, args}) when is_list(args) do
+    sigil? = is_atom(form) and String.starts_with?(Atom.to_string(form), "sigil_")
+
+    not sigil? and
+      ((not is_atom(form) and raw_ast?(form)) or Enum.any?(args, &raw_arg?/1))
+  end
+
+  defp raw_ast?(_literal), do: true
+
+  # Formatter AST keeps keyword lists, `->` heads and `->` clauses (as `do:` values)
+  # as bare lists, and keyword/map pairs as bare 2-tuples whose key is wrapped.
+  defp raw_arg?(list) when is_list(list), do: Enum.any?(list, &raw_arg?/1)
+
+  defp raw_arg?({left, right}) when is_tuple(left) and tuple_size(left) == 3,
+    do: raw_ast?(left) or raw_arg?(right)
+
+  defp raw_arg?(arg), do: raw_ast?(arg)
+
   defp clean_lines(ast) do
     Macro.prewalk(ast, fn
       {call, meta, args} ->
@@ -644,6 +702,7 @@ defmodule Igniter.Code.Common do
   def replace_code(%Zipper{} = zipper, new_code) do
     new_code =
       new_code
+      |> normalize_quoted()
       |> clean_lines()
       |> use_aliases(zipper)
 

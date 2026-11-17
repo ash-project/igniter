@@ -280,6 +280,31 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
+  describe "replace_code" do
+    test "quoted code can replace a keyword value from parsed source" do
+      zipper =
+        """
+        foo(bar: baz(1, 2))
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      {:ok, zipper} =
+        Igniter.Code.Function.update_nth_argument(zipper, 0, fn zipper ->
+          Igniter.Code.Keyword.set_keyword_key(zipper, :bar, nil, fn zipper ->
+            {:ok,
+             Igniter.Code.Common.replace_code(
+               zipper,
+               quote(do: :crypto.mac(:hmac, :sha256, "key", a: 1, b: [2, 3]))
+             )}
+          end)
+        end)
+
+      assert zipper |> Zipper.topmost_root() |> Sourceror.to_string() ==
+               ~s|foo(bar: :crypto.mac(:hmac, :sha256, "key", a: 1, b: [2, 3]))|
+    end
+  end
+
   describe "add_code" do
     test "adding a new do block uses block syntax" do
       zipper =

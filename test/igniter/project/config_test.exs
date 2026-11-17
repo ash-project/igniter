@@ -17,6 +17,20 @@ defmodule Igniter.Project.ConfigTest do
       """)
     end
 
+    test "it creates nested config from quoted code" do
+      test_project()
+      |> Igniter.Project.Config.configure(
+        "fake.exs",
+        :fake,
+        [:foo, :bar],
+        {:code, quote(do: :crypto.mac(:hmac, :sha256, "key", "salt"))}
+      )
+      |> assert_creates("config/fake.exs", """
+      import Config
+      config :fake, foo: [bar: :crypto.mac(:hmac, :sha256, "key", "salt")]
+      """)
+    end
+
     @tag :regression
     test "it updates nested keyword values in three argument config" do
       test_project()
@@ -651,6 +665,37 @@ defmodule Igniter.Project.ConfigTest do
       |> assert_has_patch("config/runtime.exs", """
       4 - |  config :fake, :buz, :blat
       4 + |  config :fake, :buz, "baz"
+      """)
+    end
+
+    test "present multi-line value is overwritten with quoted code" do
+      test_project()
+      |> Igniter.create_new_file("config/runtime.exs", """
+      import Config
+
+      if config_env() == :prod do
+        config :fake,
+          secret:
+            :crypto.mac(
+              :hmac,
+              :sha256,
+              System.get_env("SECRET_KEY_BASE"),
+              "salt"
+            )
+      end
+      """)
+      |> apply_igniter!()
+      |> Igniter.Project.Config.configure_runtime_env(
+        :prod,
+        :fake,
+        [:secret],
+        {:code,
+         quote do
+           :crypto.mac(:hmac, :sha512, System.get_env("SECRET_KEY_BASE"), "salt")
+         end}
+      )
+      |> assert_has_patch("config/runtime.exs", """
+      5 + |    secret: :crypto.mac(:hmac, :sha512, System.get_env("SECRET_KEY_BASE"), "salt")
       """)
     end
   end

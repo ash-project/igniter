@@ -550,6 +550,7 @@ defmodule Igniter.Project.Config do
 
             :error ->
               [first | rest] = config_path
+              value = Common.normalize_quoted(value)
 
               config =
                 if simple_atom(first) do

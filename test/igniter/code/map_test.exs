@@ -39,6 +39,15 @@ defmodule Igniter.Code.Map.Test do
 
       assert {:ok, %{hello: :baz}} == Code.Common.expand_literal(zipper)
     end
+
+    test "inserts quoted code into map if not present" do
+      {:ok, zipper} =
+        "%{hello: :world}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.set_map_key(:foo, quote(do: bar(:baz, 1)), &flunk/1)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == "%{hello: :world, foo: bar(:baz, 1)}"
+    end
   end
 
   describe "put_in_map/4" do
@@ -88,6 +97,25 @@ defmodule Igniter.Code.Map.Test do
 
       assert {:ok, %{alpha: %{beta: %{delta: :abd, gamma: :abc}}}} ==
                Code.Common.expand_literal(zipper)
+    end
+
+    test "inserts nested quoted code into empty map" do
+      {:ok, zipper} =
+        "%{}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.put_in_map([:foo, :bar], quote(do: baz(:qux, 1)), &flunk/1)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) == "%{foo: %{bar: baz(:qux, 1)}}"
+    end
+
+    test "inserts nested quoted code into map if not present" do
+      {:ok, zipper} =
+        "%{hello: :world}"
+        |> Code.Common.parse_to_zipper!()
+        |> Code.Map.put_in_map([:foo, :bar], quote(do: baz(:qux, 1)), &flunk/1)
+
+      assert Igniter.Util.Debug.code_at_node(zipper) ==
+               "%{hello: :world, foo: %{bar: baz(:qux, 1)}}"
     end
   end
 end

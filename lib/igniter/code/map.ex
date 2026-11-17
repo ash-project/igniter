@@ -20,6 +20,7 @@ defmodule Igniter.Code.Map do
         ) ::
           {:ok, Zipper.t()} | :error
   def put_in_map(zipper, path, value, updater \\ nil) do
+    value = Common.normalize_quoted(value)
     updater = updater || fn zipper -> {:ok, Common.replace_code(zipper, value)} end
 
     do_put_in_map(zipper, path, value, updater)
@@ -89,6 +90,8 @@ defmodule Igniter.Code.Map do
   @spec set_map_key(Zipper.t(), term(), term(), (Zipper.t() -> {:ok, Zipper.t()} | :error)) ::
           {:ok, Zipper.t()} | :error
   def set_map_key(zipper, key, value, updater) do
+    value = Common.normalize_quoted(value)
+
     cond do
       Common.node_matches_pattern?(zipper, {:%{}, _, []}) ->
         value = Common.use_aliases(value, zipper)
