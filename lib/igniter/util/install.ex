@@ -78,6 +78,13 @@ defmodule Igniter.Util.Install do
         value -> value
       end
 
+    runtime =
+      argv
+      |> OptionParser.parse!(switches: [runtime: :string])
+      |> elem(0)
+      |> Keyword.get(:runtime)
+      |> parse_runtime!()
+
     if only && Mix.env() not in only do
       raise """
       The `--only` option can only be used when running `mix igniter.install` in an environment
@@ -103,6 +110,7 @@ defmodule Igniter.Util.Install do
         yes_to_deps: force_yes? or "--yes-to-deps" in argv,
         verbose: "--verbose" in argv,
         only: only,
+        runtime: runtime,
         append?: Keyword.get(opts, :append?, false)
       )
 
@@ -233,6 +241,15 @@ defmodule Igniter.Util.Install do
     |> Igniter.do_or_dry_run(Keyword.put(options, :title, title))
 
     :ok
+  end
+
+  defp parse_runtime!(nil), do: nil
+  defp parse_runtime!("true"), do: true
+  defp parse_runtime!("false"), do: false
+
+  defp parse_runtime!(value) do
+    raise ArgumentError,
+          "invalid value for --runtime: #{inspect(value)} (expected true or false)"
   end
 
   def get_deps!(igniter, opts) do

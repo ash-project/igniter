@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 defmodule Mix.Tasks.Igniter.InstallTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   use Mimic
 
   import ExUnit.CaptureIO
@@ -57,6 +57,49 @@ defmodule Mix.Tasks.Igniter.InstallTest do
       assert output =~ "fetching deps"
       refute output =~ "fetching deps:"
       refute output =~ "compiling jason:"
+    end
+
+    test "supports setting runtime to false" do
+      _ =
+        cmd!("mix", ["igniter.install", "jason", "--runtime", "false", "--yes"],
+          cd: "test_project"
+        )
+
+      assert File.read!("test_project/mix.exs") =~
+               ~r/\{:jason, "~> [^"]+", runtime: false\}/
+    end
+
+    test "supports setting runtime to true" do
+      _ =
+        cmd!("mix", ["igniter.install", "jason", "--runtime", "true", "--yes"],
+          cd: "test_project"
+        )
+
+      assert File.read!("test_project/mix.exs") =~
+               ~r/\{:jason, "~> [^"]+", runtime: true\}/
+    end
+
+    test "applies the runtime override to every installed package" do
+      _ =
+        cmd!("mix", ["igniter.install", "jason,decimal", "--runtime", "false", "--yes"],
+          cd: "test_project"
+        )
+
+      mix_exs = File.read!("test_project/mix.exs")
+
+      assert mix_exs =~ ~r/\{:jason, "~> [^"]+", runtime: false\}/
+      assert mix_exs =~ ~r/\{:decimal, "~> [^"]+", runtime: false\}/
+    end
+
+    test "rejects a non-boolean runtime value" do
+      {output, status} =
+        System.cmd("mix", ["igniter.install", "jason", "--runtime", "maybe"],
+          cd: "test_project",
+          stderr_to_stdout: true
+        )
+
+      assert status != 0
+      assert output =~ "runtime"
     end
 
     test "does not report success when installation is declined" do

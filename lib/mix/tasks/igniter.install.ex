@@ -35,6 +35,7 @@ defmodule Mix.Tasks.Igniter.Install do
   ## Options
 
   * `--only` - Install the requested packages in only a specific environment(s), i.e `--only dev`, `--only dev,test`
+  * `--runtime` - Set whether the installed packages are available at runtime, i.e `--runtime false`
 
   ## Switches
 
