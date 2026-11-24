@@ -62,6 +62,7 @@ defmodule Mix.Tasks.Igniter.Install do
           Mix.Task.run("deps.compile")
           Mix.Task.run("deps.loadpaths")
           Mix.Task.run("compile", ["--no-compile"])
+          unload_consolidated_protocols()
         end,
         verbose?: "--verbose" in argv
       )
@@ -88,6 +89,26 @@ defmodule Mix.Tasks.Igniter.Install do
       Application.ensure_all_started(:rewrite)
 
       Igniter.Util.Install.install(Enum.join(packages, ","), argv)
+    end
+  end
+
+  # `compile --no-compile` puts the project's consolidated protocols on the code
+  # path. Those were built by the project's last compile, which may predate
+  # igniter (and its deps, e.g. `Rewrite`'s `Enumerable` impl) being added to
+  # the project, and they don't know about deps installed during this run.
+  # Fall back to unconsolidated protocols, which dispatch to whatever impls are
+  # on the code path.
+  defp unload_consolidated_protocols do
+    path = Mix.Project.consolidation_path()
+    charlist_path = to_charlist(path)
+
+    if Code.delete_path(path) do
+      for {module, file} <- :code.all_loaded(),
+          is_list(file),
+          :filename.dirname(file) == charlist_path do
+        :code.purge(module)
+        :code.delete(module)
+      end
     end
   end
 end
