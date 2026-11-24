@@ -12,6 +12,23 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.8.6](https://github.com/ash-project/igniter/compare/v0.8.5...v0.8.6) (2026-11-24)
+
+
+
+
+### Bug Fixes:
+
+* purge consolidated protocols before installing by Zach Daniel
+
+* normalize quoted AST before placing it in keyword/map values by Zach Daniel
+
+* run updater in update_all_elixir_files after include_all_elixir_files by Zach Daniel
+
+* set_dep_option writes a keyword list in one-line deps/0 (#415) by Tom Hoenderdos
+
+* find the Mix.Project module when it is not the first in mix.exs (#414) by Tom Hoenderdos
+
 ## [v0.8.5](https://github.com/ash-project/igniter/compare/v0.8.4...v0.8.5) (2026-10-25)
 
 
