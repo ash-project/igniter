@@ -31,6 +31,36 @@ defmodule Igniter.Project.ConfigTest do
       """)
     end
 
+    # Normalizing quoted code wraps a list in a `:__block__`; wrapping that again left the
+    # keyword list double-wrapped, so it no longer formatted as a trailing keyword argument.
+    @tag :regression
+    test "it creates three argument config from a quoted keyword list" do
+      test_project()
+      |> Igniter.Project.Config.configure_new(
+        "fake.exs",
+        :fake,
+        [Fake.Module],
+        {:code,
+         quote do
+           [
+             engine: Fake.Engine,
+             queues: [default: 10],
+             lifeline: [rescue_after: {2, :hours}],
+             repo: Fake.Repo
+           ]
+         end}
+      )
+      |> assert_creates("config/fake.exs", """
+      import Config
+
+      config :fake, Fake.Module,
+        engine: Fake.Engine,
+        queues: [default: 10],
+        lifeline: [rescue_after: {2, :hours}],
+        repo: Fake.Repo
+      """)
+    end
+
     @tag :regression
     test "it updates nested keyword values in three argument config" do
       test_project()

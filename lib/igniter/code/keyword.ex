@@ -200,6 +200,11 @@ defmodule Igniter.Code.Keyword do
     {:__block__, [token: to_string(value)], [value]}
   end
 
+  # Already formatter AST (e.g. a value from `Common.normalize_quoted/1`). Wrapping it again
+  # double-wraps it, and a double-wrapped keyword list no longer formats as a trailing
+  # keyword argument.
+  def keywordify([], {:__block__, _, _} = value), do: value
+
   def keywordify([], value) do
     {:__block__, [], [value]}
   end
