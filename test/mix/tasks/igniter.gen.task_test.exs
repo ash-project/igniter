@@ -115,6 +115,15 @@ defmodule Mix.Tasks.Igniter.Gen.TaskTest do
       )
     end
 
+    test "documents runtime metadata for generated installer tasks" do
+      diff =
+        test_project()
+        |> Igniter.compose_task("igniter.gen.task", ["foo.install"])
+        |> Igniter.Test.diff()
+
+      assert diff =~ "runtime: nil"
+    end
+
     test "generates a mix task with igniter not being optional with --no-optional" do
       test_project()
       |> Igniter.compose_task("igniter.gen.task", ["foo.bar", "--no-optional"])

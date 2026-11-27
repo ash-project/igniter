@@ -138,6 +138,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
           # An example invocation
           example: @example,
           #{only(opts, task_name)}\
+          #{runtime(opts, task_name)}\
           # a list of positional arguments, i.e `[:file]`
           positional: #{positional(opts)},
           # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
@@ -226,6 +227,7 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
             installs: [],
             #{example(opts, task_name)}\
             #{only(opts, task_name)}\
+            #{runtime(opts, task_name)}\
             # a list of positional arguments, i.e `[:file]`
             positional: #{positional(opts)},
             # Other tasks your task composes using `Igniter.compose_task`, passing in the CLI argv
@@ -292,6 +294,17 @@ defmodule Mix.Tasks.Igniter.Gen.Task do
       """
       # A list of environments that this should be installed in.
       only: nil,
+      """
+    else
+      ""
+    end
+  end
+
+  defp runtime(opts, task_name) do
+    if !opts[:upgrade] && String.ends_with?(task_name, ".install") do
+      """
+      # Whether this dependency should be available at runtime.
+      runtime: nil,
       """
     else
       ""

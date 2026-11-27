@@ -32,6 +32,30 @@ defmodule Igniter.Mix.TaskTest do
     end
   end
 
+  defmodule Elixir.Mix.Tasks.RuntimeMetadata.Install do
+    use Igniter.Mix.Task
+
+    def info(_argv, _parent) do
+      %Igniter.Mix.Task.Info{
+        runtime: false
+      }
+    end
+
+    def igniter(igniter), do: igniter
+  end
+
+  defmodule Elixir.Mix.Tasks.DepOptsRuntime.Install do
+    use Igniter.Mix.Task
+
+    def info(_argv, _parent) do
+      %Igniter.Mix.Task.Info{
+        dep_opts: [runtime: false]
+      }
+    end
+
+    def igniter(igniter), do: igniter
+  end
+
   setup do
     current_shell = Mix.shell()
 
@@ -75,6 +99,111 @@ defmodule Igniter.Mix.TaskTest do
     assert_received {:options, options}
     assert options[:option] == "foo"
     assert_received {:args, %{a: "foo"}}
+  end
+
+  test "installer metadata supports an explicit runtime option" do
+    assert %Igniter.Mix.Task.Info{runtime: nil} = %Igniter.Mix.Task.Info{}
+    assert %Igniter.Mix.Task.Info{runtime: false} = %Igniter.Mix.Task.Info{runtime: false}
+    assert %Igniter.Mix.Task.Info{runtime: true} = %Igniter.Mix.Task.Info{runtime: true}
+
+    assert Keyword.fetch!(Igniter.Mix.Task.Info.global_options()[:switches], :runtime) ==
+             :string
+  end
+
+  describe "installer runtime metadata" do
+    setup do
+      Mix.Task.load_all()
+      :ok
+    end
+
+    test "applies runtime metadata to the installed dependency" do
+      with_existing_dependency(:runtime_metadata, fn igniter ->
+        {igniter, _, _} =
+          Igniter.Util.Info.compose_install_and_validate!(
+            igniter,
+            [],
+            %Igniter.Mix.Task.Info{installs: [{:runtime_metadata, "~> 1.0"}]},
+            "igniter.install",
+            yes: true,
+            fetch?: false
+          )
+
+        assert {:ok, "{:runtime_metadata, \"~> 1.0\", runtime: false}"} =
+                 Igniter.Project.Deps.get_dep(igniter, :runtime_metadata)
+      end)
+    end
+
+    test "CLI runtime overrides installer metadata" do
+      with_existing_dependency(:runtime_metadata, fn igniter ->
+        {igniter, _, _} =
+          Igniter.Util.Info.compose_install_and_validate!(
+            igniter,
+            [],
+            %Igniter.Mix.Task.Info{installs: [{:runtime_metadata, "~> 1.0"}]},
+            "igniter.install",
+            yes: true,
+            runtime: true,
+            fetch?: false
+          )
+
+        assert {:ok, "{:runtime_metadata, \"~> 1.0\", runtime: true}"} =
+                 Igniter.Project.Deps.get_dep(igniter, :runtime_metadata)
+      end)
+    end
+
+    test "preserves runtime from installer dep_opts when metadata is absent" do
+      with_existing_dependency(:dep_opts_runtime, fn igniter ->
+        {igniter, _, _} =
+          Igniter.Util.Info.compose_install_and_validate!(
+            igniter,
+            [],
+            %Igniter.Mix.Task.Info{installs: [{:dep_opts_runtime, "~> 1.0"}]},
+            "igniter.install",
+            yes: true,
+            fetch?: false
+          )
+
+        assert {:ok, "{:dep_opts_runtime, \"~> 1.0\", runtime: false}"} =
+                 Igniter.Project.Deps.get_dep(igniter, :dep_opts_runtime)
+      end)
+    end
+  end
+
+  defp with_existing_dependency(name, fun) do
+    tmp_dir =
+      Path.join(System.tmp_dir!(), "igniter_runtime_test_#{System.unique_integer([:positive])}")
+
+    original_dir = File.cwd!()
+    File.mkdir_p!(tmp_dir)
+
+    File.write!(Path.join(tmp_dir, "mix.exs"), """
+    defmodule Test.MixProject do
+      use Mix.Project
+
+      def project do
+        [
+          app: :test,
+          version: "0.1.0",
+          elixir: "~> 1.17",
+          deps: deps()
+        ]
+      end
+
+      defp deps do
+        [{:#{name}, "~> 1.0"}]
+      end
+    end
+    """)
+
+    try do
+      File.cd!(tmp_dir)
+
+      Igniter.new()
+      |> fun.()
+    after
+      File.cd!(original_dir)
+      File.rm_rf!(tmp_dir)
+    end
   end
 
   describe "positional args following flags" do

@@ -153,7 +153,7 @@ defmodule Igniter.Util.Info do
                   adds_deps: []
               },
               task_name,
-              Keyword.delete(opts, :only),
+              delete_install_overrides(opts),
               :schema,
               name,
               acc
@@ -168,7 +168,7 @@ defmodule Igniter.Util.Info do
             | adds_deps: schema.adds_deps ++ adds_deps
           },
           task_name,
-          Keyword.delete(opts, :only),
+          delete_install_overrides(opts),
           return,
           insert_before,
           acc
@@ -263,35 +263,49 @@ defmodule Igniter.Util.Info do
     Enum.reduce(install_names, igniter, fn install, igniter ->
       composing_task = "#{install}.install"
 
-      with composing_task when not is_nil(composing_task) <- Mix.Task.get(composing_task),
-           true <- function_exported?(composing_task, :info, 2),
-           composing_schema when not is_nil(composing_schema) <-
-             composing_task.info(argv, parent) do
-        options =
-          if composing_schema.only && !opts[:only] do
-            Keyword.put(composing_schema.dep_opts, :only, composing_schema.only)
+      composing_schema =
+        with composing_task when not is_nil(composing_task) <- Mix.Task.get(composing_task),
+             true <- function_exported?(composing_task, :info, 2),
+             composing_schema when not is_nil(composing_schema) <-
+               composing_task.info(argv, parent) do
+          composing_schema
+        else
+          _ -> nil
+        end
+
+      options =
+        if composing_schema do
+          options =
+            if composing_schema.only && !opts[:only] do
+              Keyword.put(composing_schema.dep_opts, :only, composing_schema.only)
+            else
+              composing_schema.dep_opts
+            end
+
+          cond do
+            not is_nil(opts[:runtime]) ->
+              Keyword.put(options, :runtime, opts[:runtime])
+
+            not is_nil(composing_schema.runtime) ->
+              Keyword.put(options, :runtime, composing_schema.runtime)
+
+            true ->
+              options
+          end
+        else
+          if is_nil(opts[:runtime]), do: [], else: [runtime: opts[:runtime]]
+        end
+
+      Enum.reduce(options, igniter, fn {key, val}, igniter ->
+        val =
+          if key == :only do
+            List.wrap(val)
           else
-            composing_schema.dep_opts
+            val
           end
 
-        if options == [] do
-          igniter
-        else
-          Enum.reduce(options, igniter, fn {key, val}, igniter ->
-            val =
-              if key == :only do
-                List.wrap(val)
-              else
-                val
-              end
-
-            Igniter.Project.Deps.set_dep_option(igniter, install, key, val)
-          end)
-        end
-      else
-        _ ->
-          igniter
-      end
+        Igniter.Project.Deps.set_dep_option(igniter, install, key, val)
+      end)
     end)
   end
 
@@ -491,19 +505,25 @@ defmodule Igniter.Util.Info do
         },
         argv,
         parent,
-        Keyword.delete(opts, :only)
+        delete_install_overrides(opts)
       )
       |> Map.put(:composes, List.wrap(composing_schema.composes))
-      |> recursively_compose_schema(argv, composing_task_name, Keyword.delete(opts, :only))
+      |> recursively_compose_schema(argv, composing_task_name, delete_install_overrides(opts))
     else
       _ ->
         recursively_compose_schema(
           %{schema | composes: rest},
           argv,
           parent,
-          Keyword.delete(opts, :only)
+          delete_install_overrides(opts)
         )
     end
+  end
+
+  defp delete_install_overrides(opts) do
+    opts
+    |> Keyword.delete(:only)
+    |> Keyword.delete(:runtime)
   end
 
   defp merge_deps(composed, parent) do
