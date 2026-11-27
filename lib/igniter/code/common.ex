@@ -381,7 +381,7 @@ defmodule Igniter.Code.Common do
 
     cond do
       upwards && extendable_block?(upwards.node) ->
-        {:__block__, upwards_meta, upwards_code} = upwards.node
+        {:__block__, upwards_meta, upwards_code} = open_trailing_block(upwards.node, placement)
         index = Enum.count(zipper.path.left || [])
 
         to_insert =
@@ -475,7 +475,7 @@ defmodule Igniter.Code.Common do
           )
         else
           if extendable_block?(zipper.node) do
-            {:__block__, meta, stuff} = zipper.node
+            {:__block__, meta, stuff} = open_trailing_block(zipper.node, placement)
 
             new_stuff =
               if placement == :after do
@@ -575,6 +575,30 @@ defmodule Igniter.Code.Common do
       other ->
         other
     end)
+  end
+
+  # Sourceror wraps a lone expression that has trailing comments (or the empty
+  # block of a file that contains only comments) in a block flagged as
+  # `__sourceror__.trailing_block`, and expects that block to have exactly one
+  # child. Before adding code to it, it has to be turned into a regular block.
+  defp open_trailing_block({:__block__, meta, code} = block, placement) do
+    if meta[:__sourceror__][:trailing_block] do
+      meta = Keyword.delete(meta, :__sourceror__)
+
+      case code do
+        [{:__block__, _, []}] when placement == :after ->
+          {comments, meta} = Keyword.pop(meta, :trailing_comments, [])
+          {:__block__, Keyword.update(meta, :leading_comments, comments, &(&1 ++ comments)), []}
+
+        [{:__block__, _, []}] ->
+          {:__block__, meta, []}
+
+        code ->
+          {:__block__, meta, code}
+      end
+    else
+      block
+    end
   end
 
   defp has_comments?({_, meta, _}) do

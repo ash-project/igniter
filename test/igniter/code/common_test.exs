@@ -386,6 +386,68 @@ defmodule Igniter.Code.CommonTest do
     end
   end
 
+  describe "add_code with trailing comments" do
+    @describetag :regression
+
+    test "adds code after a lone expression that is followed by comments" do
+      zipper =
+        """
+        foo()
+        # comment
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      assert zipper
+             |> Igniter.Code.Common.add_code("bar()")
+             |> Sourceror.Zipper.topmost_root()
+             |> Sourceror.to_string() == "foo()\nbar()\n# comment"
+    end
+
+    test "adds code before a lone expression that is followed by comments" do
+      zipper =
+        """
+        foo()
+        # comment
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      assert zipper
+             |> Igniter.Code.Common.add_code("bar()", placement: :before)
+             |> Sourceror.Zipper.topmost_root()
+             |> Sourceror.to_string() == "bar()\nfoo()\n# comment"
+    end
+
+    test "adds code after the comments of a source that only has comments" do
+      zipper =
+        """
+        # comment
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      assert zipper
+             |> Igniter.Code.Common.add_code("bar()")
+             |> Sourceror.Zipper.topmost_root()
+             |> Sourceror.to_string() == "# comment\nbar()"
+    end
+
+    test "adds code before the comments of a source that only has comments" do
+      zipper =
+        """
+        # comment
+        """
+        |> Sourceror.parse_string!()
+        |> Sourceror.Zipper.zip()
+
+      assert zipper
+             |> Igniter.Code.Common.add_code("bar()", placement: :before)
+             |> Sourceror.Zipper.topmost_root()
+             |> Sourceror.to_string() == "bar()\n# comment"
+    end
+  end
+
   describe "remove_all_matches" do
     test "removes all matches" do
       source =
