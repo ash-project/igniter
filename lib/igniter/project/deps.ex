@@ -97,7 +97,7 @@ defmodule Igniter.Project.Deps do
               Code.eval_string("{#{inspect(name)}, #{inspect(version)}}") |> elem(0)
             end
 
-          current = Code.eval_string(current) |> elem(0)
+          current = eval_dep_declaration(current)
 
           {desired, current} =
             case {desired, current} do
@@ -111,29 +111,50 @@ defmodule Igniter.Project.Deps do
                 {desired, current}
             end
 
-          if desired == current do
-            if opts[:notify_on_present?] do
-              Mix.shell().info(
-                "Dependency #{name} is already in mix.exs with the desired version. Skipping."
-              )
-            end
+          cond do
+            match?({:unevaluable, _}, current) ->
+              if opts[:notify_on_present?] do
+                Mix.shell().info(
+                  "Dependency #{name} is already in mix.exs and refers to code in mix.exs. Skipping."
+                )
+              end
 
-            igniter
-          else
-            if opts[:yes?] ||
-                 Igniter.Util.IO.yes?("""
-                 Dependency #{name} is already in mix.exs. Should we replace it?
-
-                 Desired: `#{inspect(desired)}`
-                 Found: `#{inspect(current)}`
-                 """) do
-              do_add_dependency(igniter, name, version, opts)
-            else
               igniter
-            end
+
+            desired == current ->
+              if opts[:notify_on_present?] do
+                Mix.shell().info(
+                  "Dependency #{name} is already in mix.exs with the desired version. Skipping."
+                )
+              end
+
+              igniter
+
+            true ->
+              if opts[:yes?] ||
+                   Igniter.Util.IO.yes?("""
+                   Dependency #{name} is already in mix.exs. Should we replace it?
+
+                   Desired: `#{inspect(desired)}`
+                   Found: `#{inspect(current)}`
+                   """) do
+                do_add_dependency(igniter, name, version, opts)
+              else
+                igniter
+              end
           end
         end
     end
+  end
+
+  # A dependency declaration can refer to things that only exist inside the
+  # `mix.exs` module, like module attributes (`targets: @all_targets`) or
+  # private functions. Those can't be evaluated on their own, so they can't be
+  # compared with the desired declaration either. They're left as they are.
+  defp eval_dep_declaration(string) do
+    string |> Code.eval_string() |> elem(0)
+  rescue
+    _ -> {:unevaluable, string}
   end
 
   @doc "Sets a dependency option for an existing dependency"

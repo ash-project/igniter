@@ -42,6 +42,54 @@ defmodule Igniter.Project.DepsTest do
                Igniter.Project.Deps.get_dep(igniter, :foobar)
     end
 
+    test "keeps an existing dependency that refers to a module attribute" do
+      mix_exs = """
+      defmodule Test.MixProject do
+        use Mix.Project
+
+        @all_targets [:rpi4, :rpi5]
+
+        def project do
+          [app: :test, version: "0.1.0", deps: deps()]
+        end
+
+        defp deps do
+          [
+            {:foobar, "~> 2.0", targets: @all_targets}
+          ]
+        end
+      end
+      """
+
+      test_project(files: %{"mix.exs" => mix_exs})
+      |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"}, yes?: true)
+      |> assert_unchanged("mix.exs")
+    end
+
+    test "keeps an existing dependency that calls a function in mix.exs" do
+      mix_exs = """
+      defmodule Test.MixProject do
+        use Mix.Project
+
+        def project do
+          [app: :test, version: "0.1.0", deps: deps()]
+        end
+
+        defp deps do
+          [
+            {:foobar, foobar_version()}
+          ]
+        end
+
+        defp foobar_version, do: "~> 2.0"
+      end
+      """
+
+      test_project(files: %{"mix.exs" => mix_exs})
+      |> Igniter.Project.Deps.add_dep({:foobar, "~> 2.0"}, yes?: true)
+      |> assert_unchanged("mix.exs")
+    end
+
     test "can be configured to add deps to a specific variable" do
       igniter =
         test_project(
