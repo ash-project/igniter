@@ -614,6 +614,48 @@ defmodule Igniter.Project.ConfigTest do
       """)
     end
 
+    # Sourceror wraps a lone expression followed by comments in a special single-child
+    # block; adding a second expression to that block crashed the formatter.
+    @tag :regression
+    test "it adds config to a file that only has `import Config` and comments" do
+      test_project(
+        files: %{
+          "config/fake.exs" => """
+          import Config
+
+          # some comment
+          # another comment
+          """
+        }
+      )
+      |> Igniter.Project.Config.configure("fake.exs", :fake, [:foo, :bar], "baz")
+      |> assert_content_equals("config/fake.exs", """
+      import Config
+      config :fake, foo: [bar: "baz"]
+
+      # some comment
+      # another comment
+      """)
+    end
+
+    @tag :regression
+    test "configure_new/6 adds config to a file that only has `import Config` and comments" do
+      test_project(
+        files: %{
+          "config/fake.exs" => """
+          import Config
+          # some comment
+          """
+        }
+      )
+      |> Igniter.Project.Config.configure_new("fake.exs", :fake, [Fake.Module, :bar], "baz")
+      |> assert_content_equals("config/fake.exs", """
+      import Config
+      config :fake, Fake.Module, bar: "baz"
+      # some comment
+      """)
+    end
+
     test "respect mix.exs :config_path" do
       mix_exs = """
       defmodule Test.MixProject do
@@ -726,6 +768,53 @@ defmodule Igniter.Project.ConfigTest do
       )
       |> assert_has_patch("config/runtime.exs", """
       5 + |    secret: :crypto.mac(:hmac, :sha512, System.get_env("SECRET_KEY_BASE"), "salt")
+      """)
+    end
+  end
+
+  describe "configure_runtime_env/6 with comments" do
+    @describetag :regression
+
+    test "it adds config to a file that only has comments" do
+      test_project(
+        files: %{
+          "config/runtime.exs" => """
+          # some comment
+
+          # another comment
+          """
+        }
+      )
+      |> Igniter.Project.Config.configure_runtime_env(:prod, :fake, [:buz], "baz")
+      |> assert_content_equals("config/runtime.exs", """
+      # some comment
+
+      # another comment
+      if config_env() == :prod do
+        config :fake, buz: "baz"
+      end
+      """)
+    end
+
+    test "it adds config to a file that only has `import Config` and comments" do
+      test_project(
+        files: %{
+          "config/runtime.exs" => """
+          import Config
+
+          # some comment
+          """
+        }
+      )
+      |> Igniter.Project.Config.configure_runtime_env(:prod, :fake, [:buz], "baz")
+      |> assert_content_equals("config/runtime.exs", """
+      import Config
+
+      if config_env() == :prod do
+        config :fake, buz: "baz"
+      end
+
+      # some comment
       """)
     end
   end
@@ -1109,6 +1198,35 @@ defmodule Igniter.Project.ConfigTest do
       )
       |> assert_has_patch("config/config.exs", """
       + |config :foo, bar: :baz, nested: [key: :value]
+      """)
+    end
+  end
+
+  describe "configure_group with comments" do
+    @tag :regression
+    test "adds configuration to a file that only has `import Config` and comments" do
+      test_project(
+        files: %{
+          "config/fake.exs" => """
+          import Config
+
+          # some comment
+          """
+        }
+      )
+      |> Igniter.Project.Config.configure_group(
+        "fake.exs",
+        :fake,
+        [:foo],
+        [{:bar, "baz"}, {:buz, "biz"}],
+        comment: "Configures fake"
+      )
+      |> assert_content_equals("config/fake.exs", """
+      import Config
+      # Configures fake
+      config :fake, foo: [bar: "baz", buz: "biz"]
+
+      # some comment
       """)
     end
   end
