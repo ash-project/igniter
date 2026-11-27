@@ -12,6 +12,21 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.9.0](https://github.com/ash-project/igniter/compare/v0.8.6...v0.9.0) (2026-11-27)
+
+
+
+
+### Features:
+
+* support --runtime option (#419) by jbfawcett24
+
+### Bug Fixes:
+
+* don't crash in add_dep when the existing dep can't be evaluated (#420) by Lars Wikman
+
+* don't double-wrap formatter AST in Igniter.Code.Keyword.keywordify/2 by Zach Daniel
+
 ## [v0.8.6](https://github.com/ash-project/igniter/compare/v0.8.5...v0.8.6) (2026-11-24)
 
 
